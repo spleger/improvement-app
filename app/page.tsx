@@ -1,0 +1,324 @@
+import Link from 'next/link';
+import * as db from '@/lib/db';
+
+const DEMO_USER_ID = 'demo-user-001';
+
+async function getDashboardData() {
+    // Get ALL user's goals (not just active)
+    const allGoals = await db.getGoalsByUserId(DEMO_USER_ID);
+    const activeGoals = allGoals.filter(g => g.status === 'active');
+
+    // Get ALL today's challenges (multiple!)
+    const todayChallenges = await db.getTodayChallenges(DEMO_USER_ID);
+
+    // Get completed challenges count
+    const completedChallenges = await db.getCompletedChallengesCount(DEMO_USER_ID);
+
+    // Calculate streak
+    const streak = await db.calculateStreak(DEMO_USER_ID);
+
+    // Get diary entries count
+    const diaryCount = await db.getDiaryEntriesCount(DEMO_USER_ID);
+
+    // Get average mood from surveys
+    const recentSurveys = await db.getSurveysByUserId(DEMO_USER_ID, 7);
+    const avgMood = recentSurveys.length > 0
+        ? recentSurveys.reduce((sum, s) => sum + s.overallMood, 0) / recentSurveys.length
+        : 0;
+
+    // Calculate overall progress
+    const totalChallengesCompleted = todayChallenges.filter(c => c.status === 'completed').length;
+    const totalChallengesTotal = todayChallenges.length;
+
+    return {
+        todayChallenges,
+        activeGoals,
+        allGoals,
+        stats: {
+            streak,
+            completedChallenges,
+            diaryCount,
+            avgMood: Math.round(avgMood * 10) / 10,
+            todayCompleted: totalChallengesCompleted,
+            todayTotal: totalChallengesTotal
+        }
+    };
+}
+
+function getGreeting() {
+    const hour = new Date().getHours();
+    if (hour < 12) return { text: 'Good morning', emoji: '🌅' };
+    if (hour < 17) return { text: 'Good afternoon', emoji: '☀️' };
+    return { text: 'Good evening', emoji: '🌙' };
+}
+
+import ThemeToggle from './ThemeToggle';
+import GoalCelebrationWrapper from './components/GoalCelebrationWrapper';
+import BottomNavigation from './components/BottomNavigation';
+
+// ... (keep existing imports)
+
+export default async function DashboardPage() {
+    const { todayChallenges, activeGoals, allGoals, stats } = await getDashboardData();
+    const greeting = getGreeting();
+
+    const pendingChallenges = todayChallenges.filter(c => c.status === 'pending');
+    const completedToday = todayChallenges.filter(c => c.status === 'completed');
+
+    return (
+        <div className="page animate-fade-in">
+            <GoalCelebrationWrapper goals={activeGoals} />
+            {/* Header */}
+            <div className="dashboard-header">
+                <h1 className="greeting">
+                    {greeting.text}! <span className="greeting-emoji">{greeting.emoji}</span>
+                </h1>
+                <div className="flex items-center gap-sm">
+                    <ThemeToggle />
+                    <Link href="/settings" className="btn btn-ghost" style={{ fontSize: '1.5rem' }}>
+                        ⚙️
+                    </Link>
+                </div>
+            </div>
+
+            {/* Today's Progress Bar */}
+            {todayChallenges.length > 0 && (
+                <div className="card mb-lg" style={{ background: 'var(--gradient-primary)', color: 'white' }}>
+                    <div className="flex justify-between items-center mb-sm">
+                        <span className="heading-5">Today's Progress</span>
+                        <span className="heading-4">{stats.todayCompleted}/{stats.todayTotal}</span>
+                    </div>
+                    <div className="progress-bar" style={{ background: 'rgba(255,255,255,0.3)' }}>
+                        <div
+                            className="progress-bar-fill"
+                            style={{
+                                width: `${stats.todayTotal > 0 ? (stats.todayCompleted / stats.todayTotal) * 100 : 0}%`,
+                                background: 'white'
+                            }}
+                        />
+                    </div>
+                    <div className="text-small mt-sm" style={{ opacity: 0.9 }}>
+                        {stats.todayCompleted === stats.todayTotal && stats.todayTotal > 0
+                            ? '🎉 All challenges complete!'
+                            : `${pendingChallenges.length} challenge${pendingChallenges.length !== 1 ? 's' : ''} remaining`}
+                    </div>
+                </div>
+            )}
+
+            {/* Active Goals */}
+            <section className="mb-lg">
+                <div className="flex justify-between items-center mb-md">
+                    <h2 className="heading-4">🎯 Your Goals ({activeGoals.length})</h2>
+                    <Link href="/goals/new" className="btn btn-ghost text-small">+ Add Goal</Link>
+                </div>
+
+                {activeGoals.length === 0 ? (
+                    <Link href="/goals/new" className="card card-highlight" style={{ display: 'block', textDecoration: 'none' }}>
+                        <div className="heading-4 mb-md">🚀 Start Your Transformation</div>
+                        <p className="text-secondary">Set your first goal to begin receiving daily challenges.</p>
+                    </Link>
+                ) : (
+                    <div className="flex flex-col gap-sm">
+                        {activeGoals.map(goal => {
+                            const dayInJourney = Math.ceil((Date.now() - new Date(goal.startedAt).getTime()) / (1000 * 60 * 60 * 24));
+                            const progress = Math.min(Math.round((dayInJourney / 30) * 100), 100);
+                            return (
+                                <div key={goal.id} className="card">
+                                    <div className="flex items-center gap-md">
+                                        <div style={{
+                                            width: '48px',
+                                            height: '48px',
+                                            borderRadius: '12px',
+                                            background: goal.domain?.color || 'var(--gradient-primary)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontSize: '1.5rem'
+                                        }}>
+                                            {goal.domain?.name === 'Languages' ? '🗣️' :
+                                                goal.domain?.name === 'Mobility' ? '🧘' :
+                                                    goal.domain?.name === 'Emotional Growth' ? '💜' :
+                                                        goal.domain?.name === 'Relationships' ? '🤝' :
+                                                            goal.domain?.name === 'Physical Health' ? '💪' :
+                                                                goal.domain?.name === 'Tolerance' ? '🛡️' :
+                                                                    goal.domain?.name === 'Skills' ? '🎯' :
+                                                                        goal.domain?.name === 'Habits' ? '🔄' : '🎯'}
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <div className="heading-5">{goal.title}</div>
+                                            <div className="text-small text-muted">Day {dayInJourney}/30 • {progress}%</div>
+                                        </div>
+                                        <Link href={`/challenges/generate?goalId=${goal.id}`} className="btn btn-ghost text-small">
+                                            + Challenge
+                                        </Link>
+                                    </div>
+                                    <div className="progress-bar mt-md" style={{ height: '6px' }}>
+                                        <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </section>
+
+            {/* Today's Challenges */}
+            <section className="mb-lg">
+                <div className="flex justify-between items-center mb-md">
+                    <h2 className="heading-4">⚡ Today's Challenges</h2>
+                    <Link href="/challenges/browse" className="btn btn-ghost text-small">Browse All</Link>
+                </div>
+
+                {todayChallenges.length === 0 ? (
+                    <div className="card text-center">
+                        <p className="text-secondary mb-md">No challenges scheduled for today.</p>
+                        {activeGoals.length > 0 ? (
+                            <div className="flex gap-sm justify-center">
+                                <Link href={`/challenges/generate?goalId=${activeGoals[0].id}`} className="btn btn-primary">
+                                    Generate Challenge
+                                </Link>
+                                <Link href="/challenges/browse" className="btn btn-secondary">
+                                    Browse Library
+                                </Link>
+                            </div>
+                        ) : (
+                            <Link href="/goals/new" className="btn btn-primary">
+                                Create a Goal First
+                            </Link>
+                        )}
+                    </div>
+                ) : (
+                    <div className="flex flex-col gap-md">
+                        {/* Pending Challenges */}
+                        {pendingChallenges.map(challenge => (
+                            <ChallengeCard key={challenge.id} challenge={challenge} />
+                        ))}
+
+                        {/* Completed Challenges (collapsed) */}
+                        {completedToday.length > 0 && (
+                            <div className="card card-surface">
+                                <div className="flex items-center gap-sm text-success">
+                                    <span>✅</span>
+                                    <span className="heading-5">{completedToday.length} completed today</span>
+                                </div>
+                                <div className="mt-sm text-small text-muted">
+                                    {completedToday.map(c => c.title).join(', ')}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Add More Button */}
+                        {activeGoals.length > 0 && (
+                            <Link
+                                href="/challenges/browse"
+                                className="card text-center"
+                                style={{
+                                    border: '2px dashed var(--color-border)',
+                                    background: 'transparent',
+                                    textDecoration: 'none'
+                                }}
+                            >
+                                <span className="text-muted">+ Add Another Challenge</span>
+                            </Link>
+                        )}
+                    </div>
+                )}
+            </section>
+
+            {/* Quick Stats */}
+            <section className="mb-lg">
+                <h2 className="heading-4 mb-md">📊 Stats</h2>
+                <div className="stats-grid">
+                    <div className="stat-card">
+                        <div className="stat-value fire">{stats.streak}</div>
+                        <div className="stat-label">Day Streak</div>
+                    </div>
+                    <div className="stat-card">
+                        <div className="stat-value">{stats.completedChallenges}</div>
+                        <div className="stat-label">Total Done</div>
+                    </div>
+                    <div className="stat-card">
+                        <div className="stat-value">{allGoals.length}</div>
+                        <div className="stat-label">Goals</div>
+                    </div>
+                    <div className="stat-card">
+                        <div className="stat-value">{stats.avgMood || '—'}</div>
+                        <div className="stat-label">Avg Mood</div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Quick Actions */}
+            <section className="mb-lg">
+                <div className="flex gap-md">
+                    <Link href="/diary" className="btn btn-secondary" style={{ flex: 1 }}>
+                        🎙️ Voice Diary
+                    </Link>
+                    <Link href="/survey" className="btn btn-secondary" style={{ flex: 1 }}>
+                        📝 Check-in
+                    </Link>
+                </div>
+            </section>
+
+            {/* Bottom Navigation */}
+            <BottomNavigation />
+        </div>
+    );
+}
+
+// Challenge Card Component
+function ChallengeCard({ challenge }: { challenge: any }) {
+    const isCompleted = challenge.status === 'completed';
+    const isRealityShift = challenge.isRealityShift;
+
+    const getDifficultyColor = (d: number) => {
+        if (d <= 3) return '#22c55e';
+        if (d <= 6) return '#f59e0b';
+        return '#ef4444';
+    };
+
+    return (
+        <Link
+            href={`/challenges/${challenge.id}`}
+            className={`challenge-card ${isRealityShift ? 'reality-shift' : ''} ${isCompleted ? 'completed' : ''}`}
+            style={{ textDecoration: 'none', display: 'block' }}
+        >
+            <div className="flex items-start gap-md">
+                <div style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '12px',
+                    background: getDifficultyColor(challenge.difficulty),
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontWeight: 'bold',
+                    fontSize: '1.25rem'
+                }}>
+                    {challenge.difficulty}
+                </div>
+                <div style={{ flex: 1 }}>
+                    <div className="flex items-center gap-sm mb-xs">
+                        <span className="heading-5">{challenge.title}</span>
+                        {isRealityShift && (
+                            <span style={{ fontSize: '0.75rem', color: '#f12711' }}>⚡</span>
+                        )}
+                    </div>
+                    <p className="text-small text-muted" style={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical'
+                    }}>
+                        {challenge.description}
+                    </p>
+                </div>
+                <span style={{ fontSize: '1.5rem' }}>→</span>
+            </div>
+        </Link>
+    );
+}
+
+
