@@ -2,7 +2,7 @@ import Link from 'next/link';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import ProgressCharts from './ProgressCharts';
+
 
 export default async function ProgressPage() {
     const user = await getCurrentUser();
