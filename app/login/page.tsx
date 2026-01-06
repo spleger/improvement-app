@@ -97,7 +97,14 @@ export default function LoginPage() {
                                     router.push('/');
                                     router.refresh();
                                 } else {
-                                    setError('Demo login failed. Please try again.');
+                                    // Parse potential error message from server
+                                    let errorMessage = 'Demo login failed';
+                                    try {
+                                        const data = await res.json();
+                                        if (data.error) errorMessage = data.error;
+                                    } catch (e) { /* ignore parse error */ }
+
+                                    setError(errorMessage);
                                     setLoading(false);
                                 }
                             } catch (e) {
