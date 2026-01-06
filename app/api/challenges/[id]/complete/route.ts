@@ -13,7 +13,7 @@ export async function POST(
         }
         const { id } = await params.params;
 
-        await db.updateChallengeStatus(id, 'completed');
+        await db.completeChallenge(id);
 
         // Return updated stats
         const streak = await db.calculateStreak(user.userId);
