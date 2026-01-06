@@ -11,12 +11,13 @@ export async function POST(request: NextRequest) {
         }
         const body = await request.json();
 
-        const survey = await db.createSurvey({
+        const survey = await db.createOrUpdateDailySurvey({
             userId: user.userId,
+            surveyDate: new Date(),
             overallMood: body.overallMood,
             energyLevel: body.energyLevel,
             motivationLevel: body.motivationLevel,
-            notes: body.notes
+            gratitudeNote: body.notes // Mapping notes to a valid field
         });
 
         return NextResponse.json({
