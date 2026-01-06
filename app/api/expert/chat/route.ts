@@ -40,7 +40,8 @@ async function getUserContext(userId: string) {
             avgMood,
             dayInJourney,
             recentChallenges: challenges.slice(0, 5),
-            preferences // Added preferences
+            preferences,
+            recentDiary: await db.getDiaryEntriesByUserId(userId, 3) // Fetch recent 3 entries
         };
     } catch (error) {
         console.error('Error fetching user context:', error);
@@ -163,6 +164,22 @@ ${context.todayChallenge.description ? `- Description: ${context.todayChallenge.
             context.recentChallenges.slice(0, 3).forEach((c: any) => {
                 prompt += `- "${c.title}" (${c.status}, difficulty ${c.difficulty}/10)\n`;
             });
+        }
+
+        if (context.recentDiary && context.recentDiary.length > 0) {
+            prompt += `\n🎙️ RECENT DIARY ENTRIES (Mental State):\n`;
+            context.recentDiary.slice(0, 3).forEach((e: any) => {
+                const date = new Date(e.createdAt).toLocaleDateString();
+                let insights = '';
+                try {
+                    const parsed = JSON.parse(e.aiInsights || '{}');
+                    if (parsed.sentiment) insights += `Sentiment: ${parsed.sentiment}. `;
+                    if (parsed.distortions?.length) insights += `Distortions: ${parsed.distortions.join(', ')}. `;
+                } catch (err) { }
+
+                prompt += `- [${date}] ${e.aiSummary || 'No summary'}\n  ${insights}\n`;
+            });
+            prompt += `(Use these insights to be more empathetic. If they mentioned feeling down, acknowledge it.)\n`;
         }
 
         prompt += `\n=== END OF CONTEXT ===\n`;

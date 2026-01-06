@@ -12,6 +12,8 @@ interface DiaryEntry {
     createdAt: string;
     moodScore?: number;
     entryType: string;
+    aiSummary?: string;
+    aiInsights?: string;
 }
 
 export default function DiaryPage() {
@@ -113,9 +115,47 @@ export default function DiaryPage() {
                                                 </div>
                                             )}
                                         </div>
-                                        <p className="text-lg leading-relaxed whitespace-pre-wrap">
+                                        <p className="text-lg leading-relaxed whitespace-pre-wrap mb-md">
                                             {entry.transcript}
                                         </p>
+
+                                        {/* AI Analysis Section */}
+                                        {(entry.aiSummary || entry.aiInsights) && (
+                                            <div className="bg-surface-hover rounded-lg p-md mt-md text-sm">
+                                                <div className="flex items-center gap-xs font-bold text-primary mb-xs">
+                                                    <span>🧠 AI Analysis</span>
+                                                </div>
+
+                                                {entry.aiSummary && (
+                                                    <p className="mb-sm text-muted italic">"{entry.aiSummary}"</p>
+                                                )}
+
+                                                {entry.aiInsights && (() => {
+                                                    try {
+                                                        const insights = JSON.parse(entry.aiInsights);
+                                                        return (
+                                                            <div className="flex flex-wrap gap-sm mt-sm">
+                                                                {insights.sentiment && (
+                                                                    <span className="badge badge-neutral">
+                                                                        Sentiment: {insights.sentiment}
+                                                                    </span>
+                                                                )}
+                                                                {insights.distortions?.map((d: string, i: number) => (
+                                                                    <span key={i} className="badge badge-error bg-red-100 text-red-700 border-red-200">
+                                                                        ⚠️ {d}
+                                                                    </span>
+                                                                ))}
+                                                                {insights.themes?.map((t: string, i: number) => (
+                                                                    <span key={i} className="badge badge-primary bg-primary/10 text-primary border-primary/20">
+                                                                        #{t}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        );
+                                                    } catch (e) { return null; }
+                                                })()}
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>

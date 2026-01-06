@@ -12,15 +12,61 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { transcript, audioDurationSeconds, moodScore } = body;
 
+        let aiSummary = '';
+        let aiInsights = '{}';
+
+        // 1. Analyze with Anthropic (if transcript exists)
+        if (transcript && transcript.length > 10 && process.env.ANTHROPIC_API_KEY) {
+            try {
+                const Anthropic = require('@anthropic-ai/sdk');
+                const anthropic = new Anthropic({
+                    apiKey: process.env.ANTHROPIC_API_KEY,
+                });
+
+                const systemPrompt = `You are an expert psychological analyst. Analyze the user's diary entry.
+                Return a JSON object with:
+                - summary: A 1-sentence summary of the entry.
+                - sentiment: One of [Positive, Negative, Neutral, Mixed, Anxious, Hopeful].
+                - cognitive_distortions: An array of strings (e.g. "Catastrophizing", "All-or-nothing thinking") if present, else empty.
+                - key_themes: An array of 1-3 keywords.
+                
+                Keep it concise. Output ONLY valid JSON.`;
+
+                const msg = await anthropic.messages.create({
+                    model: "claude-3-5-sonnet-20241022",
+                    max_tokens: 400,
+                    system: systemPrompt,
+                    messages: [{ role: "user", content: transcript }],
+                });
+
+                // Parse the response
+                const content = msg.content[0].text;
+                // Simple JSON extraction in case of preamble
+                const jsonMatch = content.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    const data = JSON.parse(jsonMatch[0]);
+                    aiSummary = data.summary;
+                    aiInsights = JSON.stringify({
+                        sentiment: data.sentiment,
+                        distortions: data.cognitive_distortions,
+                        themes: data.key_themes
+                    });
+                }
+            } catch (aiError) {
+                console.error('AI Analysis failed:', aiError);
+                // Fail silently, save entry without AI
+            }
+        }
+
         const entry = await db.createDiaryEntry({
             userId: user.userId,
             transcript,
             audioDurationSeconds,
             moodScore,
             entryType: 'voice',
-            // In a real app, we would upload the audio file to S3/Blob storage here
-            // and save the URL. For this demo, we'll leave it null or use a placeholder
-            audioUrl: undefined
+            audioUrl: undefined,
+            aiSummary,
+            aiInsights
         });
 
         return NextResponse.json({
