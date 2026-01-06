@@ -12,7 +12,9 @@ interface GeneratedChallenge {
     isRealityShift: boolean;
 }
 
-export default function GenerateChallengesPage() {
+import { Suspense } from 'react';
+
+function ChallengeGeneratorContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const goalId = searchParams.get('goalId');
@@ -242,5 +244,13 @@ export default function GenerateChallengesPage() {
         }
       `}</style>
         </div>
+    );
+}
+
+export default function GenerateChallengesPage() {
+    return (
+        <Suspense fallback={<div className="page p-lg text-center">Loading generator...</div>}>
+            <ChallengeGeneratorContent />
+        </Suspense>
     );
 }
