@@ -1,25 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as db from '@/lib/db';
+import { getCurrentUser } from '@/lib/auth';
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
-const DEMO_USER_ID = 'demo-user-001';
-
-async function getUserContext() {
+async function getUserContext(userId: string) {
     try {
         // Get active goal
-        const activeGoal = await db.getActiveGoalByUserId(DEMO_USER_ID);
+        const activeGoal = await db.getActiveGoalByUserId(userId);
 
         // Get recent challenges
-        const challenges = await db.getChallengesByUserId(DEMO_USER_ID, { limit: 10 });
+        const challenges = await db.getChallengesByUserId(userId, { limit: 10 });
         const completedChallenges = challenges.filter(c => c.status === 'completed');
-        const todayChallenge = await db.getTodayChallenge(DEMO_USER_ID);
+        const todayChallenge = await db.getTodayChallenge(userId);
 
         // Get streak
-        const streak = await db.calculateStreak(DEMO_USER_ID);
+        const streak = await db.calculateStreak(userId);
 
         // Get recent surveys for mood data
-        const surveys = await db.getSurveysByUserId(DEMO_USER_ID, 7);
+        const surveys = await db.getSurveysByUserId(userId, 7);
         const avgMood = surveys.length > 0
             ? Math.round(surveys.reduce((sum, s) => sum + s.overallMood, 0) / surveys.length * 10) / 10
             : null;
@@ -154,6 +153,11 @@ ${context.todayChallenge.description ? `- Description: ${context.todayChallenge.
 
 export async function POST(request: NextRequest) {
     try {
+        const user = await getCurrentUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await request.json();
         const { message, history, coachId } = body;
 
@@ -165,7 +169,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Get user context
-        const context = await getUserContext();
+        const context = await getUserContext(user.userId);
         const systemPrompt = buildSystemPrompt(context, coachId);
 
         // Build conversation history for Claude
@@ -187,13 +191,13 @@ export async function POST(request: NextRequest) {
 
         try {
             // Find or create conversation
-            let conversation = await db.getLatestConversation(DEMO_USER_ID);
+            let conversation = await db.getLatestConversation(user.userId);
             let conversationMessages = conversation?.messages || [];
 
             // If no conversation found or it's empty, create one
             if (!conversation) {
                 conversation = await db.createConversation({
-                    userId: DEMO_USER_ID,
+                    userId: user.userId,
                     conversationType: 'expert_chat',
                     title: 'Transformation Coaching',
                     initialMessages: []
@@ -257,7 +261,7 @@ export async function POST(request: NextRequest) {
             const reply = getFallbackResponse(message, context);
 
             // Even on error fallback, we want to save the interaction
-            let conversation = await db.getLatestConversation(DEMO_USER_ID);
+            let conversation = await db.getLatestConversation(user.userId);
             if (conversation && conversation.id) {
                 const msgs = conversation.messages || [];
                 msgs.push({ role: 'user', content: message, timestamp: new Date().toISOString() });
@@ -283,7 +287,12 @@ export async function POST(request: NextRequest) {
 // GET /api/expert/chat - Get chat history
 export async function GET(request: NextRequest) {
     try {
-        const conversation = await db.getLatestConversation(DEMO_USER_ID);
+        const user = await getCurrentUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const conversation = await db.getLatestConversation(user.userId);
 
         let messages = [];
         if (conversation && conversation.messages) {
@@ -304,7 +313,6 @@ export async function GET(request: NextRequest) {
     } catch (error) {
         console.error('Error fetching chat history:', error);
         return NextResponse.json(
-            { success: false, error: 'Internal server error' },
             { status: 500 }
         );
     }

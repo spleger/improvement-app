@@ -30,6 +30,11 @@ export async function getUserById(id: string) {
     return result.rows[0] || null;
 }
 
+export async function getUserByEmail(email: string) {
+    const result = await pool.query('SELECT * FROM "User" WHERE email = $1', [email]);
+    return result.rows[0] || null;
+}
+
 export async function createUser(data: {
     email: string;
     passwordHash: string;

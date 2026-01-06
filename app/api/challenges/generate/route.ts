@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as db from '@/lib/db';
 import { pool } from '@/lib/db';
+import { getCurrentUser } from '@/lib/auth';
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
-const DEMO_USER_ID = 'demo-user-001';
-
-async function getFullUserContext(goalId?: string) {
+async function getFullUserContext(userId: string, goalId?: string) {
     try {
         // Get specific goal or active goal
         let goal;
         if (goalId) {
             goal = await db.getGoalById(goalId);
         } else {
-            goal = await db.getActiveGoalByUserId(DEMO_USER_ID);
+            goal = await db.getActiveGoalByUserId(userId);
         }
 
         if (!goal) return null;
@@ -37,7 +36,7 @@ async function getFullUserContext(goalId?: string) {
         );
 
         // Get recent surveys for mood/energy patterns
-        const surveys = await db.getSurveysByUserId(DEMO_USER_ID, 7);
+        const surveys = await db.getSurveysByUserId(userId, 7);
 
         // Calculate average difficulty felt (to adapt)
         const avgDifficultyFelt = completedChallenges.length > 0
@@ -56,7 +55,7 @@ async function getFullUserContext(goalId?: string) {
             : 5;
 
         // Get user's streak
-        const streak = await db.calculateStreak(DEMO_USER_ID);
+        const streak = await db.calculateStreak(userId);
 
         // Get mood patterns
         const avgMood = surveys.length > 0
@@ -167,11 +166,16 @@ Respond ONLY with the JSON array, no other text.`;
 
 export async function POST(request: NextRequest) {
     try {
+        const user = await getCurrentUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await request.json();
         const { goalId, count = 1, focusArea } = body;
 
         // Get full user context
-        const context = await getFullUserContext(goalId);
+        const context = await getFullUserContext(user.userId, goalId);
 
         if (!context) {
             return NextResponse.json(
@@ -228,7 +232,7 @@ export async function POST(request: NextRequest) {
 
             for (const challenge of challenges) {
                 const saved = await db.createChallenge({
-                    userId: DEMO_USER_ID,
+                    userId: user.userId,
                     goalId: context.goal.id,
                     title: challenge.title,
                     description: challenge.description,
@@ -256,7 +260,7 @@ export async function POST(request: NextRequest) {
 
             // Fallback: Create a simple challenge based on context
             const fallbackChallenge = await db.createChallenge({
-                userId: DEMO_USER_ID,
+                userId: user.userId,
                 goalId: context.goal.id,
                 title: `Day ${context.dayInJourney} Practice Session`,
                 description: `Spend 15-20 minutes focused on your goal: ${context.goal.title}. Choose one specific aspect to work on.`,

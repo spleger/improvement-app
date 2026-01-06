@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'Transform',
   webDir: 'public',
   server: {
-    url: 'https://YOUR_APP_URL.vercel.app', // Update this with your actual Vercel URL
+    url: 'https://improvement-app.vercel.app',
     cleartext: true
   }
 };
