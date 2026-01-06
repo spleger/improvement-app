@@ -1,12 +1,16 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import * as db from '@/lib/db';
+import { getCurrentUser } from '@/lib/auth';
 import SettingsForm from './SettingsForm';
 import ThemeToggle from '../ThemeToggle';
-import * as db from '@/lib/db';
-
-const DEMO_USER_ID = 'demo-user-001';
 
 async function getUserPreferences() {
-    const prefs = await db.getUserPreferences(DEMO_USER_ID);
+    const user = await getCurrentUser();
+    if (!user) {
+        redirect('/login');
+    }
+    const prefs = await db.getUserPreferences(user.userId);
     return prefs;
 }
 

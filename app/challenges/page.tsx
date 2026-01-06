@@ -1,10 +1,14 @@
 import Link from 'next/link';
 import * as db from '@/lib/db';
-
-const DEMO_USER_ID = 'demo-user-001';
+import { getCurrentUser } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
 async function getChallengeHistory() {
-    const challenges = await db.getChallengesByUserId(DEMO_USER_ID, { limit: 30 });
+    const user = await getCurrentUser();
+    if (!user) {
+        redirect('/login');
+    }
+    const challenges = await db.getChallengesByUserId(user.userId, { limit: 30 });
     return challenges;
 }
 

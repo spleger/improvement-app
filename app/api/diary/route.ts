@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as db from '@/lib/db';
+import { getCurrentUser } from '@/lib/auth';
 
 // POST /api/diary - Create diary entry
 export async function POST(request: NextRequest) {
     try {
+        const user = await getCurrentUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
         const body = await request.json();
         const { transcript, audioDurationSeconds, moodScore } = body;
-        const userId = 'demo-user-001';
 
         const entry = await db.createDiaryEntry({
-            userId,
+            userId: user.userId,
             transcript,
             audioDurationSeconds,
             moodScore,
@@ -35,9 +39,12 @@ export async function POST(request: NextRequest) {
 // GET /api/diary - Get diary entries
 export async function GET(request: NextRequest) {
     try {
-        const userId = 'demo-user-001';
+        const user = await getCurrentUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
 
-        const entries = await db.getDiaryEntriesByUserId(userId);
+        const entries = await db.getDiaryEntriesByUserId(user.userId);
 
         return NextResponse.json({
             success: true,

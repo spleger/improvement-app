@@ -1,32 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as db from '@/lib/db';
+import { getCurrentUser } from '@/lib/auth';
 
-const DEMO_USER_ID = 'demo-user-001';
-
-// GET /api/settings - Get user preferences
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
-        const prefs = await db.getUserPreferences(DEMO_USER_ID);
-
-        return NextResponse.json({
-            success: true,
-            data: { preferences: prefs }
-        });
+        const user = await getCurrentUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+        const prefs = await db.getUserPreferences(user.userId);
+        return NextResponse.json(prefs);
     } catch (error) {
-        console.error('Error fetching settings:', error);
-        return NextResponse.json(
-            { success: false, error: 'Internal server error' },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: 'Failed to fetch settings' }, { status: 500 });
     }
 }
 
-// POST /api/settings - Save user preferences
 export async function POST(request: NextRequest) {
     try {
+        const user = await getCurrentUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
         const body = await request.json();
 
-        const prefs = await db.saveUserPreferences(DEMO_USER_ID, body);
+        const prefs = await db.saveUserPreferences(user.userId, body);
 
         return NextResponse.json({
             success: true,

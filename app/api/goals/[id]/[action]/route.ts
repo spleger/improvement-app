@@ -1,41 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as db from '@/lib/db';
-
-const DEMO_USER_ID = 'demo-user-001'; // In production, get from auth
+import { getCurrentUser } from '@/lib/auth';
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { id: string; action: string } }
+    params: { params: Promise<{ id: string; action: string }> }
 ) {
     try {
-        const { id, action } = params;
+        const user = await getCurrentUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const { id, action } = await params.params;
 
         // Verify goal belongs to user
-        const goals = await db.getGoalsByUserId(DEMO_USER_ID);
+        const goals = await db.getGoalsByUserId(user.userId);
         const goal = goals.find(g => g.id === id);
 
         if (!goal) {
-            return NextResponse.json(
-                { success: false, error: 'Goal not found' },
-                { status: 404 }
-            );
+            return NextResponse.json({ error: 'Goal not found' }, { status: 404 });
         }
 
         let updatedGoal;
 
         if (action === 'extend') {
-            // Add another 30 days
-            // We need a db function for this, but for now let's just update the target date if stored,
-            // or maybe just log it. Since current schema implies fixed 30 days, 
-            // we might need to update the 'createdAt' or have an 'extendedAt' field?
-            // Simplified: Just set status back to active if it was completed, or keep it active.
-            // For this app, let's assume extending means resetting the "start date" to now effective for another 30 days?
-            // No, that loses history.
-            // Let's assume we just acknowledge it. 
-            // Ideally: Update `totalDays` to 60?
-            // Schema doesn't have `totalDays`. It calculates from `createdAt`.
-            // Let's leave it as is for now, just a placeholder acknowledgement.
-            updatedGoal = goal;
+            // For now, extending just keeps it active or acknowledges it.
+            updatedGoal = await db.updateGoalStatus(id, 'active');
         } else if (action === 'archive') {
             updatedGoal = await db.updateGoalStatus(id, 'archived');
         } else if (action === 'levelup') {
@@ -44,28 +35,25 @@ export async function POST(
 
             // Create new "Level 2" goal
             const newGoal = await db.createGoal({
-                userId: DEMO_USER_ID,
+                userId: user.userId,
                 title: `${goal.title} (Level 2)`,
-                domainId: goal.domainId || 1, // Defaulting to 1 if null since types require number
+                domainId: goal.domainId || 1,
                 description: goal.description || undefined,
+                difficultyLevel: Math.min(10, (goal.difficultyLevel || 5) + 2),
+                realityShiftEnabled: true
             });
             updatedGoal = newGoal;
         } else {
-            return NextResponse.json(
-                { success: false, error: 'Invalid action' },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
         }
 
         return NextResponse.json({
             success: true,
             data: updatedGoal
         });
+
     } catch (error) {
-        console.error('Error updating goal:', error);
-        return NextResponse.json(
-            { success: false, error: 'Internal server error' },
-            { status: 500 }
-        );
+        console.error('Goal action error:', error);
+        return NextResponse.json({ error: 'Server error' }, { status: 500 });
     }
 }

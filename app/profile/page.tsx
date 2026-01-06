@@ -1,13 +1,19 @@
 import Link from 'next/link';
 import * as db from '@/lib/db';
+import { getCurrentUser } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
-const DEMO_USER_ID = 'demo-user-001';
+export default async function ProfilePage() {
+    const user = await getCurrentUser();
+    if (!user) {
+        redirect('/login');
+    }
 
-async function getProfileData() {
-    const goals = await db.getGoalsByUserId(DEMO_USER_ID);
-    const challenges = await db.getChallengesByUserId(DEMO_USER_ID, { limit: 100 });
-    const streak = await db.calculateStreak(DEMO_USER_ID);
-    const diaryCount = await db.getDiaryEntriesCount(DEMO_USER_ID);
+    // Get all user data
+    const goals = await db.getGoalsByUserId(user.userId);
+    const challenges = await db.getChallengesByUserId(user.userId, { limit: 100 });
+    const streak = await db.calculateStreak(user.userId);
+    const diaryCount = await db.getDiaryEntriesCount(user.userId);
 
     const completedChallenges = challenges.filter(c => c.status === 'completed').length;
     const activeGoals = goals.filter(g => g.status === 'active').length;
@@ -19,22 +25,15 @@ async function getProfileData() {
         ? Math.ceil((Date.now() - new Date(firstGoal.createdAt).getTime()) / (1000 * 60 * 60 * 24))
         : 0;
 
-    return {
-        stats: {
-            streak,
-            completedChallenges,
-            activeGoals,
-            completedGoals,
-            totalGoals: goals.length,
-            diaryCount,
-            daysOnPlatform
-        },
-        goals
+    const stats = {
+        streak,
+        completedChallenges,
+        activeGoals,
+        completedGoals,
+        totalGoals: goals.length,
+        diaryCount,
+        daysOnPlatform
     };
-}
-
-export default async function ProfilePage() {
-    const { stats, goals } = await getProfileData();
 
     return (
         <div className="page animate-fade-in">
@@ -53,7 +52,7 @@ export default async function ProfilePage() {
                 }}>
                     👤
                 </div>
-                <h1 className="heading-2">Demo User</h1>
+                <h1 className="heading-2">My Profile</h1>
                 <p className="text-secondary">
                     {stats.daysOnPlatform} days on your transformation journey
                 </p>
@@ -113,7 +112,7 @@ export default async function ProfilePage() {
                                             Started {new Date(goal.startedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                         </div>
                                     </div>
-                                    <span className={`text-tiny ${goal.status === 'active' ? 'text-success' : 'text-muted'}`}>
+                                    <span className={`text-tiny ${goal.status === 'active' ? 'text-success' : 'text-muted'} `}>
                                         {goal.status}
                                     </span>
                                 </div>
@@ -127,30 +126,11 @@ export default async function ProfilePage() {
             <section className="mb-lg">
                 <h2 className="heading-4 mb-md">Settings</h2>
                 <div className="flex flex-col gap-sm">
-                    <button className="card flex items-center gap-md" style={{ width: '100%', textAlign: 'left' }}>
-                        <span>🎨</span>
-                        <span style={{ flex: 1 }}>Theme</span>
-                        <span className="text-muted">Minimal</span>
-                    </button>
-                    <button className="card flex items-center gap-md" style={{ width: '100%', textAlign: 'left' }}>
-                        <span>🔔</span>
-                        <span style={{ flex: 1 }}>Notifications</span>
-                        <span className="text-muted">On</span>
-                    </button>
-                    <button className="card flex items-center gap-md" style={{ width: '100%', textAlign: 'left' }}>
-                        <span>🌍</span>
-                        <span style={{ flex: 1 }}>Timezone</span>
-                        <span className="text-muted">Auto</span>
-                    </button>
-                </div>
-            </section>
-
-            {/* Danger Zone */}
-            <section className="mb-lg">
-                <div className="card card-surface">
-                    <p className="text-small text-muted text-center">
-                        Demo account • Data resets periodically
-                    </p>
+                    <Link href="/settings" className="card flex items-center gap-md" style={{ width: '100%', textAlign: 'left', textDecoration: 'none', color: 'inherit' }}>
+                        <span>⚙️</span>
+                        <span style={{ flex: 1 }}>General Settings</span>
+                        <span className="text-muted">→</span>
+                    </Link>
                 </div>
             </section>
 

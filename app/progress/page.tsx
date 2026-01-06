@@ -1,25 +1,30 @@
 import Link from 'next/link';
 import * as db from '@/lib/db';
+import { getCurrentUser } from '@/lib/auth';
+import { redirect } from 'next/navigation';
+import ProgressCharts from './ProgressCharts';
 
-const DEMO_USER_ID = 'demo-user-001';
+export default async function ProgressPage() {
+    const user = await getCurrentUser();
+    if (!user) {
+        redirect('/login');
+    }
 
-async function getProgressData() {
-    // Get all challenges
-    const challenges = await db.getChallengesByUserId(DEMO_USER_ID, { limit: 30 });
+    // Get data
+    const challenges = await db.getChallengesByUserId(user.userId, { limit: 30 });
+    const surveys = await db.getSurveysByUserId(user.userId, 30);
+    // const journals = await db.getDiaryEntriesByUserId(user.userId, 10);
 
-    // Get surveys for the last 30 days
-    const surveys = await db.getSurveysByUserId(DEMO_USER_ID, 30);
+    const activeGoal = await db.getActiveGoalByUserId(user.userId);
 
-    // Get active goal
-    const activeGoal = await db.getActiveGoalByUserId(DEMO_USER_ID);
+    const completedChallenges = challenges.filter(c => c.status === 'completed');
+    const skippedChallenges = challenges.filter(c => c.status === 'skipped');
 
     // Calculate stats
-    const completedCount = challenges.filter(c => c.status === 'completed').length;
-    const skippedCount = challenges.filter(c => c.status === 'skipped').length;
+    const streak = await db.calculateStreak(user.userId);
+    const completedCount = completedChallenges.length;
+    const skippedCount = skippedChallenges.length;
     const totalCount = challenges.length;
-
-    // Calculate streak
-    const streak = await db.calculateStreak(DEMO_USER_ID);
 
     // Build calendar data for last 30 days
     const calendarData: { date: string; status: 'completed' | 'skipped' | 'pending' | 'none' }[] = [];
@@ -46,27 +51,18 @@ async function getProgressData() {
         motivation: s.motivationLevel
     }));
 
-    return {
-        activeGoal,
-        stats: {
-            completed: completedCount,
-            skipped: skippedCount,
-            total: totalCount,
-            streak,
-            completionRate: totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
-        },
-        calendarData,
-        chartData
-    };
-}
-
-export default async function ProgressPage() {
-    const { activeGoal, stats, calendarData, chartData } = await getProgressData();
-
     // Calculate day in journey
     const dayInJourney = activeGoal
         ? Math.min(30, Math.ceil((Date.now() - new Date(activeGoal.startedAt).getTime()) / (1000 * 60 * 60 * 24)))
         : 0;
+
+    const stats = {
+        completed: completedCount,
+        skipped: skippedCount,
+        total: totalCount,
+        streak,
+        completionRate: totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
+    };
 
     return (
         <div className="page animate-fade-in">
@@ -136,7 +132,7 @@ export default async function ProgressPage() {
                                                 : 'var(--color-surface)',
                                     color: ['completed', 'skipped'].includes(day.status) ? 'white' : 'var(--color-text-muted)'
                                 }}
-                                title={`${day.date}: ${day.status}`}
+                                title={`${day.date}: ${day.status} `}
                             >
                                 {day.status === 'completed' && '✓'}
                                 {day.status === 'skipped' && '✗'}
@@ -171,12 +167,12 @@ export default async function ProgressPage() {
                                 <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                     <div
                                         style={{
-                                            height: `${point.mood * 10}%`,
+                                            height: `${point.mood * 10}% `,
                                             background: 'var(--gradient-primary)',
                                             borderRadius: '2px 2px 0 0',
                                             minHeight: '4px'
                                         }}
-                                        title={`Mood: ${point.mood}`}
+                                        title={`Mood: ${point.mood} `}
                                     />
                                 </div>
                             ))}

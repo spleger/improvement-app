@@ -1,27 +1,27 @@
 import Link from 'next/link';
 import * as db from '@/lib/db';
+import { getCurrentUser } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
-const DEMO_USER_ID = 'demo-user-001';
-
-async function getDashboardData() {
+async function getDashboardData(userId: string) {
     // Get ALL user's goals (not just active)
-    const allGoals = await db.getGoalsByUserId(DEMO_USER_ID);
+    const allGoals = await db.getGoalsByUserId(userId);
     const activeGoals = allGoals.filter(g => g.status === 'active');
 
     // Get ALL today's challenges (multiple!)
-    const todayChallenges = await db.getTodayChallenges(DEMO_USER_ID);
+    const todayChallenges = await db.getTodayChallenges(userId);
 
     // Get completed challenges count
-    const completedChallenges = await db.getCompletedChallengesCount(DEMO_USER_ID);
+    const completedChallenges = await db.getCompletedChallengesCount(userId);
 
     // Calculate streak
-    const streak = await db.calculateStreak(DEMO_USER_ID);
+    const streak = await db.calculateStreak(userId);
 
     // Get diary entries count
-    const diaryCount = await db.getDiaryEntriesCount(DEMO_USER_ID);
+    const diaryCount = await db.getDiaryEntriesCount(userId);
 
     // Get average mood from surveys
-    const recentSurveys = await db.getSurveysByUserId(DEMO_USER_ID, 7);
+    const recentSurveys = await db.getSurveysByUserId(userId, 7);
     const avgMood = recentSurveys.length > 0
         ? recentSurveys.reduce((sum, s) => sum + s.overallMood, 0) / recentSurveys.length
         : 0;
@@ -59,7 +59,12 @@ import BottomNavigation from './components/BottomNavigation';
 // ... (keep existing imports)
 
 export default async function DashboardPage() {
-    const { todayChallenges, activeGoals, allGoals, stats } = await getDashboardData();
+    const user = await getCurrentUser();
+    if (!user) {
+        redirect('/login');
+    }
+
+    const { todayChallenges, activeGoals, allGoals, stats } = await getDashboardData(user.userId);
     const greeting = getGreeting();
 
     const pendingChallenges = todayChallenges.filter(c => c.status === 'pending');
