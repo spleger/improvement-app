@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import ChallengeProposal from './widgets/ChallengeProposal';
+import MoodLogWidget from './widgets/MoodLogWidget';
+import NewGoalWidget from './widgets/NewGoalWidget';
 
 interface Message {
     id: string;
@@ -8,15 +11,6 @@ interface Message {
     content: string;
     timestamp: Date;
 }
-
-const INITIAL_MESSAGES: Message[] = [
-    {
-        id: '1',
-        role: 'assistant',
-        content: "Hi! I'm your Transformation Coach. I'm here to help you achieve your goals and build lasting habits. What would you like to discuss today?",
-        timestamp: new Date()
-    }
-];
 
 const SUGGESTED_TOPICS = [
     "I'm struggling with motivation",
@@ -48,16 +42,74 @@ export default function ExpertChat() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
+    // Render helper for widgets
+    const renderMessageContent = (content: string) => {
+        const parts = content.split(/(<<<\{.*?\}>>>)/g);
+
+        return parts.map((part, index) => {
+            if (part.startsWith('<<<') && part.endsWith('>>>')) {
+                try {
+                    const jsonStr = part.slice(3, -3);
+                    const data = JSON.parse(jsonStr);
+
+                    switch (data.type) {
+                        case 'suggest_challenge':
+                            return (
+                                <div key={index} className="my-2">
+                                    <ChallengeProposal
+                                        title={data.payload.title}
+                                        difficulty={data.payload.difficulty}
+                                        isRealityShift={data.payload.isRealityShift}
+                                        onAccept={() => scrollToBottom()}
+                                    />
+                                </div>
+                            );
+                        case 'log_mood':
+                            return (
+                                <div key={index} className="my-2">
+                                    <MoodLogWidget onLog={() => scrollToBottom()} />
+                                </div>
+                            );
+                        case 'create_goal':
+                            return (
+                                <div key={index} className="my-2">
+                                    <NewGoalWidget
+                                        title={data.payload.title}
+                                        domainId={data.payload.domainId}
+                                    />
+                                </div>
+                            );
+                        default:
+                            return null;
+                    }
+                } catch (e) {
+                    console.error('Failed to parse widget', e);
+                    return null;
+                }
+            }
+
+            if (!part.trim()) return null;
+
+            return (
+                <p key={index} style={{ margin: 0, whiteSpace: 'pre-wrap', marginBottom: '0.5rem' }}>
+                    {part}
+                </p>
+            );
+        });
+    };
+
+    // Helper to generate diff IDs for history items
+    const diffId = (idx: number) => `hist-${Date.now()}-${idx}`;
+
+    // Load history when coach changes
     useEffect(() => {
-        // Fetch history
         const fetchHistory = async () => {
             setIsLoading(true);
-            setMessages([]); // Clear previous messages while loading
+            setMessages([]);
             try {
                 const response = await fetch(`/api/expert/chat?coachId=${selectedCoach.id}`);
                 const data = await response.json();
                 if (data.success && data.data.messages) {
-                    // Map messages to ensure ID exists
                     const loadedMessages = data.data.messages.map((msg: any, index: number) => ({
                         id: msg.id || diffId(index),
                         role: msg.role,
@@ -79,8 +131,7 @@ export default function ExpertChat() {
         fetchHistory();
     }, [selectedCoach]);
 
-    const diffId = (idx: number) => `hist-${Date.now()}-${idx}`;
-
+    // Scroll on new messages
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
@@ -105,7 +156,7 @@ export default function ExpertChat() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     message: content,
-                    history: messages.slice(-10), // Last 10 messages for context
+                    history: messages.slice(-10),
                     coachId: selectedCoach.id
                 })
             });
@@ -121,11 +172,10 @@ export default function ExpertChat() {
                 };
                 setMessages(prev => [...prev, assistantMessage]);
             } else {
-                // Fallback response if API fails
                 const fallbackMessage: Message = {
                     id: (Date.now() + 1).toString(),
                     role: 'assistant',
-                    content: "I understand you're working on your transformation. Could you tell me more about what specific aspect you'd like help with? I'm here to support your journey.",
+                    content: "I understand you're working on your transformation. Could you tell me more about what specific aspect you'd like help with?",
                     timestamp: new Date()
                 };
                 setMessages(prev => [...prev, fallbackMessage]);
@@ -135,7 +185,7 @@ export default function ExpertChat() {
             const errorMessage: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                content: "I'm having trouble connecting right now. Please try again in a moment. In the meantime, remember that consistency beats perfection - small steps every day lead to big transformations!",
+                content: "I'm having trouble connecting right now. Please try again in a moment.",
                 timestamp: new Date()
             };
             setMessages(prev => [...prev, errorMessage]);
@@ -201,7 +251,7 @@ export default function ExpertChat() {
                                 {selectedCoach.icon}
                             </div>
                         )}
-                        <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{message.content}</p>
+                        <div>{renderMessageContent(message.content)}</div>
                     </div>
                 ))}
 
@@ -226,7 +276,7 @@ export default function ExpertChat() {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* Suggested Topics (show when few messages) */}
+            {/* Suggested Topics */}
             {messages.length <= 2 && (
                 <div style={{ marginBottom: '1rem' }}>
                     <div className="text-small text-muted mb-sm">Suggested topics:</div>

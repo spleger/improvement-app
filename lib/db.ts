@@ -159,6 +159,20 @@ export async function updateGoalStatus(id: string, status: string) {
     return result.rows[0];
 }
 
+export async function deleteGoal(id: string) {
+    // Delete related challenges first (cascade manually just in case)
+    await pool.query('DELETE FROM "Challenge" WHERE "goalId" = $1', [id]);
+    await pool.query('DELETE FROM "Conversation" WHERE "goalId" = $1', [id]);
+    // Delete diary entries linked to goal
+    await pool.query('DELETE FROM "DiaryEntry" WHERE "goalId" = $1', [id]);
+
+    const result = await pool.query(
+        `DELETE FROM "Goal" WHERE id = $1 RETURNING *`,
+        [id]
+    );
+    return result.rows[0];
+}
+
 // ==================== CHALLENGE TEMPLATE OPERATIONS ====================
 
 export async function getChallengeTemplatesByDomain(domainId: number, options?: {

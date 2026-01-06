@@ -17,6 +17,9 @@ async function getUserContext(userId: string) {
         // Get streak
         const streak = await db.calculateStreak(userId);
 
+        // Get user preferences (NEW)
+        const preferences = await db.getUserPreferences(userId);
+
         // Get recent surveys for mood data
         const surveys = await db.getSurveysByUserId(userId, 7);
         const avgMood = surveys.length > 0
@@ -36,7 +39,8 @@ async function getUserContext(userId: string) {
             streak,
             avgMood,
             dayInJourney,
-            recentChallenges: challenges.slice(0, 5)
+            recentChallenges: challenges.slice(0, 5),
+            preferences // Added preferences
         };
     } catch (error) {
         console.error('Error fetching user context:', error);
@@ -85,13 +89,25 @@ Your role is to help users:
 - Overcome challenges and setbacks
 - Process emotions around change
 - Celebrate wins (big and small)
-`;
 
-    if (coachId && coachId !== 'general') {
-        prompt += `\nIMPORTANT: Stay STRICTLY within your domain of expertise (${coachId}). If the user asks about something totally unrelated, gently guide them to the General Coach or the appropriate specialist, but try to find a metaphor in your domain if possible.\n`;
-    }
+IMPORTANT: Stay STRICTLY within your domain of expertise (${coachId || 'General'}). If the user asks about something totally unrelated, gently guide them to the General Coach or the appropriate specialist.
 
-    prompt += `
+=== INTERACTIVE WIDGETS PROCTOCOL ===
+You can trigger interactive widgets in the chat to help the user take action.
+To use a widget, output a JSON block formatted exactly like this on a separate line:
+<<<{"type": "WIDGET_TYPE", "payload": { ... }}>>>
+
+Supported Widgets:
+1. Suggest Challenge (Use when user asks for a challenge or needs something to do)
+   <<<{"type": "suggest_challenge", "payload": {"title": "Challenge Title", "difficulty": 5, "isRealityShift": false}}>>>
+
+2. Log Mood (Use when user mentions feeling a certain way or you want to check in)
+   <<<{"type": "log_mood", "payload": {}}>>>
+
+3. Create Goal (Use when user wants to start a new journey or has no active goal)
+   <<<{"type": "create_goal", "payload": {"title": "Suggested Goal Title", "domainId": 1}}>>>
+=====================================
+
 Guidelines:
 - Keep responses concise (2-4 paragraphs max)
 - Use specific, actionable advice
@@ -99,12 +115,18 @@ Guidelines:
 - Be empathetic but also gently push users out of comfort zones
 - Use occasional emojis to be warm but not excessive
 - Ask follow-up questions to understand their situation better
-
 `;
 
     if (context) {
         prompt += `\n=== USER'S CURRENT CONTEXT ===\n`;
-        // ... (rest of context building)
+
+        if (context.preferences?.displayName) {
+            prompt += `User's Name: ${context.preferences.displayName}\n`;
+        }
+
+        if (context.preferences?.preferredDifficulty) {
+            prompt += `User's Preferred Difficulty: ${context.preferences.preferredDifficulty}/10\n`;
+        }
 
         if (context.activeGoal) {
             prompt += `\n📎 ACTIVE GOAL:
@@ -117,7 +139,7 @@ Guidelines:
 - Reality Shift mode: ${context.activeGoal.realityShiftEnabled ? 'ON (wants extreme challenges)' : 'OFF'}
 `;
         } else {
-            prompt += `\n⚠️ User has no active goal set yet. Encourage them to set one!\n`;
+            prompt += `\n⚠️ User has no active goal set yet. Encourage them to set one using the create_goal widget!\n`;
         }
 
         prompt += `\n📊 PROGRESS:

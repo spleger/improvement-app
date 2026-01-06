@@ -55,6 +55,7 @@ function getGreeting() {
 import ThemeToggle from './ThemeToggle';
 import GoalCelebrationWrapper from './components/GoalCelebrationWrapper';
 import BottomNavigation from './components/BottomNavigation';
+import GoalActions from './components/GoalActions';
 
 // ... (keep existing imports)
 
@@ -156,6 +157,7 @@ export default async function DashboardPage() {
                                         <Link href={`/challenges/generate?goalId=${goal.id}`} className="btn btn-ghost text-small">
                                             + Challenge
                                         </Link>
+                                        <GoalActions goalId={goal.id} goalTitle={goal.title} />
                                     </div>
                                     <div className="progress-bar mt-md" style={{ height: '6px' }}>
                                         <div className="progress-bar-fill" style={{ width: `${progress}%` }} />

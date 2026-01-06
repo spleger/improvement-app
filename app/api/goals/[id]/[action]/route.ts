@@ -29,6 +29,11 @@ export async function POST(
             updatedGoal = await db.updateGoalStatus(id, 'active');
         } else if (action === 'archive') {
             updatedGoal = await db.updateGoalStatus(id, 'archived');
+        } else if (action === 'complete') {
+            updatedGoal = await db.updateGoalStatus(id, 'completed');
+        } else if (action === 'delete') {
+            await db.deleteGoal(id);
+            return NextResponse.json({ success: true, message: 'Goal deleted' });
         } else if (action === 'levelup') {
             // Archive old one
             await db.updateGoalStatus(id, 'completed');

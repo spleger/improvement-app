@@ -87,6 +87,28 @@ export default function LoginPage() {
                         {loading ? 'Signing In...' : 'Sign In'}
                     </button>
 
+                    <button
+                        type="button"
+                        onClick={async () => {
+                            setLoading(true);
+                            try {
+                                const res = await fetch('/api/auth/demo', { method: 'POST' });
+                                if (res.ok) {
+                                    router.push('/');
+                                    router.refresh();
+                                }
+                            } catch (e) {
+                                setError('Demo login failed');
+                                setLoading(false);
+                            }
+                        }}
+                        className="btn btn-secondary w-full mb-lg"
+                        disabled={loading}
+                        style={{ border: '1px dashed var(--color-primary)', background: 'transparent', color: 'var(--color-primary)' }}
+                    >
+                        🧪 Try Demo Mode
+                    </button>
+
                     <div className="text-center text-small">
                         <span className="text-secondary">Don't have an account? </span>
                         <Link href="/register" className="text-primary hover:underline font-medium">
