@@ -96,6 +96,9 @@ export default function LoginPage() {
                                 if (res.ok) {
                                     router.push('/');
                                     router.refresh();
+                                } else {
+                                    setError('Demo login failed. Please try again.');
+                                    setLoading(false);
                                 }
                             } catch (e) {
                                 setError('Demo login failed');
