@@ -190,8 +190,9 @@ export async function POST(request: NextRequest) {
         messages.push({ role: 'user', content: message });
 
         try {
-            // Find or create conversation
-            let conversation = await db.getLatestConversation(user.userId);
+            // Find specific conversation for this coach
+            const targetCoachId = coachId || 'general';
+            let conversation = await db.getExpertConversation(user.userId, targetCoachId);
             let conversationMessages = conversation?.messages || [];
 
             // If no conversation found or it's empty, create one
@@ -199,8 +200,9 @@ export async function POST(request: NextRequest) {
                 conversation = await db.createConversation({
                     userId: user.userId,
                     conversationType: 'expert_chat',
-                    title: 'Transformation Coaching',
-                    initialMessages: []
+                    title: `${targetCoachId.charAt(0).toUpperCase() + targetCoachId.slice(1)} Coaching`,
+                    initialMessages: [],
+                    context: { coachId: targetCoachId }
                 });
                 conversationMessages = [];
             }
@@ -260,8 +262,20 @@ export async function POST(request: NextRequest) {
             console.error('Claude API call failed:', apiError);
             const reply = getFallbackResponse(message, context);
 
-            // Even on error fallback, we want to save the interaction
-            let conversation = await db.getLatestConversation(user.userId);
+            // Even on error fallback, we want to save interaction to the correct context
+            const targetCoachId = coachId || 'general';
+            let conversation = await db.getExpertConversation(user.userId, targetCoachId);
+
+            if (!conversation) {
+                conversation = await db.createConversation({
+                    userId: user.userId,
+                    conversationType: 'expert_chat',
+                    title: `${targetCoachId.charAt(0).toUpperCase() + targetCoachId.slice(1)} Coaching`,
+                    initialMessages: [],
+                    context: { coachId: targetCoachId }
+                });
+            }
+
             if (conversation && conversation.id) {
                 const msgs = conversation.messages || [];
                 msgs.push({ role: 'user', content: message, timestamp: new Date().toISOString() });
@@ -292,16 +306,31 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const conversation = await db.getLatestConversation(user.userId);
+        const coachId = request.nextUrl.searchParams.get('coachId') || 'general';
+        const conversation = await db.getExpertConversation(user.userId, coachId);
 
         let messages = [];
         if (conversation && conversation.messages) {
             messages = conversation.messages;
         } else {
             // Default welcome message if no history
+            // We can customize this based on coachId too!
+            let welcomeMsg = "Hi! I'm your Transformation Coach. I'm here to help you achieve your goals and build lasting habits.";
+
+            switch (coachId) {
+                case 'languages': welcomeMsg = "Hello! Ready to unlock your language potential?"; break;
+                case 'mobility': welcomeMsg = "Welcome. Let's work on getting you moving freely and without pain."; break;
+                case 'emotional': welcomeMsg = "Hi there. I'm here to help you navigate your emotional landscape."; break;
+                case 'relationships': welcomeMsg = "Hello. Let's talk about building stronger, healthier connections."; break;
+                case 'health': welcomeMsg = "Hi! Let's get your health and vitality to the next level."; break;
+                case 'tolerance': welcomeMsg = "Welcome. Ready to embrace discomfort and build resilience?"; break;
+                case 'skills': welcomeMsg = "Hi! Let's optimize your practice and master new skills."; break;
+                case 'habits': welcomeMsg = "Hello! Let's build some rock-solid habits together."; break;
+            }
+
             messages = [{
                 role: 'assistant',
-                content: "Hi! I'm your Transformation Coach. I'm here to help you achieve your goals and build lasting habits. What would you like to discuss today?",
+                content: welcomeMsg + " What would you like to discuss?",
                 timestamp: new Date()
             }];
         }

@@ -607,6 +607,36 @@ export async function getLatestConversation(userId: string) {
     };
 }
 
+export async function getExpertConversation(userId: string, coachId: string) {
+    // If coachId is 'general', we might check for 'general' OR null/legacy conversations
+    // But for strict separation, we'll enforce context->>'coachId'
+
+    // Postgres JSONB query for performance if we used JSONB, but text is fine for small scale
+    // Note: Assuming 'context' column is TEXT (based on other functions), using string parsing or simple exact match pattern?
+    // Postgres has JSON operators even on TEXT with casting.
+
+    // Safer approach compatible with potential SQLite/limitations: Fetch recent expert chats and filter in code
+    // OR use specific query if we know it's Postgres (which we do: pg pool).
+
+    const result = await pool.query(
+        `SELECT * FROM "Conversation" 
+         WHERE "userId" = $1 
+         AND "conversationType" = 'expert_chat'
+         AND (context::jsonb->>'coachId' = $2 OR ($2 = 'general' AND (context::jsonb->>'coachId' IS NULL OR context::jsonb->>'coachId' = 'general')))
+         ORDER BY "updatedAt" DESC 
+         LIMIT 1`,
+        [userId, coachId]
+    );
+
+    if (result.rows.length === 0) return null;
+    const row = result.rows[0];
+    return {
+        ...row,
+        messages: row.messages ? JSON.parse(row.messages) : [],
+        context: row.context ? JSON.parse(row.context) : null
+    };
+}
+
 export async function updateConversationMessages(id: string, messages: any[]) {
     const messagesJson = JSON.stringify(messages);
     const result = await pool.query(

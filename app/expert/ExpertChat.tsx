@@ -38,7 +38,7 @@ const COACHES = [
 ];
 
 export default function ExpertChat() {
-    const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
+    const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [selectedCoach, setSelectedCoach] = useState(COACHES[0]);
@@ -51,8 +51,10 @@ export default function ExpertChat() {
     useEffect(() => {
         // Fetch history
         const fetchHistory = async () => {
+            setIsLoading(true);
+            setMessages([]); // Clear previous messages while loading
             try {
-                const response = await fetch('/api/expert/chat');
+                const response = await fetch(`/api/expert/chat?coachId=${selectedCoach.id}`);
                 const data = await response.json();
                 if (data.success && data.data.messages) {
                     // Map messages to ensure ID exists
@@ -69,11 +71,13 @@ export default function ExpertChat() {
                 }
             } catch (e) {
                 console.error("Failed to load history", e);
+            } finally {
+                setIsLoading(false);
             }
         };
 
         fetchHistory();
-    }, []);
+    }, [selectedCoach]);
 
     const diffId = (idx: number) => `hist-${Date.now()}-${idx}`;
 
