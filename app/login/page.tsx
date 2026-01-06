@@ -97,18 +97,24 @@ export default function LoginPage() {
                                     router.push('/');
                                     router.refresh();
                                 } else {
-                                    // Parse potential error message from server
-                                    let errorMessage = 'Demo login failed';
+                                    // Robust Diagnostics
+                                    let diagMsg = `Error ${res.status}`;
                                     try {
-                                        const data = await res.json();
-                                        if (data.error) errorMessage = data.error;
-                                    } catch (e) { /* ignore parse error */ }
-
-                                    setError(errorMessage);
+                                        const text = await res.text();
+                                        try {
+                                            const data = JSON.parse(text);
+                                            diagMsg = data.error || `Error ${res.status}: ${text}`;
+                                        } catch (e) {
+                                            diagMsg = `Error ${res.status}: ${text.substring(0, 100)}`;
+                                        }
+                                    } catch (e) {
+                                        diagMsg = `Error ${res.status} (no body)`;
+                                    }
+                                    setError(diagMsg);
                                     setLoading(false);
                                 }
                             } catch (e) {
-                                setError('Demo login failed');
+                                setError(`Fetch failed: ${e instanceof Error ? e.message : String(e)}`);
                                 setLoading(false);
                             }
                         }}
@@ -127,6 +133,6 @@ export default function LoginPage() {
                     </div>
                 </form>
             </div>
-        </div>
+        </div >
     );
 }
