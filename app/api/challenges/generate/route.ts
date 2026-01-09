@@ -3,7 +3,16 @@ import * as db from '@/lib/db';
 import { pool } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const ANTHROPIC_API_KEY_RAW = process.env.ANTHROPIC_API_KEY;
+// Sanitize: strip quotes and whitespace
+const ANTHROPIC_API_KEY = ANTHROPIC_API_KEY_RAW?.replace(/^["']|["']$/g, '').trim();
+
+if (ANTHROPIC_API_KEY) {
+    const masked = `${ANTHROPIC_API_KEY.slice(0, 7)}...${ANTHROPIC_API_KEY.slice(-4)}`;
+    console.log(`[API] Anthropic Key Loaded: ${masked} (Length: ${ANTHROPIC_API_KEY.length})`);
+} else {
+    console.warn('[API] ANTHROPIC_API_KEY is missing');
+}
 
 const SYSTEM_PROMPT = `You are an expert personal transformation coach and challenge designer. 
 Your goal is to create highly personalized, actionable daily challenges that push the user toward their specific goals.
