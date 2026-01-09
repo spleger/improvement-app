@@ -217,16 +217,18 @@ export async function POST(request: NextRequest) {
         // Add previous messages if any
         if (history && Array.isArray(history)) {
             for (const msg of history.slice(-6)) {
-                if (msg.role === 'user') {
-                    messages.push({ role: 'user', content: msg.content });
-                } else if (msg.role === 'assistant') {
-                    messages.push({ role: 'assistant', content: msg.content });
+                if (msg.content && typeof msg.content === 'string' && msg.content.trim().length > 0) {
+                    if (msg.role === 'user') {
+                        messages.push({ role: 'user', content: msg.content.trim() });
+                    } else if (msg.role === 'assistant') {
+                        messages.push({ role: 'assistant', content: msg.content.trim() });
+                    }
                 }
             }
         }
 
         // Add current message
-        messages.push({ role: 'user', content: message });
+        messages.push({ role: 'user', content: message.trim() });
 
         try {
             // Find specific conversation for this coach
@@ -264,7 +266,7 @@ export async function POST(request: NextRequest) {
                 },
                 body: JSON.stringify({
                     model: 'claude-3-haiku-20240307',
-                    max_tokens: 600,
+                    max_tokens: 1000,
                     system: systemPrompt,
                     messages
                 })
@@ -272,7 +274,7 @@ export async function POST(request: NextRequest) {
 
             if (!response.ok) {
                 const errorText = await response.text();
-                // console.error('Claude API error:', response.status, errorText); // Commented to keep logs clean
+                console.error('Claude API error [Expert Chat]:', response.status, errorText);
                 throw new Error(`Claude API error: ${response.status}`);
             }
 
