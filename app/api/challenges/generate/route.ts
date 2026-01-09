@@ -291,15 +291,17 @@ export async function POST(request: NextRequest) {
 
             // Fallback: Create a simple challenge based on context
             const errorMsg = aiError instanceof Error ? aiError.message : String(aiError);
+            const keyInfo = ANTHROPIC_API_KEY ? `Key exists (len: ${ANTHROPIC_API_KEY.length})` : 'Key is MISSING';
+
             const fallbackChallenge = await db.createChallenge({
                 userId: user.userId,
                 goalId: context.goal.id,
                 title: `Day ${context.dayInJourney} Focus`,
-                description: `Spend 15-20 minutes focused on your goal: ${context.goal.title}. (Debug: ${errorMsg})`,
+                description: `Spend 15-20 minutes focused on your goal: ${context.goal.title}. (Debug: ${errorMsg} | ${keyInfo})`,
                 difficulty: 3,
                 isRealityShift: false,
                 scheduledDate: new Date(),
-                personalizationNotes: `⚠️ NOTE: This is a fallback challenge because our AI coach is temporarily offline. Error: ${errorMsg}`
+                personalizationNotes: `⚠️ NOTE: This is a fallback challenge because our AI coach is temporarily offline.\nError: ${errorMsg}\nDiagnostic: ${keyInfo}`
             });
 
             return NextResponse.json({

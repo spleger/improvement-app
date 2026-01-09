@@ -311,18 +311,20 @@ export async function POST(request: NextRequest) {
         } catch (apiError) {
             console.error('Claude API call failed:', apiError);
             const errorMsg = apiError instanceof Error ? apiError.message : String(apiError);
+            const keyInfo = ANTHROPIC_API_KEY ? `Key exists (len: ${ANTHROPIC_API_KEY.length})` : 'Key is MISSING';
 
             // DEBUG: Write error to file
             try {
                 const fs = require('fs');
                 const logMessage = `[${new Date().toISOString()}] FAILED. 
                 API Key Present: ${!!ANTHROPIC_API_KEY}
+                Key Length: ${ANTHROPIC_API_KEY?.length || 0}
                 Error: ${errorMsg}
                 \n`;
                 fs.appendFileSync('debug_expert.log', logMessage);
             } catch (e) { console.error('Failed to write log', e); }
 
-            const reply = getFallbackResponse(message, context, errorMsg);
+            const reply = getFallbackResponse(message, context, `${errorMsg} | ${keyInfo}`);
 
             // Even on error fallback, we want to save interaction to the correct context
             const targetCoachId = coachId || 'general';
