@@ -199,12 +199,36 @@ ${context.todayChallenge.description ? `- Description: ${context.todayChallenge.
     return prompt;
 }
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
     try {
         const user = await getCurrentUser();
         if (!user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        // --- ROBUST ENV LOADING ---
+        let apiKey = process.env.ANTHROPIC_API_KEY?.replace(/^["']|["']$/g, '').trim();
+
+        if (!apiKey) {
+            try {
+                const fs = require('fs');
+                const path = require('path');
+                const envPath = path.join(process.cwd(), '.env');
+                if (fs.existsSync(envPath)) {
+                    const envContent = fs.readFileSync(envPath, 'utf-8');
+                    const match = envContent.match(/ANTHROPIC_API_KEY=["']?([^"'\n]+)["']?/);
+                    if (match && match[1]) {
+                        apiKey = match[1].trim();
+                        console.log('[API Expert] Recovered API key from .env file directly');
+                    }
+                }
+            } catch (e) {
+                console.error('[API Expert] Failed to read .env file fallback:', e);
+            }
+        }
+        // --------------------------
 
         const body = await request.json();
         const { message, history, coachId } = body;
@@ -270,7 +294,7 @@ export async function POST(request: NextRequest) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-api-key': ANTHROPIC_API_KEY || '',
+                    'x-api-key': apiKey || '',
                     'anthropic-version': '2023-06-01'
                 },
                 body: JSON.stringify({
