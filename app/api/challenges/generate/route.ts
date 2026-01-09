@@ -5,6 +5,39 @@ import { getCurrentUser } from '@/lib/auth';
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
+const SYSTEM_PROMPT = `You are an expert personal transformation coach and challenge designer. 
+Your goal is to create highly personalized, actionable daily challenges that push the user toward their specific goals.
+
+### RESPONSE FORMAT
+You must response with valid JSON only. Do not include any introductory text, markdown formatting, or explanations outside the JSON.
+The response must be a JSON Array of challenge objects.
+
+### CHALLENGE STRUCTURE
+Each challenge object in the array must have:
+{
+  "title": "Short, action-oriented title (max 50 chars)",
+  "description": "2-3 sentence description of what to do",
+  "instructions": "Step-by-step how to complete this challenge",
+  "difficulty": number (1-10),
+  "isRealityShift": boolean,
+  "successCriteria": "Clear, measurable success criteria",
+  "scientificBasis": "Brief explanation of why this works (1 sentence)",
+  "estimatedMinutes": number
+}
+
+### DESIGN PRINCIPLES
+1. **Specific & Actionable**: Avoid vague advice ("practice more"). Give concrete tasks ("Write 300 words", "Do 5 sets").
+2. **Freshness**: Do not repeat recent challenges.
+3. **Adaptive Difficulty**:
+   - If user finds things easy (>7/10 completion or <4/10 difficulty felt), increase intensity.
+   - If user finds things hard (>7/10 difficulty felt), focus on smaller, manageable wins.
+4. **Phase Alignment**:
+   - Days 1-5: Foundation (Habit building)
+   - Days 6-15: Growth (Pushing boundaries)
+   - Days 16-25: Acceleration (High intensity)
+   - Days 26+: Mastery (Peak performance)
+`;
+
 async function getFullUserContext(userId: string, goalId?: string) {
     try {
         // Get specific goal or active goal
@@ -89,11 +122,10 @@ async function getFullUserContext(userId: string, goalId?: string) {
     }
 }
 
-function buildChallengePrompt(context: any, preferences?: { count?: number; focusArea?: string }) {
+function buildUserContextMessage(context: any, preferences?: { count?: number; focusArea?: string }) {
     const count = preferences?.count || 1;
 
-    return `You are an expert personal transformation coach and challenge designer. Your job is to create highly personalized, actionable daily challenges that push someone toward their goals.
-
+    return `
 === USER'S GOAL ===
 Title: "${context.goal.title}"
 Domain: ${context.goal.domain?.name || 'General'}
@@ -109,59 +141,26 @@ Challenges skipped: ${context.skippedCount}
 Current streak: ${context.streak} days
 
 === ADAPTATION DATA ===
-Average difficulty felt by user: ${context.avgDifficultyFelt}/10 ${context.avgDifficultyFelt < 4 ? '(TOO EASY - increase difficulty!)' : context.avgDifficultyFelt > 7 ? '(TOO HARD - reduce difficulty!)' : '(Good level)'}
+Average difficulty felt by user: ${context.avgDifficultyFelt}/10
 Average satisfaction after challenges: ${context.avgSatisfaction}/10
 ${context.avgMood ? `Average mood: ${context.avgMood}/10` : ''}
 ${context.avgEnergy ? `Average energy: ${context.avgEnergy}/10` : ''}
 
-=== RECENT CHALLENGES (avoid repetition) ===
+=== RECENT CHALLENGES (Do NOT repeat these) ===
 ${context.recentChallenges.slice(0, 5).map((c: any) =>
         `- "${c.title}" (${c.status}, difficulty ${c.difficulty}/10)`
     ).join('\n') || 'No recent challenges'}
 
 ${context.completionNotes.length > 0 ? `
-=== USER'S OWN NOTES FROM COMPLETED CHALLENGES ===
+=== USER NOTES (What they liked/struggled with) ===
 ${context.completionNotes.map((n: string) => `- "${n}"`).join('\n')}
 ` : ''}
 
-=== YOUR TASK ===
-Generate ${count} unique, personalized challenge${count > 1 ? 's' : ''} for today.
-
+=== REQUEST ===
+Generate ${count} unique, personalized challenge${count > 1 ? 's' : ''} for today (Day ${context.dayInJourney}).
 ${preferences?.focusArea ? `User specifically wants to focus on: ${preferences.focusArea}` : ''}
-
-IMPORTANT GUIDELINES:
-1. Challenges should be SPECIFIC and ACTIONABLE (not vague like "practice more")
-2. Include clear success criteria
-3. Consider the user's energy/mood patterns if available
-4. AVOID repeating recent challenges - come up with fresh ideas
-5. Scale difficulty based on:
-   - Day in journey (early = easier, later = harder)
-   - User's difficulty felt (if they say things are too easy, ramp up!)
-   - Their completion rate
-
-6. For day ${context.dayInJourney}/30:
-   ${context.dayInJourney <= 5 ? '- Foundation building phase: Focus on small wins and building momentum' : ''}
-   ${context.dayInJourney > 5 && context.dayInJourney <= 15 ? '- Growth phase: Push boundaries while maintaining consistency' : ''}
-   ${context.dayInJourney > 15 && context.dayInJourney <= 25 ? '- Acceleration phase: Challenge comfort zone significantly' : ''}
-   ${context.dayInJourney > 25 ? '- Mastery phase: Test their limits with peak challenges' : ''}
-
-${context.goal.realityShiftEnabled ? `
-7. REALITY SHIFT MODE IS ON: Include at least one challenge that feels uncomfortable or scary. These are life-changing moments!
-` : ''}
-
-Respond with a JSON array of challenge objects. Each challenge must have:
-{
-  "title": "Short, action-oriented title (max 50 chars)",
-  "description": "2-3 sentence description of what to do",
-  "instructions": "Step-by-step how to complete this challenge",
-  "difficulty": number (1-10),
-  "isRealityShift": boolean,
-  "successCriteria": "Clear, measurable success criteria",
-  "scientificBasis": "Brief explanation of why this works (1 sentence)",
-  "estimatedMinutes": number
-}
-
-Respond ONLY with the JSON array, no other text.`;
+${context.goal.realityShiftEnabled ? 'INCLUDE AT LEAST ONE "REALITY SHIFT" CHALLENGE (Something scary/uncomfortable that drives massive growth).' : ''}
+`;
 }
 
 export async function POST(request: NextRequest) {
@@ -185,7 +184,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Build the prompt
-        const prompt = buildChallengePrompt(context, { count, focusArea });
+        const userMessage = buildUserContextMessage(context, { count, focusArea });
 
         try {
             // Call Claude to generate challenges
@@ -198,13 +197,15 @@ export async function POST(request: NextRequest) {
                 },
                 body: JSON.stringify({
                     model: 'claude-3-haiku-20240307',
-                    max_tokens: 2000,
-                    messages: [{ role: 'user', content: prompt }]
+                    max_tokens: 2500,
+                    system: SYSTEM_PROMPT,
+                    messages: [{ role: 'user', content: userMessage }]
                 })
             });
 
             if (!response.ok) {
-                throw new Error(`Claude API error: ${response.status}`);
+                const errorData = await response.text();
+                throw new Error(`Claude API error: ${response.status} - ${errorData}`);
             }
 
             const data = await response.json();
@@ -213,13 +214,23 @@ export async function POST(request: NextRequest) {
             // Parse the JSON response
             let challenges;
             try {
-                // Extract JSON from response (handle potential markdown code blocks)
-                const jsonMatch = responseText.match(/\[[\s\S]*\]/);
-                if (jsonMatch) {
-                    challenges = JSON.parse(jsonMatch[0]);
+                // Robust extraction: locate the first '[' and last ']'
+                const startIndex = responseText.indexOf('[');
+                const endIndex = responseText.lastIndexOf(']');
+
+                if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+                    const jsonString = responseText.substring(startIndex, endIndex + 1);
+                    challenges = JSON.parse(jsonString);
                 } else {
+                    // Try to parse the whole thing if no array brackets found (maybe it returned a single object wrapped?)
+                    // Or just throw
                     throw new Error('No JSON array found in response');
                 }
+
+                if (!Array.isArray(challenges)) {
+                    throw new Error('Response is not an array');
+                }
+
             } catch (parseError) {
                 console.error('Failed to parse Claude response:', responseText);
                 throw new Error('Failed to parse AI response');
@@ -262,12 +273,12 @@ export async function POST(request: NextRequest) {
             const fallbackChallenge = await db.createChallenge({
                 userId: user.userId,
                 goalId: context.goal.id,
-                title: `Day ${context.dayInJourney} Practice Session`,
-                description: `Spend 15-20 minutes focused on your goal: ${context.goal.title}. Choose one specific aspect to work on.`,
-                difficulty: Math.min(10, Math.max(1, Math.round(context.dayInJourney / 3) + 2)),
+                title: `Day ${context.dayInJourney} Focus`,
+                description: `Spend 15-20 minutes focused on your goal: ${context.goal.title}.`,
+                difficulty: 3,
                 isRealityShift: false,
                 scheduledDate: new Date(),
-                personalizationNotes: 'AI generation failed - this is a fallback challenge. Consistent daily practice builds lasting habits.'
+                personalizationNotes: '⚠️ NOTE: This is a fallback challenge because our AI coach is temporarily offline. We recommend focusing on the basics today.'
             });
 
             return NextResponse.json({
