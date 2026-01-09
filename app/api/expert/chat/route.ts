@@ -301,7 +301,19 @@ export async function POST(request: NextRequest) {
 
         } catch (apiError) {
             console.error('Claude API call failed:', apiError);
-            const reply = getFallbackResponse(message, context);
+            const errorMsg = apiError instanceof Error ? apiError.message : String(apiError);
+
+            // DEBUG: Write error to file
+            try {
+                const fs = require('fs');
+                const logMessage = `[${new Date().toISOString()}] FAILED. 
+                API Key Present: ${!!ANTHROPIC_API_KEY}
+                Error: ${errorMsg}
+                \n`;
+                fs.appendFileSync('debug_expert.log', logMessage);
+            } catch (e) { console.error('Failed to write log', e); }
+
+            const reply = getFallbackResponse(message, context, errorMsg);
 
             // Even on error fallback, we want to save interaction to the correct context
             const targetCoachId = coachId || 'general';
@@ -389,7 +401,7 @@ export async function GET(request: NextRequest) {
 }
 
 // Fallback responses with context
-function getFallbackResponse(message: string, context: any): string {
+function getFallbackResponse(message: string, context: any, errorMsg?: string): string {
     const goalName = context?.activeGoal?.title || 'your goal';
     const streak = context?.streak || 0;
 
@@ -402,7 +414,7 @@ When motivation dips, remember why you started. What was the spark that made you
 
 ${streak > 0 ? `You've got a ${streak}-day streak going - that's not nothing! Let's protect it.` : 'Every day is a chance to start fresh.'}
 
-What specific part feels hardest right now?`;
+What specific part feels hardest right now? (Debug: ${errorMsg || 'No detail'})`;
     }
 
     if (lowerMessage.includes('progress') || lowerMessage.includes('how am i doing')) {
@@ -415,12 +427,12 @@ ${context?.avgMood ? `Your average mood this week: ${context.avgMood}/10` : ''}
 
 ${context?.completedChallengesCount > 5 ? "You're building real momentum!" : "Every completed challenge builds the foundation."}
 
-What would you like to focus on next?`;
+What would you like to focus on next? (Debug: ${errorMsg || 'No detail'})`;
     }
 
     return `I'm here to help with your journey toward "${goalName}". 
 
 ${context?.todayChallenge ? `I see today's challenge is "${context.todayChallenge.title}" - how's that going?` : ''}
 
-What's on your mind?`;
+What's on your mind? (Debug Error: ${errorMsg || 'Unknown error'})`;
 }

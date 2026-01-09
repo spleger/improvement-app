@@ -269,16 +269,28 @@ export async function POST(request: NextRequest) {
         } catch (aiError) {
             console.error('AI generation failed:', aiError);
 
+            // DEBUG: Write error to file
+            try {
+                const fs = require('fs');
+                const logMessage = `[${new Date().toISOString()}] FAILED. 
+                API Key Present: ${!!ANTHROPIC_API_KEY}
+                Error: ${aiError instanceof Error ? aiError.message : String(aiError)}
+                Stack: ${aiError instanceof Error ? aiError.stack : 'No stack'}
+                \n`;
+                fs.appendFileSync('debug_challenges.log', logMessage);
+            } catch (e) { console.error('Failed to write log', e); }
+
             // Fallback: Create a simple challenge based on context
+            const errorMsg = aiError instanceof Error ? aiError.message : String(aiError);
             const fallbackChallenge = await db.createChallenge({
                 userId: user.userId,
                 goalId: context.goal.id,
                 title: `Day ${context.dayInJourney} Focus`,
-                description: `Spend 15-20 minutes focused on your goal: ${context.goal.title}.`,
+                description: `Spend 15-20 minutes focused on your goal: ${context.goal.title}. (Debug: ${errorMsg})`,
                 difficulty: 3,
                 isRealityShift: false,
                 scheduledDate: new Date(),
-                personalizationNotes: '⚠️ NOTE: This is a fallback challenge because our AI coach is temporarily offline. We recommend focusing on the basics today.'
+                personalizationNotes: `⚠️ NOTE: This is a fallback challenge because our AI coach is temporarily offline. Error: ${errorMsg}`
             });
 
             return NextResponse.json({
