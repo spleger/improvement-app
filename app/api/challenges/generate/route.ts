@@ -276,43 +276,35 @@ export async function POST(request: NextRequest) {
         } catch (aiError) {
             console.error('AI generation failed:', aiError);
 
-            // DEBUG: Write error to file
-            try {
-                const fs = require('fs');
-                const logMessage = `[${new Date().toISOString()}] FAILED. 
-                API Key Present: ${!!apiKey}
-                Error: ${aiError instanceof Error ? aiError.message : String(aiError)}
-                Stack: ${aiError instanceof Error ? aiError.stack : 'No stack'}
-                \n`;
-                // Fallback: Create a simple challenge based on context
-                const errorMsg = aiError instanceof Error ? aiError.message : String(aiError);
-                const keyInfo = ANTHROPIC_API_KEY ? `Key present (len: ${ANTHROPIC_API_KEY.length}, start: ${ANTHROPIC_API_KEY.slice(0, 5)})` : 'Key is MISSING in Vercel env';
+            // Fallback: Create a simple challenge based on context
+            const errorMsg = aiError instanceof Error ? aiError.message : String(aiError);
+            const keyInfo = ANTHROPIC_API_KEY ? `Key present (len: ${ANTHROPIC_API_KEY.length}, start: ${ANTHROPIC_API_KEY.slice(0, 5)})` : 'Key is MISSING in Vercel env';
 
-                const fallbackChallenge = await db.createChallenge({
-                    userId: user.userId,
-                    goalId: context.goal.id,
-                    title: `Day ${context.dayInJourney} Focus`,
-                    description: `Spend 15-20 minutes focused on your goal: ${context.goal.title}. (Debug: ${errorMsg} | ${keyInfo})`,
-                    difficulty: 3,
-                    isRealityShift: false,
-                    scheduledDate: new Date(),
-                    personalizationNotes: `⚠️ NOTE: This is a fallback challenge because our AI coach is temporarily offline.\nError: ${errorMsg}\nDiagnostic: ${keyInfo}`
-                });
+            const fallbackChallenge = await db.createChallenge({
+                userId: user.userId,
+                goalId: context.goal.id,
+                title: `Day ${context.dayInJourney} Focus`,
+                description: `Spend 15-20 minutes focused on your goal: ${context.goal.title}. (Debug: ${errorMsg} | ${keyInfo})`,
+                difficulty: 3,
+                isRealityShift: false,
+                scheduledDate: new Date(),
+                personalizationNotes: `⚠️ NOTE: This is a fallback challenge because our AI coach is temporarily offline.\nError: ${errorMsg}\nDiagnostic: ${keyInfo}`
+            });
 
-                return NextResponse.json({
-                    success: true,
-                    data: {
-                        challenges: [fallbackChallenge],
-                        fallback: true
-                    }
-                });
-            }
+            return NextResponse.json({
+                success: true,
+                data: {
+                    challenges: [fallbackChallenge],
+                    fallback: true
+                }
+            });
+        }
 
     } catch (error) {
-            console.error('Error generating challenge:', error);
-            return NextResponse.json(
-                { success: false, error: 'Internal server error' },
-                { status: 500 }
-            );
-        }
+        console.error('Error generating challenge:', error);
+        return NextResponse.json(
+            { success: false, error: 'Internal server error' },
+            { status: 500 }
+        );
     }
+}
