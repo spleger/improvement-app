@@ -8,7 +8,7 @@ const GOAL_SUGGESTION_PROMPT = `You are an expert life coach analyzing a new use
 
 IMPORTANT: Return ONLY valid JSON. No markdown, no explanations, no extra text.
 
-Generate exactly 3 personalized goal suggestions as a JSON array. Each goal should:
+Generate exactly 5 personalized goal suggestions as a JSON array. Each goal should:
 1. Match one of these domains: Languages, Mobility, Emotional Growth, Relationships, Physical Health, Tolerance, Skills, Habits
 2. Have a clear current state and desired state
 3. Be achievable in 30 days with the time the user has available
@@ -52,7 +52,7 @@ USER RESPONSES:
 - Time Available Daily: "${answers.timeAvailable || '30-60 minutes'}"
 - Biggest Challenge: "${answers.biggestChallenge || 'Consistency'}"
 
-Based on these responses, generate 3 personalized goal suggestions.
+Based on these responses, generate 5 personalized goal suggestions.
 `;
 
         try {
@@ -105,13 +105,13 @@ Based on these responses, generate 3 personalized goal suggestions.
 
             return NextResponse.json({
                 success: true,
-                data: { suggestions: suggestions.slice(0, 3) } // Ensure max 3
+                data: { suggestions: suggestions.slice(0, 5) } // Ensure max 5
             });
 
         } catch (aiError) {
             console.error('AI generation failed:', aiError);
 
-            // Fallback: Return default goal suggestions
+            // Fallback: Return default goal suggestions (5 total)
             const fallbackSuggestions = [
                 {
                     domain: 'Physical Health',
@@ -136,6 +136,22 @@ Based on these responses, generate 3 personalized goal suggestions.
                     desiredState: 'Writing 3 gratitudes daily',
                     why: 'Gratitude rewires your brain for positivity and resilience.',
                     difficulty: 3
+                },
+                {
+                    domain: 'Skills',
+                    title: 'Learn Something New Daily',
+                    currentState: 'Stagnant learning',
+                    desiredState: '30 minutes of skill-building daily',
+                    why: 'Consistent learning keeps your mind sharp and opens new opportunities.',
+                    difficulty: 5
+                },
+                {
+                    domain: 'Relationships',
+                    title: 'Deepen One Connection',
+                    currentState: 'Surface-level relationships',
+                    desiredState: 'Meaningful conversations weekly',
+                    why: 'Strong relationships are the foundation of happiness and well-being.',
+                    difficulty: 6
                 }
             ];
 

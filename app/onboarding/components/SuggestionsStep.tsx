@@ -18,11 +18,34 @@ export default function SuggestionsStep({ suggestions, onSelect }: SuggestionsSt
     if (!suggestions || suggestions.length === 0) {
         return (
             <div className="suggestions-step">
-                <h2>No suggestions available</h2>
-                <p>Let's create a goal manually instead.</p>
-                <button onClick={() => window.location.href = '/goals/new'}>
+                <h2 className="suggestions-title">No Suggestions Available</h2>
+                <p className="suggestions-subtitle">Let's create a goal manually instead.</p>
+                <button
+                    onClick={() => window.location.href = '/goals/new'}
+                    className="manual-goal-btn"
+                >
                     Create Goal Manually
                 </button>
+
+                <style jsx>{`
+                    .manual-goal-btn {
+                        background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+                        color: white;
+                        border: none;
+                        padding: 14px 24px;
+                        border-radius: 10px;
+                        font-size: 1rem;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: all 0.2s ease;
+                        margin-top: 16px;
+                    }
+
+                    .manual-goal-btn:hover {
+                        transform: translateY(-2px);
+                        box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+                    }
+                `}</style>
             </div>
         );
     }
@@ -62,6 +85,16 @@ export default function SuggestionsStep({ suggestions, onSelect }: SuggestionsSt
                         </div>
                     </div>
                 ))}
+            </div>
+
+            <div className="manual-goal-option">
+                <p>Or create your own goal from scratch:</p>
+                <button
+                    onClick={() => window.location.href = '/goals/new'}
+                    className="manual-goal-btn-alt"
+                >
+                    📝 Create Manual Goal
+                </button>
             </div>
 
             <style jsx>{`
@@ -176,6 +209,37 @@ export default function SuggestionsStep({ suggestions, onSelect }: SuggestionsSt
                     font-size: 0.875rem;
                     color: var(--color-text-muted);
                     font-weight: 600;
+                }
+
+                .manual-goal-option {
+                    margin-top: 32px;
+                    padding-top: 24px;
+                    border-top: 1px solid var(--color-border);
+                    text-align: center;
+                }
+
+                .manual-goal-option p {
+                    color: var(--color-text-muted);
+                    margin-bottom: 12px;
+                    font-size: 0.9rem;
+                }
+
+                .manual-goal-btn-alt {
+                    background: var(--color-surface-2);
+                    color: var(--color-text);
+                    border: 2px solid var(--color-border);
+                    padding: 12px 24px;
+                    border-radius: 10px;
+                    font-size: 0.95rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+
+                .manual-goal-btn-alt:hover {
+                    border-color: #3b82f6;
+                    background: var(--color-surface);
+                    transform: translateY(-1px);
                 }
             `}</style>
         </div>

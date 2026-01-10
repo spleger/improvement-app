@@ -47,7 +47,16 @@ export async function POST(request: NextRequest) {
             displayName: newUser.displayName || undefined
         });
 
-        return NextResponse.json({
+        // Auto-login: Generate session token
+        const jwt = require('jsonwebtoken');
+        const token = jwt.sign(
+            { userId: newUser.id, email: newUser.email },
+            process.env.JWT_SECRET || 'fallback-secret-key',
+            { expiresIn: '7d' }
+        );
+
+        // Set cookie
+        const response = NextResponse.json({
             success: true,
             user: {
                 id: newUser.id,
@@ -55,6 +64,15 @@ export async function POST(request: NextRequest) {
                 displayName: newUser.displayName
             }
         });
+
+        response.cookies.set('auth_token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24 * 7 // 7 days
+        });
+
+        return response;
 
     } catch (error) {
         console.error('Registration error:', error);
