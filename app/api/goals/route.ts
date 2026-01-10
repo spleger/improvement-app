@@ -35,23 +35,37 @@ export async function POST(request: NextRequest) {
         const {
             title,
             domainId,
+            domainName,
+            currentState,
+            desiredState,
             description,
             difficultyLevel = 5, // Default to moderate
             realityShiftEnabled = false
         } = body;
 
-        if (!title || !domainId) {
+        if (!title) {
             return NextResponse.json(
-                { success: false, error: 'Title and domain are required' },
+                { success: false, error: 'Title is required' },
                 { status: 400 }
             );
+        }
+
+        // Resolve domainId from domainName if needed
+        let finalDomainId = domainId;
+        if (!finalDomainId && domainName) {
+            const domain = await db.getGoalDomainByName(domainName);
+            if (domain) {
+                finalDomainId = domain.id;
+            }
         }
 
         // Create the goal
         const goal = await db.createGoal({
             userId: user.userId,
-            domainId,
+            domainId: finalDomainId || null,
             title,
+            currentState,
+            desiredState,
             description,
             difficultyLevel,
             realityShiftEnabled
@@ -59,7 +73,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            data: goal
+            data: { goal }
         });
     } catch (error) {
         console.error('Error creating goal:', error);

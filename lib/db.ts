@@ -64,6 +64,11 @@ export async function getGoalDomainById(id: number) {
     return result.rows[0] || null;
 }
 
+export async function getGoalDomainByName(name: string) {
+    const result = await pool.query('SELECT * FROM "GoalDomain" WHERE name = $1', [name]);
+    return result.rows[0] || null;
+}
+
 // ==================== GOAL OPERATIONS ====================
 
 export async function getGoalsByUserId(userId: string) {
