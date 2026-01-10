@@ -173,13 +173,15 @@ ${context.todayChallenge.description ? `- Description: ${context.todayChallenge.
             context.recentDiary.slice(0, 3).forEach((e: any) => {
                 const date = new Date(e.createdAt).toLocaleDateString();
                 let insights = '';
+                let title = 'Untitled Entry';
                 try {
                     const parsed = JSON.parse(e.aiInsights || '{}');
+                    if (parsed.title) title = parsed.title;
                     if (parsed.sentiment) insights += `Sentiment: ${parsed.sentiment}. `;
                     if (parsed.distortions?.length) insights += `Distortions: ${parsed.distortions.join(', ')}. `;
                 } catch (err) { }
 
-                prompt += `- [${date}] ${e.aiSummary || 'No summary'}\n  ${insights}\n`;
+                prompt += `- [${date}] "${title}": ${e.aiSummary || 'No summary'}\n  ${insights}\n`;
             });
             prompt += `(Use these insights to be more empathetic. If they mentioned feeling down, acknowledge it.)\n`;
         }

@@ -115,7 +115,21 @@ export default function DiaryPage() {
                                                 </div>
                                             )}
                                         </div>
-                                        <p className="text-lg leading-relaxed whitespace-pre-wrap mb-md">
+                                        {/* Entry Title */}
+                                        {(() => {
+                                            try {
+                                                const insights = JSON.parse(entry.aiInsights || '{}');
+                                                if (insights.title) {
+                                                    return (
+                                                        <h3 className="text-lg font-bold mb-sm text-primary">
+                                                            {insights.title}
+                                                        </h3>
+                                                    );
+                                                }
+                                            } catch (e) { }
+                                            return null;
+                                        })()}
+                                        <p className="text-base leading-relaxed whitespace-pre-wrap mb-md">
                                             {entry.transcript}
                                         </p>
 

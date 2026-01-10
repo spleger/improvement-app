@@ -116,7 +116,16 @@ export default function VoiceRecorder({ onSave }: VoiceRecorderProps) {
                     if (event.error === 'not-allowed') {
                         setTranscriptionError('Microphone access denied for transcription.');
                     } else if (event.error === 'network') {
-                        setTranscriptionError('Offline: Transcription paused (Audio still recording)');
+                        // Check HTTPS
+                        const isHttps = window.location.protocol === 'https:';
+                        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                        if (!isHttps && !isLocalhost) {
+                            setTranscriptionError('Transcription requires HTTPS. Please use a secure connection.');
+                        } else if (navigator.userAgent.includes('Firefox')) {
+                            setTranscriptionError('Firefox has limited speech recognition support. Try Chrome or Edge.');
+                        } else {
+                            setTranscriptionError('Speech service unavailable. Check your internet connection or try Chrome.');
+                        }
                         // Do NOT stop recording audio
                     } else if (event.error === 'no-speech') {
                         // Ignore

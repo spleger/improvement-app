@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
 
                 const systemPrompt = `You are an expert psychological analyst. Analyze the user's diary entry.
                 Return a JSON object with:
+                - title: A short, catchy 3-6 word title summarizing the entry (like a journal headline).
                 - summary: A 1-sentence summary of the entry.
                 - sentiment: One of [Positive, Negative, Neutral, Mixed, Anxious, Hopeful].
                 - cognitive_distortions: An array of strings (e.g. "Catastrophizing", "All-or-nothing thinking") if present, else empty.
@@ -47,6 +48,7 @@ export async function POST(request: NextRequest) {
                     const data = JSON.parse(jsonMatch[0]);
                     aiSummary = data.summary;
                     aiInsights = JSON.stringify({
+                        title: data.title,
                         sentiment: data.sentiment,
                         distortions: data.cognitive_distortions,
                         themes: data.key_themes
