@@ -24,13 +24,12 @@ export async function middleware(request: NextRequest) {
     // Allow Next.js internal files
     if (path.startsWith('/_next') || path.startsWith('/static')) return NextResponse.next();
 
-    // Get token
     const token = request.cookies.get('auth_token')?.value;
 
     // Logic:
     // 1. If user has NO token and path is protected -> Redirect to Login
     // 2. If user HAS token and tries to go to Login/Register -> Redirect to Dashboard
-    // 3. If user HAS token but hasn't completed onboarding -> Redirect to Onboarding
+    // 3. Allow all other cases
 
     if (!token && !isPublic) {
         return NextResponse.redirect(new URL('/login', request.url));
@@ -39,9 +38,6 @@ export async function middleware(request: NextRequest) {
     if (token && (path === '/login' || path === '/register')) {
         return NextResponse.redirect(new URL('/', request.url));
     }
-
-    // Check onboarding status (we'll need to decode token or make an API call)
-    // For now, we'll handle this on the client side in each protected page
 
     return NextResponse.next();
 }

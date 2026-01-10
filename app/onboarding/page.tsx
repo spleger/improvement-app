@@ -102,7 +102,7 @@ export default function OnboardingPage() {
     };
 
     const handleComplete = async () => {
-        // Mark onboarding as complete (don't wait for success)
+        // Mark onboarding as complete (fire and forget)
         fetch('/api/onboarding/complete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -113,16 +113,14 @@ export default function OnboardingPage() {
                     completedAt: new Date().toISOString()
                 }
             })
-        }).catch(error => {
-            console.error('Failed to mark onboarding complete:', error);
-        });
+        }).catch(err => console.error('Onboarding complete error', err));
 
-        // Redirect to dashboard immediately - don't wait for API
-        router.push('/');
+        // Redirect immediately
+        window.location.href = '/';
     };
 
     const handleSkip = () => {
-        router.push('/');
+        window.location.href = '/';
     };
 
     return (
