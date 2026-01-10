@@ -578,6 +578,35 @@ export async function saveUserPreferences(userId: string, prefs: {
     return parsePreferences(result.rows[0]);
 }
 
+// ==================== DIARY ENTRY OPERATIONS ====================
+
+export async function createDiaryEntry(data: {
+    userId: string;
+    transcript: string;
+    audioDurationSeconds?: number;
+    moodScore?: number;
+    entryType?: string;
+    audioUrl?: string;
+    aiSummary?: string;
+    aiInsights?: string;
+}) {
+    const id = generateId();
+    const result = await pool.query(
+        `INSERT INTO "DiaryEntry" (id, "userId", transcript, "audioDurationSeconds", "moodScore", "entryType", "audioUrl", "aiSummary", "aiInsights", "createdAt")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW()) RETURNING *`,
+        [id, data.userId, data.transcript, data.audioDurationSeconds || 0, data.moodScore || 5, data.entryType || 'voice', data.audioUrl || null, data.aiSummary || '', data.aiInsights || '{}']
+    );
+    return result.rows[0];
+}
+
+export async function getDiaryEntriesByUserId(userId: string, limit: number = 10) {
+    const result = await pool.query(
+        `SELECT * FROM "DiaryEntry" WHERE "userId" = $1 ORDER BY "createdAt" DESC LIMIT $2`,
+        [userId, limit]
+    );
+    return result.rows;
+}
+
 // ==================== CONVERSATION OPERATIONS ====================
 
 export async function createConversation(data: {

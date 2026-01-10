@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown } from 'lucide-react';
 import ChallengeProposal from './widgets/ChallengeProposal';
 import MoodLogWidget from './widgets/MoodLogWidget';
 import NewGoalWidget from './widgets/NewGoalWidget';
@@ -13,22 +14,19 @@ interface Message {
 }
 
 const SUGGESTED_TOPICS = [
-    "I'm struggling with motivation",
-    "How do I build consistency?",
-    "My challenge feels too hard",
-    "I want to adjust my goal"
+    "💪 I'm struggling with motivation",
+    "🔄 How do I build consistency?",
+    "🎯 My challenge feels too hard",
+    "✨ Celebrate a recent win"
 ];
 
 const COACHES = [
-    { id: 'general', name: 'General Coach', icon: '🧠', description: 'Holistic transformation support' },
-    { id: 'languages', name: 'Language Coach', icon: '🗣️', description: 'Fluency & immersion' },
-    { id: 'mobility', name: 'Mobility Coach', icon: '🧘', description: 'Movement & flexibility' },
-    { id: 'emotional', name: 'Emotional Coach', icon: '💜', description: 'EQ & resilience' },
-    { id: 'relationships', name: 'Relationship Coach', icon: '🤝', description: 'Connection & communication' },
-    { id: 'health', name: 'Health Coach', icon: '💪', description: 'Fitness & vitality' },
-    { id: 'tolerance', name: 'Tolerance Coach', icon: '🛡️', description: 'Discomfort & resilience' },
-    { id: 'skills', name: 'Skills Coach', icon: '🎯', description: 'Mastery & practice' },
-    { id: 'habits', name: 'Habit Coach', icon: '🔄', description: 'Routine & consistency' }
+    { id: 'general', name: 'General', icon: '🧠', color: '#8b5cf6', description: 'Holistic transformation' },
+    { id: 'languages', name: 'Languages', icon: '🗣️', color: '#3b82f6', description: 'Fluency & immersion' },
+    { id: 'mobility', name: 'Mobility', icon: '🧘', color: '#10b981', description: 'Movement & flexibility' },
+    { id: 'emotional', name: 'Emotional', icon: '💜', color: '#ec4899', description: 'EQ & resilience' },
+    { id: 'health', name: 'Health', icon: '💪', color: '#ef4444', description: 'Fitness & vitality' },
+    { id: 'habits', name: 'Habits', icon: '🔄', color: '#f59e0b', description: 'Routine & consistency' }
 ];
 
 export default function ExpertChat() {
@@ -36,7 +34,9 @@ export default function ExpertChat() {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [selectedCoach, setSelectedCoach] = useState(COACHES[0]);
+    const [showCoachSelector, setShowCoachSelector] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -55,7 +55,7 @@ export default function ExpertChat() {
                     switch (data.type) {
                         case 'suggest_challenge':
                             return (
-                                <div key={index} className="my-2">
+                                <div key={index} className="my-3">
                                     <ChallengeProposal
                                         title={data.payload.title}
                                         difficulty={data.payload.difficulty}
@@ -66,13 +66,13 @@ export default function ExpertChat() {
                             );
                         case 'log_mood':
                             return (
-                                <div key={index} className="my-2">
+                                <div key={index} className="my-3">
                                     <MoodLogWidget onLog={() => scrollToBottom()} />
                                 </div>
                             );
                         case 'create_goal':
                             return (
-                                <div key={index} className="my-2">
+                                <div key={index} className="my-3">
                                     <NewGoalWidget
                                         title={data.payload.title}
                                         domainId={data.payload.domainId}
@@ -83,7 +83,6 @@ export default function ExpertChat() {
                             return null;
                     }
                 } catch (e) {
-                    console.error('Failed to parse widget', e);
                     return null;
                 }
             }
@@ -91,14 +90,13 @@ export default function ExpertChat() {
             if (!part.trim()) return null;
 
             return (
-                <p key={index} style={{ margin: 0, whiteSpace: 'pre-wrap', marginBottom: '0.5rem' }}>
+                <span key={index} style={{ whiteSpace: 'pre-wrap' }}>
                     {part}
-                </p>
+                </span>
             );
         });
     };
 
-    // Helper to generate diff IDs for history items
     const diffId = (idx: number) => `hist-${Date.now()}-${idx}`;
 
     // Load history when coach changes
@@ -131,7 +129,6 @@ export default function ExpertChat() {
         fetchHistory();
     }, [selectedCoach]);
 
-    // Scroll on new messages
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
@@ -175,22 +172,22 @@ export default function ExpertChat() {
                 const fallbackMessage: Message = {
                     id: (Date.now() + 1).toString(),
                     role: 'assistant',
-                    content: "I understand you're working on your transformation. Could you tell me more about what specific aspect you'd like help with?",
+                    content: "I understand you're working on your transformation. Could you tell me more?",
                     timestamp: new Date()
                 };
                 setMessages(prev => [...prev, fallbackMessage]);
             }
         } catch (error) {
-            console.error('Error sending message:', error);
             const errorMessage: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                content: "I'm having trouble connecting right now. Please try again in a moment.",
+                content: "I'm having trouble connecting. Please try again.",
                 timestamp: new Date()
             };
             setMessages(prev => [...prev, errorMessage]);
         } finally {
             setIsLoading(false);
+            inputRef.current?.focus();
         }
     };
 
@@ -200,75 +197,79 @@ export default function ExpertChat() {
     };
 
     return (
-        <div className="chat-container">
-            {/* Coach Selector */}
-            <div className="coach-selector mb-md">
-                <div className="flex gap-sm" style={{ overflowX: 'auto', paddingBottom: '0.5rem' }}>
-                    {COACHES.map(coach => (
-                        <button
-                            key={coach.id}
-                            onClick={() => setSelectedCoach(coach)}
-                            className={`coach-chip ${selectedCoach.id === coach.id ? 'active' : ''}`}
-                        >
-                            <span style={{ fontSize: '1.2rem' }}>{coach.icon}</span>
-                            <span className="text-small font-medium">{coach.name}</span>
-                        </button>
-                    ))}
-                </div>
-                <p className="text-tiny text-center text-muted mt-xs">
-                    {selectedCoach.description}
-                </p>
+        <div className="expert-chat">
+            {/* Header with Coach Selector */}
+            <div className="chat-header">
+                <button
+                    className="coach-selector-btn"
+                    onClick={() => setShowCoachSelector(!showCoachSelector)}
+                >
+                    <div className="coach-avatar" style={{ background: selectedCoach.color }}>
+                        <span>{selectedCoach.icon}</span>
+                    </div>
+                    <div className="coach-info">
+                        <span className="coach-name">{selectedCoach.name} Coach</span>
+                        <span className="coach-desc">{selectedCoach.description}</span>
+                    </div>
+                    <ChevronDown size={20} className={`chevron ${showCoachSelector ? 'open' : ''}`} />
+                </button>
+
+                {showCoachSelector && (
+                    <div className="coach-dropdown">
+                        {COACHES.map(coach => (
+                            <button
+                                key={coach.id}
+                                className={`coach-option ${selectedCoach.id === coach.id ? 'active' : ''}`}
+                                onClick={() => {
+                                    setSelectedCoach(coach);
+                                    setShowCoachSelector(false);
+                                }}
+                            >
+                                <span className="coach-option-icon" style={{ background: coach.color }}>{coach.icon}</span>
+                                <span className="coach-option-name">{coach.name}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
 
-            {/* Messages */}
-            <div className="chat-messages" style={{
-                flex: 1,
-                overflowY: 'auto',
-                marginBottom: '1rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '1rem'
-            }}>
+            {/* Messages Area */}
+            <div className="chat-messages">
+                {messages.length === 0 && !isLoading && (
+                    <div className="empty-state">
+                        <div className="empty-icon">
+                            <Sparkles size={48} />
+                        </div>
+                        <h3>Start a Conversation</h3>
+                        <p>Your {selectedCoach.name} Coach is ready to help you transform.</p>
+                    </div>
+                )}
+
                 {messages.map(message => (
-                    <div
-                        key={message.id}
-                        className={`chat-message ${message.role}`}
-                        style={{
-                            alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start',
-                            maxWidth: '85%',
-                            padding: '0.75rem 1rem',
-                            borderRadius: message.role === 'user'
-                                ? '1rem 1rem 0.25rem 1rem'
-                                : '1rem 1rem 1rem 0.25rem',
-                            background: message.role === 'user'
-                                ? 'var(--gradient-primary)'
-                                : 'var(--color-surface)',
-                            color: message.role === 'user' ? 'white' : 'inherit'
-                        }}
-                    >
+                    <div key={message.id} className={`message ${message.role}`}>
                         {message.role === 'assistant' && (
-                            <div style={{ fontSize: '1.25rem', marginBottom: '0.25rem' }}>
+                            <div className="message-avatar" style={{ background: selectedCoach.color }}>
                                 {selectedCoach.icon}
                             </div>
                         )}
-                        <div>{renderMessageContent(message.content)}</div>
+                        <div className="message-bubble">
+                            {renderMessageContent(message.content)}
+                        </div>
+                        {message.role === 'user' && (
+                            <div className="message-avatar user-avatar">
+                                <User size={16} />
+                            </div>
+                        )}
                     </div>
                 ))}
 
                 {isLoading && (
-                    <div
-                        className="chat-message assistant"
-                        style={{
-                            alignSelf: 'flex-start',
-                            padding: '0.75rem 1rem',
-                            borderRadius: '1rem 1rem 1rem 0.25rem',
-                            background: 'var(--color-surface)'
-                        }}
-                    >
-                        <div className="typing-indicator">
-                            <span></span>
-                            <span></span>
-                            <span></span>
+                    <div className="message assistant">
+                        <div className="message-avatar" style={{ background: selectedCoach.color }}>
+                            {selectedCoach.icon}
+                        </div>
+                        <div className="message-bubble typing">
+                            <span></span><span></span><span></span>
                         </div>
                     </div>
                 )}
@@ -276,93 +277,379 @@ export default function ExpertChat() {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* Suggested Topics */}
+            {/* Quick Actions */}
             {messages.length <= 2 && (
-                <div style={{ marginBottom: '1rem' }}>
-                    <div className="text-small text-muted mb-sm">Suggested topics:</div>
-                    <div className="flex flex-wrap gap-sm">
-                        {SUGGESTED_TOPICS.map((topic, i) => (
-                            <button
-                                key={i}
-                                onClick={() => sendMessage(topic)}
-                                className="btn btn-ghost"
-                                style={{ fontSize: '0.875rem', padding: '0.5rem 0.75rem' }}
-                                disabled={isLoading}
-                            >
-                                {topic}
-                            </button>
-                        ))}
-                    </div>
+                <div className="quick-actions">
+                    {SUGGESTED_TOPICS.map((topic, i) => (
+                        <button
+                            key={i}
+                            onClick={() => sendMessage(topic)}
+                            className="quick-action-btn"
+                            disabled={isLoading}
+                        >
+                            {topic}
+                        </button>
+                    ))}
                 </div>
             )}
 
-            {/* Input */}
-            <form onSubmit={handleSubmit} className="chat-input-container">
+            {/* Input Area */}
+            <form onSubmit={handleSubmit} className="chat-input-form">
                 <input
+                    ref={inputRef}
                     type="text"
                     value={input}
                     onChange={e => setInput(e.target.value)}
-                    placeholder={`Ask the ${selectedCoach.name}...`}
-                    className="form-input"
-                    style={{ flex: 1 }}
+                    placeholder={`Message ${selectedCoach.name} Coach...`}
+                    className="chat-input"
                     disabled={isLoading}
                 />
                 <button
                     type="submit"
-                    className="btn btn-primary"
+                    className="send-btn"
                     disabled={isLoading || !input.trim()}
                 >
-                    Send
+                    <Send size={20} />
                 </button>
             </form>
 
             <style jsx>{`
-        .coach-chip {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.5rem 1rem;
-          background: var(--color-surface);
-          border: 1px solid transparent;
-          border-radius: 2rem;
-          white-space: nowrap;
-          transition: all 0.2s;
-          opacity: 0.7;
-          cursor: pointer;
-        }
-        .coach-chip:hover {
-          opacity: 1;
-          transform: translateY(-1px);
-        }
-        .coach-chip.active {
-          opacity: 1;
-          background: var(--gradient-primary);
-          color: white;
-          box-shadow: var(--shadow-sm);
-        }
-        .typing-indicator {
-          display: flex;
-          gap: 4px;
-        }
-        .typing-indicator span {
-          width: 8px;
-          height: 8px;
-          background: var(--color-text-muted);
-          border-radius: 50%;
-          animation: bounce 1.4s infinite ease-in-out;
-        }
-        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
-        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
-        @keyframes bounce {
-          0%, 80%, 100% { transform: scale(0); }
-          40% { transform: scale(1); }
-        }
-        .chat-input-container {
-          display: flex;
-          gap: 0.5rem;
-          align-items: center;
-        }
-      `}</style>
+                .expert-chat {
+                    display: flex;
+                    flex-direction: column;
+                    height: calc(100vh - 180px);
+                    max-height: 700px;
+                    background: var(--color-surface);
+                    border-radius: 24px;
+                    border: 1px solid var(--color-border);
+                    overflow: hidden;
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+                }
+
+                .chat-header {
+                    padding: 16px 20px;
+                    border-bottom: 1px solid var(--color-border);
+                    background: rgba(255, 255, 255, 0.5);
+                    backdrop-filter: blur(10px);
+                    position: relative;
+                }
+
+                .coach-selector-btn {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    width: 100%;
+                    padding: 8px 12px;
+                    background: var(--color-surface-2);
+                    border: 1px solid var(--color-border);
+                    border-radius: 16px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+
+                .coach-selector-btn:hover {
+                    border-color: var(--color-primary);
+                }
+
+                .coach-avatar {
+                    width: 44px;
+                    height: 44px;
+                    border-radius: 14px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 1.5rem;
+                    color: white;
+                    flex-shrink: 0;
+                }
+
+                .coach-info {
+                    flex: 1;
+                    text-align: left;
+                }
+
+                .coach-name {
+                    display: block;
+                    font-weight: 600;
+                    font-size: 1rem;
+                    color: var(--color-text);
+                }
+
+                .coach-desc {
+                    display: block;
+                    font-size: 0.8rem;
+                    color: var(--color-text-muted);
+                }
+
+                .chevron {
+                    color: var(--color-text-muted);
+                    transition: transform 0.2s;
+                }
+
+                .chevron.open {
+                    transform: rotate(180deg);
+                }
+
+                .coach-dropdown {
+                    position: absolute;
+                    top: calc(100% + 8px);
+                    left: 16px;
+                    right: 16px;
+                    background: var(--color-surface);
+                    border: 1px solid var(--color-border);
+                    border-radius: 16px;
+                    padding: 8px;
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 8px;
+                    z-index: 100;
+                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+                }
+
+                .coach-option {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 12px 8px;
+                    background: transparent;
+                    border: 2px solid transparent;
+                    border-radius: 12px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+
+                .coach-option:hover {
+                    background: var(--color-surface-2);
+                }
+
+                .coach-option.active {
+                    border-color: var(--color-primary);
+                    background: var(--color-primary-light);
+                }
+
+                .coach-option-icon {
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 1.3rem;
+                }
+
+                .coach-option-name {
+                    font-size: 0.75rem;
+                    font-weight: 500;
+                    color: var(--color-text);
+                }
+
+                .chat-messages {
+                    flex: 1;
+                    overflow-y: auto;
+                    padding: 20px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 16px;
+                }
+
+                .empty-state {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    text-align: center;
+                    padding: 40px;
+                    color: var(--color-text-muted);
+                }
+
+                .empty-icon {
+                    width: 80px;
+                    height: 80px;
+                    background: linear-gradient(135deg, var(--color-primary), #ec4899);
+                    border-radius: 24px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    margin-bottom: 16px;
+                }
+
+                .empty-state h3 {
+                    font-size: 1.25rem;
+                    font-weight: 600;
+                    color: var(--color-text);
+                    margin-bottom: 8px;
+                }
+
+                .message {
+                    display: flex;
+                    gap: 12px;
+                    align-items: flex-end;
+                    animation: slideIn 0.3s ease;
+                }
+
+                @keyframes slideIn {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+
+                .message.user {
+                    flex-direction: row-reverse;
+                }
+
+                .message-avatar {
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 1.1rem;
+                    flex-shrink: 0;
+                }
+
+                .user-avatar {
+                    background: var(--gradient-primary);
+                    color: white;
+                }
+
+                .message-bubble {
+                    max-width: 75%;
+                    padding: 14px 18px;
+                    border-radius: 20px;
+                    line-height: 1.5;
+                    font-size: 0.95rem;
+                }
+
+                .message.assistant .message-bubble {
+                    background: var(--color-surface-2);
+                    color: var(--color-text);
+                    border-bottom-left-radius: 6px;
+                }
+
+                .message.user .message-bubble {
+                    background: var(--gradient-primary);
+                    color: white;
+                    border-bottom-right-radius: 6px;
+                }
+
+                .message-bubble.typing {
+                    display: flex;
+                    gap: 4px;
+                    padding: 18px 22px;
+                }
+
+                .message-bubble.typing span {
+                    width: 8px;
+                    height: 8px;
+                    background: var(--color-text-muted);
+                    border-radius: 50%;
+                    animation: bounce 1.4s infinite ease-in-out;
+                }
+
+                .message-bubble.typing span:nth-child(1) { animation-delay: -0.32s; }
+                .message-bubble.typing span:nth-child(2) { animation-delay: -0.16s; }
+
+                @keyframes bounce {
+                    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+                    40% { transform: scale(1); opacity: 1; }
+                }
+
+                .quick-actions {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 8px;
+                    padding: 0 20px 16px;
+                }
+
+                .quick-action-btn {
+                    padding: 10px 16px;
+                    background: var(--color-surface-2);
+                    border: 1px solid var(--color-border);
+                    border-radius: 20px;
+                    font-size: 0.85rem;
+                    color: var(--color-text);
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+
+                .quick-action-btn:hover:not(:disabled) {
+                    background: var(--color-primary-light);
+                    border-color: var(--color-primary);
+                    transform: translateY(-2px);
+                }
+
+                .quick-action-btn:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+
+                .chat-input-form {
+                    display: flex;
+                    gap: 12px;
+                    padding: 16px 20px;
+                    border-top: 1px solid var(--color-border);
+                    background: rgba(255, 255, 255, 0.5);
+                    backdrop-filter: blur(10px);
+                }
+
+                .chat-input {
+                    flex: 1;
+                    padding: 14px 20px;
+                    background: var(--color-surface-2);
+                    border: 2px solid var(--color-border);
+                    border-radius: 16px;
+                    font-size: 1rem;
+                    color: var(--color-text);
+                    outline: none;
+                    transition: border-color 0.2s;
+                }
+
+                .chat-input:focus {
+                    border-color: var(--color-primary);
+                }
+
+                .chat-input::placeholder {
+                    color: var(--color-text-muted);
+                }
+
+                .send-btn {
+                    width: 52px;
+                    height: 52px;
+                    background: var(--gradient-primary);
+                    border: none;
+                    border-radius: 16px;
+                    color: white;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    flex-shrink: 0;
+                }
+
+                .send-btn:hover:not(:disabled) {
+                    transform: scale(1.05);
+                    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+                }
+
+                .send-btn:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+
+                @media (max-width: 640px) {
+                    .coach-dropdown {
+                        grid-template-columns: repeat(2, 1fr);
+                    }
+                    
+                    .message-bubble {
+                        max-width: 85%;
+                    }
+                }
+            `}</style>
         </div>
     );
 }
