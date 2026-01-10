@@ -84,13 +84,9 @@ export async function POST(request: NextRequest) {
             // Continue to login even if seeding fails
         }
 
-        // Create session
-        const token = signToken({
-            userId: user.id,
-            email: user.email,
-            displayName: user.displayName
-        });
-
+        // Create session token
+        const { signToken } = require('@/lib/auth');
+        const token = signToken({ userId: user.id, email: user.email, isDemo: true });
         // Set cookie
         cookies().set('auth_token', token, {
             httpOnly: true,

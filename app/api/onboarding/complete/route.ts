@@ -19,11 +19,10 @@ export async function POST(request: NextRequest) {
             const cookieStore = await cookies();
             const token = cookieStore.get('auth_token')?.value;
             if (token) {
-                try {
-                    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-key') as any;
+                const { verifyToken } = require('@/lib/auth');
+                const decoded = verifyToken(token);
+                if (decoded) {
                     userId = decoded.userId;
-                } catch (jwtError) {
-                    // Token invalid
                 }
             }
         }

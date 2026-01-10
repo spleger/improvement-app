@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 
-const JWT_SECRET = process.env.NEXTAUTH_SECRET || 'fallback-secret-key-change-me';
+const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || 'fallback-secret-key';
 
 // Password Hashing
 export async function hashPassword(password: string): Promise<string> {

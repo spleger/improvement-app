@@ -48,12 +48,8 @@ export async function POST(request: NextRequest) {
         });
 
         // Auto-login: Generate session token
-        const jwt = require('jsonwebtoken');
-        const token = jwt.sign(
-            { userId: newUser.id, email: newUser.email },
-            process.env.JWT_SECRET || 'fallback-secret-key',
-            { expiresIn: '7d' }
-        );
+        const { signToken } = require('@/lib/auth');
+        const token = signToken({ userId: newUser.id, email: newUser.email });
 
         // Set cookie
         const response = NextResponse.json({

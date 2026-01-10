@@ -35,10 +35,6 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/login', request.url));
     }
 
-    if (token && (path === '/login' || path === '/register')) {
-        return NextResponse.redirect(new URL('/', request.url));
-    }
-
     return NextResponse.next();
 }
 
