@@ -179,6 +179,10 @@ export default function SuggestionsStep({ suggestions, onSelect }: SuggestionsSt
                     color: var(--color-text);
                 }
 
+                .suggestion-state strong {
+                    color: var(--color-text);
+                }
+
                 .suggestion-arrow {
                     color: #3b82f6;
                     font-size: 1.25rem;
@@ -200,7 +204,7 @@ export default function SuggestionsStep({ suggestions, onSelect }: SuggestionsSt
                 }
 
                 .suggestion-why p {
-                    color: var(--color-text-muted);
+                    color: var(--color-text);
                     margin: 0;
                     line-height: 1.5;
                 }

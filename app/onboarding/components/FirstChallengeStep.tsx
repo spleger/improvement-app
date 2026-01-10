@@ -120,7 +120,7 @@ export default function FirstChallengeStep({ challenge, onComplete }: FirstChall
                 }
 
                 .challenge-notes p {
-                    color: var(--color-text-muted);
+                    color: var(--color-text);
                     margin: 0;
                     line-height: 1.5;
                     white-space: pre-line;
