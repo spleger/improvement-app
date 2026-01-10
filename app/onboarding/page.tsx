@@ -102,24 +102,22 @@ export default function OnboardingPage() {
     };
 
     const handleComplete = async () => {
-        // Mark onboarding as complete
-        try {
-            await fetch('/api/onboarding/complete', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    surveyData: {
-                        answers: surveyAnswers,
-                        selectedGoal: customizedGoal,
-                        completedAt: new Date().toISOString()
-                    }
-                })
-            });
-        } catch (error) {
+        // Mark onboarding as complete (don't wait for success)
+        fetch('/api/onboarding/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                surveyData: {
+                    answers: surveyAnswers,
+                    selectedGoal: customizedGoal,
+                    completedAt: new Date().toISOString()
+                }
+            })
+        }).catch(error => {
             console.error('Failed to mark onboarding complete:', error);
-        }
+        });
 
-        // Redirect to dashboard
+        // Redirect to dashboard immediately - don't wait for API
         router.push('/');
     };
 

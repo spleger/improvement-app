@@ -9,11 +9,60 @@ export default function FirstChallengeStep({ challenge, onComplete }: FirstChall
     if (!challenge) {
         return (
             <div className="first-challenge-step">
-                <h2>Goal Created!</h2>
-                <p>Your first challenge will be ready on your dashboard.</p>
+                <div className="congrats-icon">🎉</div>
+                <h2 className="first-challenge-title">Goal Created!</h2>
+                <p className="first-challenge-subtitle">Your first challenge will be ready on your dashboard.</p>
                 <button onClick={onComplete} className="complete-btn">
                     Go to Dashboard
                 </button>
+
+                <style jsx>{`
+                    .first-challenge-step {
+                        width: 100%;
+                        text-align: center;
+                        animation: fadeIn 0.5s ease;
+                    }
+
+                    @keyframes fadeIn {
+                        from { opacity: 0; transform: translateY(20px); }
+                        to { opacity: 1; transform: translateY(0); }
+                    }
+
+                    .congrats-icon {
+                        font-size: 3rem;
+                        margin-bottom: 16px;
+                    }
+
+                    .first-challenge-title {
+                        font-size: 1.75rem;
+                        font-weight: 700;
+                        color: var(--color-text);
+                        margin-bottom: 8px;
+                    }
+
+                    .first-challenge-subtitle {
+                        font-size: 1rem;
+                        color: var(--color-text-muted);
+                        margin-bottom: 32px;
+                    }
+
+                    .complete-btn {
+                        background: linear-gradient(135deg, #22c55e, #10b981);
+                        color: white;
+                        border: none;
+                        padding: 14px 32px;
+                        border-radius: 10px;
+                        font-size: 1rem;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: all 0.2s ease;
+                    }
+
+                    .complete-btn:hover {
+                        transform: translateY(-2px);
+                        box-shadow: 0 8px 20px rgba(34, 197, 94, 0.3);
+                    }
+                `}</style>
             </div>
         );
     }
