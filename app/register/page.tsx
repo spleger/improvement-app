@@ -27,8 +27,8 @@ export default function RegisterPage() {
             const data = await res.json();
 
             if (res.ok) {
-                // Automatically log in or redirect to login
-                router.push('/login?registered=true');
+                // New users go straight to onboarding
+                router.push('/onboarding');
             } else {
                 setError(data.error || 'Registration failed');
             }
