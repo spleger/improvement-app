@@ -1,411 +1,382 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { Mic, Square, Save, Trash2, Loader2 } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Mic, Square, Save, Trash2, Loader2, RefreshCw } from 'lucide-react';
+
+// Extend Window interface for Speech Recognition
+declare global {
+    interface Window {
+        SpeechRecognition: any;
+        webkitSpeechRecognition: any;
+    }
+}
 
 interface VoiceRecorderProps {
     onSave: (transcript: string, duration: number) => Promise<void>;
 }
 
+type RecordingState = 'idle' | 'recording' | 'paused' | 'stopped' | 'processing' | 'saved';
+
 export default function VoiceRecorder({ onSave }: VoiceRecorderProps) {
-    const [isRecording, setIsRecording] = useState(false);
-    const [transcript, setTranscript] = useState('');
-    const [interimText, setInterimText] = useState('');
+    const [state, setState] = useState<RecordingState>('idle');
     const [duration, setDuration] = useState(0);
-    const [isSaving, setIsSaving] = useState(false);
+    const [transcript, setTranscript] = useState('');
+    const [interimTranscript, setInterimTranscript] = useState('');
+    const [audioUrl, setAudioUrl] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [isSupported, setIsSupported] = useState(true);
+    const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
+    const [moodScore, setMoodScore] = useState(5);
+    const [isSaving, setIsSaving] = useState(false);
 
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const recognitionRef = useRef<any>(null);
+    const chunksRef = useRef<Blob[]>([]);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const streamRef = useRef<MediaStream | null>(null);
 
+    // Cleanup on unmount
     useEffect(() => {
-        // Initialize Web Speech API
-        if (typeof window !== 'undefined') {
-            const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-            if (SpeechRecognition) {
-                const recognition = new SpeechRecognition();
-                recognition.continuous = true;
-                recognition.interimResults = true;
-                recognition.lang = 'en-US';
-
-                recognition.onresult = (event: any) => {
-                    let finalText = '';
-                    let interim = '';
-
-                    for (let i = 0; i < event.results.length; i++) {
-                        const result = event.results[i];
-                        if (result.isFinal) {
-                            finalText += result[0].transcript + ' ';
-                        } else {
-                            interim += result[0].transcript;
-                        }
-                    }
-
-                    // Update final transcript (accumulated)
-                    if (finalText) {
-                        setTranscript(finalText.trim());
-                    }
-                    // Update interim (what's being spoken right now)
-                    setInterimText(interim);
-                };
-
-                recognition.onerror = (event: any) => {
-                    console.error('Speech recognition error', event.error);
-                    if (event.error === 'not-allowed') {
-                        setError('Microphone access denied. Please allow microphone access.');
-                        stopRecording();
-                    } else if (event.error === 'no-speech') {
-                        // Ignore this, it's just a timeout, we can stay in recording mode
-                    } else if (event.error === 'network') {
-                        setError('Network connection error. Transcription requires an internet connection.');
-                        stopRecording(); // Stop to prevent loop
-                    } else if (event.error === 'aborted') {
-                        // Ignore
-                    } else {
-                        setError(`Recognition error: ${event.error}`);
-                        stopRecording();
-                    }
-                };
-
-                recognition.onend = () => {
-                    // Auto-restart ONLY if we are still purposefully recording and no critical error occurred
-                    // Note: accessing the *current* state value in a closure can be tricky, 
-                    // but we are using ref or dependency array. 
-                    // We need to check if we logically *should* be recording.
-                    // However, 'isRecording' state in useEffect might be stale if not careful.
-                    // The simplest way to break the loop on error is if we called stopRecording() which sets isRecording=false
-
-                    // We rely on the fact that stopRecording() sets isRecording(false), 
-                    // triggering the effect cleanup, which stops the recognition instance.
-                    // So this onend mostly handles "silent" stops by the engine while we still think we are recording.
-
-                    // We can't easily check isRecording here without it being a dependency, which would re-create the recognition instance.
-                    // Instead, we just try to start if we haven't been torn down.
-                    if (recognitionRef.current && !recognitionRef.current.stoppedExplicitly) {
-                        try {
-                            recognitionRef.current.start();
-                        } catch (e) {
-                            // Already started or unrelated error
-                        }
-                    }
-                };
-
-                recognitionRef.current = recognition;
-            } else {
-                setIsSupported(false);
-                setError('Speech recognition is not supported in this browser. Please use Chrome or Edge.');
-            }
-        }
-
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+            }
             if (recognitionRef.current) {
                 try { recognitionRef.current.stop(); } catch (e) { }
             }
         };
-    }, [isRecording]);
+    }, []);
 
-    const startRecording = () => {
-        if (!recognitionRef.current || !isSupported) return;
-
-        setError(null);
-        setInterimText('');
-
-        try {
-            recognitionRef.current.stoppedExplicitly = false;
-            recognitionRef.current.start();
-            setIsRecording(true);
-            timerRef.current = setInterval(() => {
-                setDuration(prev => prev + 1);
-            }, 1000);
-        } catch (e) {
-            setError('Failed to start recording. Please try again.');
-        }
-    };
-
-    const stopRecording = () => {
-        if (recognitionRef.current) {
-            recognitionRef.current.stoppedExplicitly = true; // Mark as intentionally stopped
-            try { recognitionRef.current.stop(); } catch (e) { }
-        }
-        if (timerRef.current) clearInterval(timerRef.current);
-        setIsRecording(false);
-        setInterimText('');
-    };
-
-    const handleSave = async () => {
-        const finalText = transcript.trim();
-        if (!finalText) return;
-
-        setIsSaving(true);
-        try {
-            await onSave(finalText, duration);
-            setTranscript('');
-            setInterimText('');
-            setDuration(0);
-        } catch (err) {
-            setError('Failed to save entry. Please try again.');
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const handleClear = () => {
-        stopRecording();
-        setTranscript('');
-        setInterimText('');
-        setDuration(0);
-        setError(null);
-    };
-
-    const formatTime = (seconds: number) => {
+    const formatDuration = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const displayText = transcript + (interimText ? ` ${interimText}` : '');
+    const startRecording = async () => {
+        try {
+            setError(null);
+            setTranscriptionError(null);
+            setTranscript('');
+            setInterimTranscript('');
+
+            // 1. Setup Audio Recording (MediaRecorder)
+            // This works offline and is robust
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            streamRef.current = stream;
+
+            const mediaRecorder = new MediaRecorder(stream);
+            mediaRecorderRef.current = mediaRecorder;
+            chunksRef.current = [];
+
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) {
+                    chunksRef.current.push(e.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+                const url = URL.createObjectURL(blob);
+                setAudioUrl(url);
+            };
+
+            mediaRecorder.start(1000);
+
+            // 2. Setup Speech Recognition (Optional / Fragile)
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SpeechRecognition) {
+                const recognition = new SpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'en-US';
+                recognition.stoppedExplicitly = false;
+
+                recognition.onresult = (event: any) => {
+                    let interim = '';
+                    let final = '';
+
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const transcriptPart = event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            final += transcriptPart + ' ';
+                        } else {
+                            interim += transcriptPart;
+                        }
+                    }
+
+                    if (final) {
+                        setTranscript(prev => prev + final);
+                    }
+                    setInterimTranscript(interim);
+                };
+
+                recognition.onerror = (event: any) => {
+                    console.error('Speech recognition error:', event.error);
+                    if (event.error === 'not-allowed') {
+                        setTranscriptionError('Microphone access denied for transcription.');
+                    } else if (event.error === 'network') {
+                        setTranscriptionError('Offline: Transcription paused (Audio still recording)');
+                        // Do NOT stop recording audio
+                    } else if (event.error === 'no-speech') {
+                        // Ignore
+                    } else {
+                        setTranscriptionError(`Transcription error: ${event.error}`);
+                    }
+                };
+
+                recognition.onend = () => {
+                    // Try to restart if we are still recording and haven't stopped explicitly
+                    // But check if we encountered a persistent error
+                    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording' && recognitionRef.current && !recognitionRef.current.stoppedExplicitly) {
+                        if (!transcriptionError) {
+                            try { recognitionRef.current.start(); } catch (e) { }
+                        }
+                    }
+                };
+
+                recognitionRef.current = recognition;
+                try {
+                    recognition.start();
+                } catch (e) {
+                    console.error('Failed to start recognition', e);
+                }
+            } else {
+                setTranscriptionError('Browser does not support live transcription (Audio only).');
+            }
+
+            setState('recording');
+            setDuration(0);
+
+            timerRef.current = setInterval(() => {
+                setDuration(d => d + 1);
+            }, 1000);
+
+        } catch (err) {
+            console.error('Error accessing microphone:', err);
+            setError('Could not access microphone. Please allow permissions.');
+        }
+    };
+
+    const pauseRecording = () => {
+        if (mediaRecorderRef.current && state === 'recording') {
+            mediaRecorderRef.current.pause();
+            if (recognitionRef.current) {
+                recognitionRef.current.stoppedExplicitly = true;
+                try { recognitionRef.current.stop(); } catch (e) { }
+            }
+            setState('paused');
+            if (timerRef.current) clearInterval(timerRef.current);
+        }
+    };
+
+    const resumeRecording = () => {
+        if (mediaRecorderRef.current && state === 'paused') {
+            mediaRecorderRef.current.resume();
+            if (recognitionRef.current && !transcriptionError) {
+                try {
+                    recognitionRef.current.stoppedExplicitly = false;
+                    recognitionRef.current.start();
+                } catch (e) { }
+            }
+            setState('recording');
+            timerRef.current = setInterval(() => {
+                setDuration(d => d + 1);
+            }, 1000);
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorderRef.current) {
+            mediaRecorderRef.current.stop();
+            if (recognitionRef.current) {
+                recognitionRef.current.stoppedExplicitly = true;
+                try { recognitionRef.current.stop(); } catch (e) { }
+            }
+            setState('stopped');
+            if (timerRef.current) clearInterval(timerRef.current);
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+            }
+            // Add any final interim text
+            if (interimTranscript) {
+                setTranscript(prev => prev + interimTranscript + ' ');
+                setInterimTranscript('');
+            }
+        }
+    };
+
+    const discardRecording = () => {
+        if (audioUrl) URL.revokeObjectURL(audioUrl);
+        setAudioUrl(null);
+        setTranscript('');
+        setInterimTranscript('');
+        setDuration(0);
+        setState('idle');
+        chunksRef.current = [];
+        setTranscriptionError(null);
+    };
+
+    const handleSave = async () => {
+        setState('processing');
+        setIsSaving(true);
+        try {
+            await onSave(transcript, duration);
+            setState('saved');
+        } catch (err) {
+            console.error('Error saving:', err);
+            setError('Failed to save entry. Please try again.');
+            setState('stopped'); // Go back to review
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const startNew = () => {
+        discardRecording();
+        setMoodScore(5);
+    };
 
     return (
-        <div className="voice-recorder-card">
-            <div className="voice-recorder-header">
-                <h3 className="voice-recorder-title">🎙️ Voice Journal</h3>
-                <div className="voice-recorder-timer">
-                    {formatTime(duration)}
-                </div>
-            </div>
-
+        <div className="voice-recorder">
+            {/* Error Message */}
             {error && (
-                <div className="voice-recorder-error">
-                    {error}
+                <div className="card mb-lg" style={{ borderLeft: '4px solid var(--color-error)' }}>
+                    <p style={{ color: 'var(--color-error)' }}>{error}</p>
                 </div>
             )}
 
-            <div className="voice-recorder-textarea-wrapper">
-                <textarea
-                    value={displayText}
-                    onChange={(e) => setTranscript(e.target.value)}
-                    placeholder={isRecording ? "🎤 Listening... Speak now!" : "Tap 'Start Recording' to begin..."}
-                    className="voice-recorder-textarea"
-                    readOnly={isRecording}
-                />
+            {/* Transcription Warning */}
+            {transcriptionError && state === 'recording' && (
+                <div className="card mb-md p-sm bg-yellow-50 border-l-4 border-yellow-400 text-yellow-700 text-sm">
+                    ⚠️ {transcriptionError}
+                </div>
+            )}
 
-                {isRecording && (
-                    <div className="voice-recorder-pulse">
-                        <span className="voice-recorder-pulse-ring"></span>
-                        <span className="voice-recorder-pulse-dot"></span>
-                    </div>
-                )}
-            </div>
-
-            {/* Action Buttons */}
-            <div className="voice-recorder-actions">
-                {!isRecording ? (
+            {/* Idle State */}
+            {state === 'idle' && (
+                <div className="card text-center py-xl">
                     <button
                         onClick={startRecording}
-                        disabled={!isSupported}
-                        className="voice-recorder-btn voice-recorder-btn-start"
+                        className="record-button"
+                        style={{
+                            width: '96px',
+                            height: '96px',
+                            borderRadius: '50%',
+                            background: 'var(--gradient-primary)',
+                            border: 'none',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            margin: '0 auto 1.5rem',
+                            boxShadow: '0 8px 32px rgba(99, 102, 241, 0.4)',
+                            transition: 'transform 0.2s',
+                            color: 'white'
+                        }}
                     >
-                        <Mic size={20} />
-                        Start Recording
+                        <Mic size={40} />
                     </button>
-                ) : (
-                    <button
-                        onClick={stopRecording}
-                        className="voice-recorder-btn voice-recorder-btn-stop"
-                    >
-                        <Square size={18} fill="currentColor" />
-                        Stop
-                    </button>
-                )}
+                    <h3 className="heading-4 mb-sm">Tap to Record</h3>
+                    <p className="text-muted text-small">
+                        Speak naturally. Audio is recorded even if transcription fails.
+                    </p>
+                </div>
+            )}
 
-                {transcript && !isRecording && (
-                    <>
-                        <button
-                            onClick={handleSave}
-                            disabled={isSaving}
-                            className="voice-recorder-btn voice-recorder-btn-save"
-                        >
-                            {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+            {/* Recording State */}
+            {(state === 'recording' || state === 'paused') && (
+                <div className="card text-center p-lg">
+                    <div style={{
+                        width: '80px', height: '80px', borderRadius: '50%',
+                        background: state === 'recording' ? '#ef4444' : '#fbbf24',
+                        margin: '0 auto 1rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        color: 'white',
+                        animation: state === 'recording' ? 'pulse 1.5s infinite' : 'none'
+                    }}>
+                        {state === 'recording' ? <Mic size={32} /> : <Square size={32} />}
+                    </div>
+
+                    <div className="heading-2 mb-md font-mono">{formatDuration(duration)}</div>
+
+                    {/* Live Transcript */}
+                    <div className="card card-surface mb-lg text-left" style={{ minHeight: '100px', maxHeight: '200px', overflowY: 'auto' }}>
+                        <p style={{ margin: 0 }}>
+                            {transcript}
+                            <span className="text-muted italic">{interimTranscript}</span>
+                            {!transcript && !interimTranscript && (
+                                <span className="text-muted">Listening...</span>
+                            )}
+                        </p>
+                    </div>
+
+                    {/* Controls */}
+                    <div className="flex justify-center gap-md">
+                        {state === 'recording' ? (
+                            <button onClick={pauseRecording} className="btn btn-secondary flex items-center gap-sm">
+                                ⏸️ Pause
+                            </button>
+                        ) : (
+                            <button onClick={resumeRecording} className="btn btn-secondary flex items-center gap-sm">
+                                ▶️ Resume
+                            </button>
+                        )}
+                        <button onClick={stopRecording} className="btn btn-primary flex items-center gap-sm">
+                            <Square size={18} fill="currentColor" /> Done
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Stopped / Review State */}
+            {state === 'stopped' && (
+                <div className="card p-lg">
+                    <h3 className="heading-4 mb-md text-center">Review Recording</h3>
+
+                    {audioUrl && (
+                        <div className="mb-lg">
+                            <audio controls src={audioUrl} style={{ width: '100%' }} />
+                        </div>
+                    )}
+
+                    <div className="mb-lg">
+                        <label className="form-label">Transcript (Edit if needed)</label>
+                        <textarea
+                            className="form-input w-full h-32"
+                            value={transcript}
+                            onChange={(e) => setTranscript(e.target.value)}
+                            placeholder="Add your notes here if transcription failed..."
+                        />
+                    </div>
+
+                    <div className="flex gap-md mt-lg">
+                        <button onClick={discardRecording} className="btn btn-ghost text-error">
+                            <Trash2 size={18} /> Discard
+                        </button>
+                        <button onClick={handleSave} disabled={isSaving} className="btn btn-primary flex-1 flex justify-center gap-sm">
+                            {isSaving ? <Loader2 className="animate-spin" /> : <Save size={18} />}
                             Save Entry
                         </button>
+                    </div>
+                </div>
+            )}
 
-                        <button
-                            onClick={handleClear}
-                            disabled={isSaving}
-                            className="voice-recorder-btn voice-recorder-btn-clear"
-                        >
-                            <Trash2 size={18} />
-                            Clear
-                        </button>
-                    </>
-                )}
-            </div>
+            {/* Finished State */}
+            {state === 'saved' && (
+                <div className="card text-center p-xl">
+                    <div className="text-5xl mb-md">✅</div>
+                    <h3 className="heading-4 mb-md">Entry Saved!</h3>
+                    <button onClick={startNew} className="btn btn-primary">
+                        <RefreshCw size={18} className="mr-2" /> Record Another
+                    </button>
+                </div>
+            )}
 
             <style jsx>{`
-                .voice-recorder-card {
-                    background: var(--color-surface);
-                    border: 1px solid var(--color-border);
-                    border-radius: 16px;
-                    padding: 24px;
-                }
-                
-                .voice-recorder-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 16px;
-                }
-                
-                .voice-recorder-title {
-                    font-size: 1.25rem;
-                    font-weight: 700;
-                    color: var(--color-text);
-                }
-                
-                .voice-recorder-timer {
-                    background: var(--color-surface-2);
-                    padding: 6px 14px;
-                    border-radius: 20px;
-                    font-family: monospace;
-                    font-size: 0.9rem;
-                    font-weight: 600;
-                    color: var(--color-text);
-                }
-                
-                .voice-recorder-error {
-                    background: rgba(239, 68, 68, 0.1);
-                    border: 1px solid rgba(239, 68, 68, 0.3);
-                    color: #ef4444;
-                    padding: 12px;
-                    border-radius: 8px;
-                    font-size: 0.875rem;
-                    margin-bottom: 16px;
-                }
-                
-                .voice-recorder-textarea-wrapper {
-                    position: relative;
-                    margin-bottom: 16px;
-                }
-                
-                .voice-recorder-textarea {
-                    width: 100%;
-                    height: 140px;
-                    background: var(--color-surface-2);
-                    border: 2px solid var(--color-border);
-                    border-radius: 12px;
-                    padding: 16px;
-                    resize: none;
-                    font-size: 1rem;
-                    line-height: 1.6;
-                    color: var(--color-text);
-                }
-                
-                .voice-recorder-textarea:focus {
-                    outline: none;
-                    border-color: var(--color-primary);
-                }
-                
-                .voice-recorder-textarea::placeholder {
-                    color: var(--color-text-muted);
-                }
-                
-                .voice-recorder-pulse {
-                    position: absolute;
-                    top: 12px;
-                    right: 12px;
-                }
-                
-                .voice-recorder-pulse-ring {
-                    position: absolute;
-                    width: 12px;
-                    height: 12px;
-                    border-radius: 50%;
-                    background: #ef4444;
-                    opacity: 0.5;
-                    animation: pulse-ring 1.5s ease-out infinite;
-                }
-                
-                .voice-recorder-pulse-dot {
-                    position: relative;
-                    display: block;
-                    width: 12px;
-                    height: 12px;
-                    border-radius: 50%;
-                    background: #ef4444;
-                }
-                
-                @keyframes pulse-ring {
-                    0% { transform: scale(1); opacity: 0.5; }
-                    100% { transform: scale(2.5); opacity: 0; }
-                }
-                
-                .voice-recorder-actions {
-                    display: flex;
-                    gap: 12px;
-                    flex-wrap: wrap;
-                }
-                
-                .voice-recorder-btn {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 8px;
-                    padding: 12px 20px;
-                    border-radius: 10px;
-                    font-weight: 600;
-                    font-size: 0.9rem;
-                    border: none;
-                    cursor: pointer;
-                    transition: all 0.2s ease;
-                    flex: 1;
-                    min-width: 120px;
-                }
-                
-                .voice-recorder-btn:disabled {
-                    opacity: 0.5;
-                    cursor: not-allowed;
-                }
-                
-                /* Start Button - Green */
-                .voice-recorder-btn-start {
-                    background: #22c55e;
-                    color: white;
-                }
-                .voice-recorder-btn-start:hover:not(:disabled) {
-                    background: #16a34a;
-                    transform: translateY(-1px);
-                }
-                
-                /* Stop Button - Red */
-                .voice-recorder-btn-stop {
-                    background: #ef4444;
-                    color: white;
-                }
-                .voice-recorder-btn-stop:hover:not(:disabled) {
-                    background: #dc2626;
-                    transform: translateY(-1px);
-                }
-                
-                /* Save Button - Blue */
-                .voice-recorder-btn-save {
-                    background: #3b82f6;
-                    color: white;
-                }
-                .voice-recorder-btn-save:hover:not(:disabled) {
-                    background: #2563eb;
-                    transform: translateY(-1px);
-                }
-                
-                /* Clear Button - Neutral */
-                .voice-recorder-btn-clear {
-                    background: #6b7280;
-                    color: white;
-                }
-                .voice-recorder-btn-clear:hover:not(:disabled) {
-                    background: #4b5563;
-                    transform: translateY(-1px);
+                @keyframes pulse {
+                    0% { transform: scale(1); opacity: 1; }
+                    50% { transform: scale(1.1); opacity: 0.9; }
+                    100% { transform: scale(1); opacity: 1; }
                 }
             `}</style>
         </div>
