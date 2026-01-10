@@ -6,13 +6,6 @@ const ANTHROPIC_API_KEY_RAW = process.env.ANTHROPIC_API_KEY;
 // Sanitize: strip quotes and whitespace
 const ANTHROPIC_API_KEY = ANTHROPIC_API_KEY_RAW?.replace(/^["']|["']$/g, '').trim();
 
-if (ANTHROPIC_API_KEY) {
-    const masked = `${ANTHROPIC_API_KEY.slice(0, 7)}...${ANTHROPIC_API_KEY.slice(-4)}`;
-    console.log(`[API Expert] Anthropic Key Loaded: ${masked} (Length: ${ANTHROPIC_API_KEY.length})`);
-} else {
-    console.warn('[API Expert] ANTHROPIC_API_KEY is missing');
-}
-
 async function getUserContext(userId: string) {
     try {
         // Get active goal
@@ -208,27 +201,8 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // --- ROBUST ENV LOADING ---
-        let apiKey = process.env.ANTHROPIC_API_KEY?.replace(/^["']|["']$/g, '').trim();
-
-        if (!apiKey) {
-            try {
-                const fs = require('fs');
-                const path = require('path');
-                const envPath = path.join(process.cwd(), '.env');
-                if (fs.existsSync(envPath)) {
-                    const envContent = fs.readFileSync(envPath, 'utf-8');
-                    const match = envContent.match(/ANTHROPIC_API_KEY=["']?([^"'\n]+)["']?/);
-                    if (match && match[1]) {
-                        apiKey = match[1].trim();
-                        console.log('[API Expert] Recovered API key from .env file directly');
-                    }
-                }
-            } catch (e) {
-                console.error('[API Expert] Failed to read .env file fallback:', e);
-            }
-        }
-        // --------------------------
+        // Use sanitized key
+        const apiKey = ANTHROPIC_API_KEY;
 
         const body = await request.json();
         const { message, history, coachId } = body;
@@ -335,18 +309,7 @@ export async function POST(request: NextRequest) {
         } catch (apiError) {
             console.error('Claude API call failed:', apiError);
             const errorMsg = apiError instanceof Error ? apiError.message : String(apiError);
-            const keyInfo = ANTHROPIC_API_KEY ? `Key exists (len: ${ANTHROPIC_API_KEY.length})` : 'Key is MISSING';
-
-            // DEBUG: Write error to file
-            try {
-                const fs = require('fs');
-                const logMessage = `[${new Date().toISOString()}] FAILED. 
-                API Key Present: ${!!ANTHROPIC_API_KEY}
-                Key Length: ${ANTHROPIC_API_KEY?.length || 0}
-                Error: ${errorMsg}
-                \n`;
-                fs.appendFileSync('debug_expert.log', logMessage);
-            } catch (e) { console.error('Failed to write log', e); }
+            const keyInfo = ANTHROPIC_API_KEY ? `Key present (len: ${ANTHROPIC_API_KEY.length}, start: ${ANTHROPIC_API_KEY.slice(0, 5)})` : 'Key is MISSING in Vercel env';
 
             const reply = getFallbackResponse(message, context, `${errorMsg} | ${keyInfo}`);
 

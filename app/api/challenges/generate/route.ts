@@ -7,13 +7,6 @@ const ANTHROPIC_API_KEY_RAW = process.env.ANTHROPIC_API_KEY;
 // Sanitize: strip quotes and whitespace
 const ANTHROPIC_API_KEY = ANTHROPIC_API_KEY_RAW?.replace(/^["']|["']$/g, '').trim();
 
-if (ANTHROPIC_API_KEY) {
-    const masked = `${ANTHROPIC_API_KEY.slice(0, 7)}...${ANTHROPIC_API_KEY.slice(-4)}`;
-    console.log(`[API] Anthropic Key Loaded: ${masked} (Length: ${ANTHROPIC_API_KEY.length})`);
-} else {
-    console.warn('[API] ANTHROPIC_API_KEY is missing');
-}
-
 const SYSTEM_PROMPT = `You are an expert personal transformation coach and challenge designer. 
 Your goal is to create highly personalized, actionable daily challenges that push the user toward their specific goals.
 
@@ -181,27 +174,8 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // --- ROBUST ENV LOADING ---
-        let apiKey = process.env.ANTHROPIC_API_KEY?.replace(/^["']|["']$/g, '').trim();
-
-        if (!apiKey) {
-            try {
-                const fs = require('fs');
-                const path = require('path');
-                const envPath = path.join(process.cwd(), '.env');
-                if (fs.existsSync(envPath)) {
-                    const envContent = fs.readFileSync(envPath, 'utf-8');
-                    const match = envContent.match(/ANTHROPIC_API_KEY=["']?([^"'\n]+)["']?/);
-                    if (match && match[1]) {
-                        apiKey = match[1].trim();
-                        console.log('[API] Recovered API key from .env file directly');
-                    }
-                }
-            } catch (e) {
-                console.error('[API] Failed to read .env file fallback:', e);
-            }
-        }
-        // --------------------------
+        // Use the sanitized key from the top level
+        const apiKey = ANTHROPIC_API_KEY;
 
         const body = await request.json();
         const { goalId, count = 1, focusArea } = body;
@@ -306,42 +280,39 @@ export async function POST(request: NextRequest) {
             try {
                 const fs = require('fs');
                 const logMessage = `[${new Date().toISOString()}] FAILED. 
-                API Key Present: ${!!ANTHROPIC_API_KEY}
+                API Key Present: ${!!apiKey}
                 Error: ${aiError instanceof Error ? aiError.message : String(aiError)}
                 Stack: ${aiError instanceof Error ? aiError.stack : 'No stack'}
                 \n`;
-                fs.appendFileSync('debug_challenges.log', logMessage);
-            } catch (e) { console.error('Failed to write log', e); }
+                // Fallback: Create a simple challenge based on context
+                const errorMsg = aiError instanceof Error ? aiError.message : String(aiError);
+                const keyInfo = ANTHROPIC_API_KEY ? `Key present (len: ${ANTHROPIC_API_KEY.length}, start: ${ANTHROPIC_API_KEY.slice(0, 5)})` : 'Key is MISSING in Vercel env';
 
-            // Fallback: Create a simple challenge based on context
-            const errorMsg = aiError instanceof Error ? aiError.message : String(aiError);
-            const keyInfo = ANTHROPIC_API_KEY ? `Key exists (len: ${ANTHROPIC_API_KEY.length})` : 'Key is MISSING';
+                const fallbackChallenge = await db.createChallenge({
+                    userId: user.userId,
+                    goalId: context.goal.id,
+                    title: `Day ${context.dayInJourney} Focus`,
+                    description: `Spend 15-20 minutes focused on your goal: ${context.goal.title}. (Debug: ${errorMsg} | ${keyInfo})`,
+                    difficulty: 3,
+                    isRealityShift: false,
+                    scheduledDate: new Date(),
+                    personalizationNotes: `⚠️ NOTE: This is a fallback challenge because our AI coach is temporarily offline.\nError: ${errorMsg}\nDiagnostic: ${keyInfo}`
+                });
 
-            const fallbackChallenge = await db.createChallenge({
-                userId: user.userId,
-                goalId: context.goal.id,
-                title: `Day ${context.dayInJourney} Focus`,
-                description: `Spend 15-20 minutes focused on your goal: ${context.goal.title}. (Debug: ${errorMsg} | ${keyInfo})`,
-                difficulty: 3,
-                isRealityShift: false,
-                scheduledDate: new Date(),
-                personalizationNotes: `⚠️ NOTE: This is a fallback challenge because our AI coach is temporarily offline.\nError: ${errorMsg}\nDiagnostic: ${keyInfo}`
-            });
-
-            return NextResponse.json({
-                success: true,
-                data: {
-                    challenges: [fallbackChallenge],
-                    fallback: true
-                }
-            });
-        }
+                return NextResponse.json({
+                    success: true,
+                    data: {
+                        challenges: [fallbackChallenge],
+                        fallback: true
+                    }
+                });
+            }
 
     } catch (error) {
-        console.error('Error generating challenge:', error);
-        return NextResponse.json(
-            { success: false, error: 'Internal server error' },
-            { status: 500 }
-        );
+            console.error('Error generating challenge:', error);
+            return NextResponse.json(
+                { success: false, error: 'Internal server error' },
+                { status: 500 }
+            );
+        }
     }
-}

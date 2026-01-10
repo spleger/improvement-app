@@ -15,6 +15,7 @@ export default function VoiceRecorder({ onSave }: VoiceRecorderProps) {
     const [error, setError] = useState<string | null>(null);
     const recognitionRef = useRef<any>(null);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const processedIndexRef = useRef(0);
 
     useEffect(() => {
         // Initialize Web Speech API
@@ -27,21 +28,22 @@ export default function VoiceRecorder({ onSave }: VoiceRecorderProps) {
                 recognition.lang = 'en-US';
 
                 recognition.onresult = (event: any) => {
-                    let finalTranscript = '';
-                    let interimTranscript = '';
+                    let newFinalContent = '';
 
-                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    // Only process results we haven't seen finalized yet
+                    for (let i = processedIndexRef.current; i < event.results.length; ++i) {
                         if (event.results[i].isFinal) {
-                            finalTranscript += event.results[i][0].transcript;
-                        } else {
-                            interimTranscript += event.results[i][0].transcript;
+                            newFinalContent += event.results[i][0].transcript;
+                            processedIndexRef.current = i + 1; // Mark as processed
                         }
                     }
 
-                    if (finalTranscript) {
+                    if (newFinalContent) {
                         setTranscript(prev => {
-                            const newText = prev + (prev && !prev.endsWith(' ') ? ' ' : '') + finalTranscript;
-                            return newText.charAt(0).toUpperCase() + newText.slice(1);
+                            const trimmedPrev = prev.trim();
+                            const separator = trimmedPrev ? ' ' : '';
+                            const newPart = newFinalContent.trim();
+                            return (trimmedPrev + separator + newPart);
                         });
                     }
                 };
@@ -75,6 +77,7 @@ export default function VoiceRecorder({ onSave }: VoiceRecorderProps) {
             setIsRecording(false);
         } else {
             setError(null);
+            processedIndexRef.current = 0; // Reset safe index for new session
             recognitionRef.current.start();
             setIsRecording(true);
             timerRef.current = setInterval(() => {
