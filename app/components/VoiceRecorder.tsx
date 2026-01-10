@@ -56,19 +56,37 @@ export default function VoiceRecorder({ onSave }: VoiceRecorderProps) {
                         setError('Microphone access denied. Please allow microphone access.');
                         stopRecording();
                     } else if (event.error === 'no-speech') {
-                        // Ignore this, it's just a timeout
+                        // Ignore this, it's just a timeout, we can stay in recording mode
+                    } else if (event.error === 'network') {
+                        setError('Network connection error. Transcription requires an internet connection.');
+                        stopRecording(); // Stop to prevent loop
+                    } else if (event.error === 'aborted') {
+                        // Ignore
                     } else {
                         setError(`Recognition error: ${event.error}`);
+                        stopRecording();
                     }
                 };
 
                 recognition.onend = () => {
-                    // Auto-restart if we're still supposed to be recording
-                    if (isRecording && recognitionRef.current) {
+                    // Auto-restart ONLY if we are still purposefully recording and no critical error occurred
+                    // Note: accessing the *current* state value in a closure can be tricky, 
+                    // but we are using ref or dependency array. 
+                    // We need to check if we logically *should* be recording.
+                    // However, 'isRecording' state in useEffect might be stale if not careful.
+                    // The simplest way to break the loop on error is if we called stopRecording() which sets isRecording=false
+
+                    // We rely on the fact that stopRecording() sets isRecording(false), 
+                    // triggering the effect cleanup, which stops the recognition instance.
+                    // So this onend mostly handles "silent" stops by the engine while we still think we are recording.
+
+                    // We can't easily check isRecording here without it being a dependency, which would re-create the recognition instance.
+                    // Instead, we just try to start if we haven't been torn down.
+                    if (recognitionRef.current && !recognitionRef.current.stoppedExplicitly) {
                         try {
                             recognitionRef.current.start();
                         } catch (e) {
-                            // Already started, ignore
+                            // Already started or unrelated error
                         }
                     }
                 };
@@ -95,6 +113,7 @@ export default function VoiceRecorder({ onSave }: VoiceRecorderProps) {
         setInterimText('');
 
         try {
+            recognitionRef.current.stoppedExplicitly = false;
             recognitionRef.current.start();
             setIsRecording(true);
             timerRef.current = setInterval(() => {
@@ -107,6 +126,7 @@ export default function VoiceRecorder({ onSave }: VoiceRecorderProps) {
 
     const stopRecording = () => {
         if (recognitionRef.current) {
+            recognitionRef.current.stoppedExplicitly = true; // Mark as intentionally stopped
             try { recognitionRef.current.stop(); } catch (e) { }
         }
         if (timerRef.current) clearInterval(timerRef.current);
