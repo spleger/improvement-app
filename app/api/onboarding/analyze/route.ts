@@ -29,10 +29,8 @@ FORMAT (return this exact structure):
 
 export async function POST(request: NextRequest) {
     try {
-        const user = await getCurrentUser();
-        if (!user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        // Don't require auth - new users need to use this right after registration
+        // The middleware already validates they have a token for the onboarding page
 
         const body = await request.json();
         const { answers } = body;

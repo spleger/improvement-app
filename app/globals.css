@@ -11,8 +11,10 @@
   --color-highlight: #e94560;
   --color-background: #ffffff;
   --color-surface: #f8f9fa;
+  --color-surface-2: #e9ecef;
   --color-surface-hover: #e9ecef;
   --color-border: #dee2e6;
+  --color-text: #1a1a2e;
   --color-text-primary: #1a1a2e;
   --color-text-secondary: #6c757d;
   --color-text-muted: #adb5bd;
@@ -63,8 +65,10 @@
   --color-highlight: #e94560;
   --color-background: #0f0f1a;
   --color-surface: #1a1a2e;
+  --color-surface-2: #252540;
   --color-surface-hover: #252540;
   --color-border: #2d2d44;
+  --color-text: #f0f0f5;
   --color-text-primary: #f0f0f5;
   --color-text-secondary: #a0a0b0;
   --color-text-muted: #6c6c80;
