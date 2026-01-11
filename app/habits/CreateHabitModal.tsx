@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { X, Target } from 'lucide-react';
+import { getIcon } from '@/lib/icons';
 
 interface Goal {
     id: string;
@@ -158,7 +159,7 @@ export default function CreateHabitModal({ onClose, onCreated }: CreateHabitModa
                                 <option value="">No linked goal</option>
                                 {goals.map(goal => (
                                     <option key={goal.id} value={goal.id}>
-                                        {goal.domain?.icon || '🎯'} {goal.title}
+                                        {getIcon(goal.domain?.icon)} {goal.title}
                                     </option>
                                 ))}
                             </select>

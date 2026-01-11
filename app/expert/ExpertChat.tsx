@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown, Plus, Trash2, MoreHorizontal } from 'lucide-react';
+import { getIcon } from '@/lib/icons';
 import ChallengeProposal from './widgets/ChallengeProposal';
 import MoodLogWidget from './widgets/MoodLogWidget';
 import NewGoalWidget from './widgets/NewGoalWidget';
@@ -87,7 +88,7 @@ export default function ExpertChat() {
                     const goalCoaches = goalsData.data.goals.map((goal: any) => ({
                         id: goal.id, // Use actual Goal ID. Backend now checks this.
                         name: goal.title, // Coach Name = Goal Title
-                        icon: goal.domain?.icon || '🎯',
+                        icon: getIcon(goal.domain?.icon),
                         color: goal.domain?.color || '#3b82f6',
                         description: 'Goal Coach',
                         type: 'goal',
@@ -101,7 +102,7 @@ export default function ExpertChat() {
                     const customCoaches = coachesData.data.coaches.map((c: any) => ({
                         id: c.id,
                         name: c.name,
-                        icon: c.icon,
+                        icon: getIcon(c.icon),
                         color: c.color,
                         description: 'Custom Coach',
                         type: 'custom',

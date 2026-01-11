@@ -20,5 +20,26 @@
             "type": "image/png",
             "purpose": "maskable"
         }
+    ],
+    "screenshots": [
+        {
+            "src": "/screenshots/mobile-dashboard.png",
+            "sizes": "1080x1920",
+            "type": "image/png",
+            "form_factor": "narrow",
+            "label": "Track your daily goals"
+        },
+        {
+            "src": "/screenshots/mobile-expert.png",
+            "sizes": "1080x1920",
+            "type": "image/png",
+            "form_factor": "narrow",
+            "label": "Chat with AI Coaches"
+        }
+    ],
+    "categories": [
+        "lifestyle",
+        "productivity",
+        "health"
     ]
 }

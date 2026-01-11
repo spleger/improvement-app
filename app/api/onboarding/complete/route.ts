@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
-import { pool } from '@/lib/db';
+
 import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
 
@@ -39,14 +39,15 @@ export async function POST(request: NextRequest) {
         const { surveyData } = body;
 
         // Update user's onboarding status
-        await pool.query(
-            `UPDATE "User" 
-             SET "onboardingCompleted" = true, 
-                 "onboardingData" = $1,
-                 "updatedAt" = NOW()
-             WHERE id = $2`,
-            [JSON.stringify(surveyData || {}), userId]
-        );
+        // Update user's onboarding status
+        const { prisma } = require('@/lib/prisma');
+        await prisma.user.update({
+            where: { id: userId },
+            data: {
+                onboardingCompleted: true,
+                onboardingData: JSON.stringify(surveyData || {}),
+            }
+        });
 
         return NextResponse.json({
             success: true,

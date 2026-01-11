@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
         // Find user
         const user = await db.getUserByEmail(email);
         if (!user) {
+            console.log(`Login failed: User not found for email ${email}`);
             return NextResponse.json(
                 { error: 'Invalid credentials' },
                 { status: 401 }
@@ -35,6 +36,7 @@ export async function POST(request: NextRequest) {
         // Check password
         const isValid = await comparePassword(password, user.passwordHash);
         if (!isValid) {
+            console.log(`Login failed: Password mismatch for user ${email}`);
             return NextResponse.json(
                 { error: 'Invalid credentials' },
                 { status: 401 }

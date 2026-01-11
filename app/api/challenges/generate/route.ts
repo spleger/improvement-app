@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as db from '@/lib/db';
-import { pool } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 
 const ANTHROPIC_API_KEY_RAW = process.env.ANTHROPIC_API_KEY;
@@ -53,17 +53,25 @@ async function getFullUserContext(userId: string, goalId?: string) {
         if (!goal) return null;
 
         // Get all challenges for this goal
-        const allChallenges = await pool.query(
-            `SELECT c.*, cl."difficultyFelt", cl.satisfaction, cl.notes as "completionNotes"
-       FROM "Challenge" c
-       LEFT JOIN "ChallengeLog" cl ON c.id = cl."challengeId"
-       WHERE c."goalId" = $1
-       ORDER BY c."scheduledDate" DESC`,
-            [goal.id]
-        );
+        const allChallengesData = await prisma.challenge.findMany({
+            where: { goalId: goal.id },
+            include: { logs: true },
+            orderBy: { scheduledDate: 'desc' },
+        });
 
-        const completedChallenges = allChallenges.rows.filter(c => c.status === 'completed');
-        const skippedChallenges = allChallenges.rows.filter(c => c.status === 'skipped');
+        // Flatten logic to match previous structure (attaching log data to challenge)
+        const allChallenges = allChallengesData.map(c => {
+            const log = c.logs[0]; // Assuming most recent log if multiple
+            return {
+                ...c,
+                difficultyFelt: log?.difficultyFelt,
+                satisfaction: log?.satisfaction,
+                completionNotes: log?.notes
+            };
+        });
+
+        const completedChallenges = allChallenges.filter(c => c.status === 'completed');
+        const skippedChallenges = allChallenges.filter(c => c.status === 'skipped');
 
         // Calculate day in journey
         const dayInJourney = Math.ceil(
@@ -76,17 +84,17 @@ async function getFullUserContext(userId: string, goalId?: string) {
         // Calculate average difficulty felt (to adapt)
         const avgDifficultyFelt = completedChallenges.length > 0
             ? completedChallenges
-                .filter(c => c.difficultyFelt !== null)
+                .filter(c => c.difficultyFelt !== null && c.difficultyFelt !== undefined)
                 .reduce((sum, c) => sum + (c.difficultyFelt || 5), 0) /
-            Math.max(completedChallenges.filter(c => c.difficultyFelt !== null).length, 1)
+            Math.max(completedChallenges.filter(c => c.difficultyFelt !== null && c.difficultyFelt !== undefined).length, 1)
             : 5;
 
         // Calculate satisfaction trend
         const avgSatisfaction = completedChallenges.length > 0
             ? completedChallenges
-                .filter(c => c.satisfaction !== null)
+                .filter(c => c.satisfaction !== null && c.satisfaction !== undefined)
                 .reduce((sum, c) => sum + (c.satisfaction || 5), 0) /
-            Math.max(completedChallenges.filter(c => c.satisfaction !== null).length, 1)
+            Math.max(completedChallenges.filter(c => c.satisfaction !== null && c.satisfaction !== undefined).length, 1)
             : 5;
 
         // Get user's streak
@@ -112,7 +120,7 @@ async function getFullUserContext(userId: string, goalId?: string) {
             avgSatisfaction: Math.round(avgSatisfaction * 10) / 10,
             avgMood,
             avgEnergy,
-            recentChallenges: allChallenges.rows.slice(0, 5),
+            recentChallenges: allChallenges.slice(0, 5),
             completionNotes: completedChallenges
                 .filter(c => c.completionNotes)
                 .slice(0, 3)

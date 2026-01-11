@@ -165,7 +165,7 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                 {/* Preferred Time */}
                 <div className="form-group">
                     <label className="form-label">Best Time for Challenges</label>
-                    <div className="flex gap-sm flex-wrap">
+                    <div className="flex gap-xs flex-wrap">
                         {[
                             { value: 'morning', label: 'Morning', emoji: '🌅' },
                             { value: 'afternoon', label: 'Afternoon', emoji: '☀️' },
@@ -176,6 +176,7 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                                 key={opt.value}
                                 onClick={() => updatePref('preferredChallengeTime', opt.value)}
                                 className={`btn ${prefs.preferredChallengeTime === opt.value ? 'btn-primary' : 'btn-secondary'}`}
+                                style={{ padding: '0.5rem 0.75rem', fontSize: '0.9rem' }}
                             >
                                 {opt.emoji} {opt.label}
                             </button>
