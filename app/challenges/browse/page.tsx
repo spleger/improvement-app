@@ -3,7 +3,13 @@ import * as db from '@/lib/db';
 import ChallengeBrowser from './ChallengeBrowser';
 
 async function getDomainsAndTemplates() {
-    const domains = await db.getAllGoalDomains();
+    const rawDomains = await db.getAllGoalDomains();
+    const domains = rawDomains.map(d => ({
+        ...d,
+        icon: d.icon || '🎯',
+        color: d.color || '#cccccc',
+        description: d.description || ''
+    }));
     return { domains };
 }
 
