@@ -55,8 +55,13 @@ export default function ExpertChat() {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // Save selected coach to localStorage when it changes
+    // Save selected coach to localStorage when it changes (skip initial render)
+    const isInitialMount = useRef(true);
     useEffect(() => {
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
+        }
         if (selectedCoach) {
             localStorage.setItem('selectedCoachId', selectedCoach.id);
         }
@@ -360,11 +365,11 @@ export default function ExpertChat() {
                         )}
 
                         {/* Custom Section */}
-                        <div className="dropdown-section-title mt-2 flex justify-between items-center">
+                        <div className="dropdown-section-title" style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span>Custom Coaches</span>
                             <button
                                 onClick={(e) => { e.stopPropagation(); setShowCreateModal(true); setShowCoachSelector(false); }}
-                                className="text-xs flex items-center gap-1 text-primary hover:underline"
+                                style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--color-accent)', background: 'none', border: 'none', cursor: 'pointer' }}
                             >
                                 <Plus size={12} /> Create New
                             </button>
@@ -379,7 +384,8 @@ export default function ExpertChat() {
                                     />
                                     <button
                                         onClick={(e) => handleDeleteCoach(e, coach.id)}
-                                        className="absolute -top-1 -right-1 bg-surface shadow-md rounded-full p-1 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        style={{ position: 'absolute', top: '-4px', right: '-4px', background: 'var(--color-surface)', boxShadow: '0 2px 6px rgba(0,0,0,0.15)', borderRadius: '50%', padding: '4px', color: 'var(--color-error)', border: 'none', cursor: 'pointer', opacity: 0, transition: 'opacity 0.2s' }}
+                                        className="group-hover-visible"
                                         title="Delete Coach"
                                     >
                                         <Trash2 size={12} />
@@ -387,7 +393,8 @@ export default function ExpertChat() {
                                 </div>
                             ))}
                             {customCoaches.length === 0 && (
-                                <div className="col-span-3 text-center py-4 bg-surface-2 rounded-xl text-xs text-muted cursor-pointer hover:bg-surface-3 transition-colors"
+                                <div
+                                    style={{ gridColumn: 'span 3', textAlign: 'center', padding: '16px', background: 'var(--color-surface-2)', borderRadius: '12px', fontSize: '0.75rem', color: 'var(--color-text-muted)', cursor: 'pointer' }}
                                     onClick={() => { setShowCreateModal(true); setShowCoachSelector(false); }}>
                                     + Create your first custom coach
                                 </div>
@@ -800,6 +807,11 @@ export default function ExpertChat() {
                 .send-btn:disabled {
                     opacity: 0.5;
                     cursor: not-allowed;
+                }
+                
+
+                .group:hover .group-hover-visible {
+                    opacity: 1 !important;
                 }
                 
                 .custom-scrollbar::-webkit-scrollbar {
