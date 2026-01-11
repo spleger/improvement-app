@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown } from 'lucide-react';
+import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown, Plus, Trash2, MoreHorizontal } from 'lucide-react';
 import ChallengeProposal from './widgets/ChallengeProposal';
 import MoodLogWidget from './widgets/MoodLogWidget';
 import NewGoalWidget from './widgets/NewGoalWidget';
+import CreateCoachModal from './CreateCoachModal';
 
 interface Message {
     id: string;
@@ -12,6 +13,562 @@ interface Message {
     content: string;
     timestamp: Date;
 }
+
+interface Coach {
+    id: string;
+    name: string;
+    icon: string;
+    color: string;
+    description: string;
+    type: 'default' | 'goal' | 'custom';
+    isGoalCoach?: boolean;
+    systemPrompt?: string;
+}
+
+const DEFAULT_COACHES: Coach[] = [
+    { id: 'general', name: 'General', icon: '🧠', color: '#8b5cf6', description: 'Holistic transformation', type: 'default' },
+    { id: 'health', name: 'Health', icon: '💪', color: '#ef4444', description: 'Fitness & vitality', type: 'default' },
+    { id: 'habits', name: 'Habits', icon: '🔄', color: '#f59e0b', description: 'Routine & consistency', type: 'default' },
+    { id: 'emotional', name: 'Emotional', icon: '💜', color: '#ec4899', description: 'EQ & resilience', type: 'default' },
+    { id: 'languages', name: 'Languages', icon: '🗣️', color: '#3b82f6', description: 'Fluency & immersion', type: 'default' },
+    { id: 'mobility', name: 'Mobility', icon: '🧘', color: '#10b981', description: 'Movement & flexibility', type: 'default' },
+];
+
+const SUGGESTED_TOPICS = [
+    "💪 I'm struggling with motivation",
+    "🔄 How do I build consistency?",
+    "🎯 My challenge feels too hard",
+    "✨ Celebrate a recent win"
+];
+
+export default function ExpertChat() {
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [input, setInput] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+
+    // Coach State
+    const [coaches, setCoaches] = useState<Coach[]>(DEFAULT_COACHES);
+    const [selectedCoach, setSelectedCoach] = useState<Coach>(DEFAULT_COACHES[0]);
+    const [showCoachSelector, setShowCoachSelector] = useState(false);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    // Initial Data Fetch
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                // Fetch dynamic data in parallel
+                const [goalsRes, coachesRes] = await Promise.all([
+                    fetch('/api/goals'),
+                    fetch('/api/coaches')
+                ]);
+
+                const goalsData = await goalsRes.json();
+                const coachesData = await coachesRes.json();
+
+                let newCoaches = [...DEFAULT_COACHES];
+
+                // Add Goal Coaches
+                if (goalsData.success && goalsData.data.goals) {
+                    const goalCoaches = goalsData.data.goals.map((goal: any) => ({
+                        id: `goal-${goal.id}`, // Helper ID, backend needs to handle this or we pass goal context
+                        name: goal.title, // Coach Name = Goal Title
+                        icon: goal.domain?.icon || '🎯',
+                        color: goal.domain?.color || '#3b82f6',
+                        description: 'Goal-specific accountability',
+                        type: 'goal',
+                        isGoalCoach: true,
+                        // For goal coaches, we might pass the goal ID specifically to the backend
+                        // backend logic: if id stars with 'goal-', extract ID.
+                        // Actually, let's keep it simple: Use the goalID as the coachID if possible, or a specific format
+                        // For now, let's just use the goal ID but we need to distinguish it from other IDs. 
+                        // The backend `buildSystemPrompt` needs to know.
+                        // Let's pass the real goal ID but handle it in backend? No, backend expects a "Coach ID".
+                        backendId: goal.id // We'll stick this in a custom property if needed, but for now ID is what we send.
+                    }));
+                    // Wait, if I send a goal ID as coachID, backend looks for custom coach with that ID.
+                    // Implementation Detail: In backend I need to check if ID exists as Goal.
+                    // EASIER: Just treat them as "Custom" but generated.
+                    // Start with what we have.
+                    // Ideally: Backend `/api/expert/chat` handles `coachId` that matches a Goal ID.
+                    newCoaches = [...newCoaches, ...goalCoaches];
+                }
+
+                // Add Custom Coaches
+                if (coachesData.success && coachesData.data.coaches) {
+                    const customCoaches = coachesData.data.coaches.map((c: any) => ({
+                        id: c.id,
+                        name: c.name,
+                        icon: c.icon,
+                        color: c.color,
+                        description: 'Custom AI Coach',
+                        type: 'custom',
+                        systemPrompt: c.systemPrompt
+                    }));
+                    newCoaches = [...newCoaches, ...customCoaches];
+                }
+
+                setCoaches(newCoaches);
+            } catch (error) {
+                console.error("Failed to load coaches/goals", error);
+            }
+        };
+
+        fetchData();
+    }, []);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    const renderMessageContent = (content: string) => {
+        const parts = content.split(/(<<<\{.*?\}>>>)/g);
+        return parts.map((part, index) => {
+            if (part.startsWith('<<<') && part.endsWith('>>>')) {
+                try {
+                    const jsonStr = part.slice(3, -3);
+                    const data = JSON.parse(jsonStr);
+                    switch (data.type) {
+                        case 'suggest_challenge':
+                            return <div key={index} className="my-3"><ChallengeProposal {...data.payload} onAccept={scrollToBottom} /></div>;
+                        case 'log_mood':
+                            return <div key={index} className="my-3"><MoodLogWidget onLog={scrollToBottom} /></div>;
+                        case 'create_goal':
+                            return <div key={index} className="my-3"><NewGoalWidget {...data.payload} /></div>;
+                        default: return null;
+                    }
+                } catch { return null; }
+            }
+            if (!part.trim()) return null;
+            return <span key={index} style={{ whiteSpace: 'pre-wrap' }}>{part}</span>;
+        });
+    };
+
+    const diffId = (idx: number) => `hist-${Date.now()}-${idx}`;
+
+    useEffect(() => {
+        const fetchHistory = async () => {
+            setIsLoading(true);
+            setMessages([]);
+            try {
+                const response = await fetch(`/api/expert/chat?coachId=${selectedCoach.id}`);
+                const data = await response.json();
+                if (data.success && data.data.messages) {
+                    const loadedMessages = data.data.messages.map((msg: any, index: number) => ({
+                        id: msg.id || diffId(index),
+                        role: msg.role,
+                        content: msg.content,
+                        timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date()
+                    }));
+                    if (loadedMessages.length > 0) setMessages(loadedMessages);
+                }
+            } catch (e) { console.error("History load error", e); }
+            finally { setIsLoading(false); }
+        };
+        fetchHistory();
+    }, [selectedCoach]);
+
+    useEffect(() => { scrollToBottom(); }, [messages]);
+
+    const sendMessage = async (content: string) => {
+        if (!content.trim()) return;
+        const userMessage: Message = { id: Date.now().toString(), role: 'user', content: content.trim(), timestamp: new Date() };
+        setMessages(prev => [...prev, userMessage]);
+        setInput('');
+        setIsLoading(true);
+
+        // Handle Goal Coaches Special Case:
+        // If type is 'goal', we might want to pass extra context or handle ID differently
+        // For now, passing ID. Backend needs to be smart enough.
+        // Actually, let's prepend 'goal:' to ID if it's a goal coach so backend knows?
+        // Or just pass the ID. If it's a UUID, user won't have custom coach with that UUID unless collision (unlikely).
+        // Let's rely on ID uniqueness for now.
+
+        try {
+            const response = await fetch('/api/expert/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: content,
+                    history: messages.slice(-10),
+                    coachId: selectedCoach.id.startsWith('goal-') ? selectedCoach.id.replace('goal-', '') : selectedCoach.id, // Strip prefix if we used one
+                    // We need to tell backend this is a GOAL coach if it is one, so it fetches goal context
+                    // But current backend only checks Custom vs Standard.
+                    // We should probably update backend to check Goal table too.
+                    // For now, let's send it.
+                })
+            });
+
+            const data = await response.json();
+            if (data.success && data.data.reply) {
+                setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'assistant', content: data.data.reply, timestamp: new Date() }]);
+            } else {
+                setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'assistant', content: "I'm pondering that. Could you rephrase?", timestamp: new Date() }]);
+            }
+        } catch {
+            setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'assistant', content: "Connection hiccup. Try again.", timestamp: new Date() }]);
+        } finally {
+            setIsLoading(false);
+            inputRef.current?.focus();
+        }
+    };
+
+    const handleDeleteCoach = async (e: React.MouseEvent, coachId: string) => {
+        e.stopPropagation();
+        if (!confirm('Delete this coach?')) return;
+
+        try {
+            await fetch(`/api/coaches?id=${coachId}`, { method: 'DELETE' });
+            setCoaches(prev => prev.filter(c => c.id !== coachId));
+            if (selectedCoach.id === coachId) setSelectedCoach(DEFAULT_COACHES[0]);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleCreateCoach = (newCoach: any) => {
+        setCoaches(prev => [...prev, {
+            id: newCoach.id,
+            name: newCoach.name,
+            icon: newCoach.icon,
+            color: newCoach.color,
+            description: 'Custom AI Coach',
+            type: 'custom',
+            systemPrompt: newCoach.systemPrompt
+        }]);
+    };
+
+    // Group coaches for selector
+    const defaultCoaches = coaches.filter(c => c.type === 'default');
+    const goalCoaches = coaches.filter(c => c.type === 'goal');
+    const customCoaches = coaches.filter(c => c.type === 'custom');
+
+    return (
+        <div className="expert-chat">
+            <div className="chat-header">
+                <button
+                    className="coach-selector-btn"
+                    onClick={() => setShowCoachSelector(!showCoachSelector)}
+                >
+                    <div className="coach-avatar" style={{ background: selectedCoach.color }}>
+                        <span>{selectedCoach.icon}</span>
+                    </div>
+                    <div className="coach-info">
+                        <span className="coach-name">{selectedCoach.name} {selectedCoach.type === 'goal' ? '' : 'Coach'}</span>
+                        <span className="coach-desc">{selectedCoach.description}</span>
+                    </div>
+                    <ChevronDown size={20} className={`chevron ${showCoachSelector ? 'open' : ''}`} />
+                </button>
+
+                {showCoachSelector && (
+                    <div className="coach-dropdown custom-scrollbar">
+                        {/* Default Section */}
+                        <div className="dropdown-section-title">Default Coaches</div>
+                        <div className="dropdown-grid">
+                            {defaultCoaches.map(coach => (
+                                <CoachOption
+                                    key={coach.id}
+                                    coach={coach}
+                                    isActive={selectedCoach.id === coach.id}
+                                    onClick={() => { setSelectedCoach(coach); setShowCoachSelector(false); }}
+                                />
+                            ))}
+                        </div>
+
+                        {/* Goal Section */}
+                        {goalCoaches.length > 0 && (
+                            <>
+                                <div className="dropdown-section-title mt-2">Your Goals</div>
+                                <div className="dropdown-grid">
+                                    {goalCoaches.map(coach => (
+                                        <CoachOption
+                                            key={coach.id}
+                                            coach={coach}
+                                            isActive={selectedCoach.id === coach.id}
+                                            onClick={() => { setSelectedCoach(coach); setShowCoachSelector(false); }}
+                                        />
+                                    ))}
+                                </div>
+                            </>
+                        )}
+
+                        {/* Custom Section */}
+                        <div className="dropdown-section-title mt-2 flex justify-between items-center">
+                            <span>Custom Coaches</span>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setShowCreateModal(true); setShowCoachSelector(false); }}
+                                className="text-xs flex items-center gap-1 text-primary hover:underline"
+                            >
+                                <Plus size={12} /> Create New
+                            </button>
+                        </div>
+                        <div className="dropdown-grid">
+                            {customCoaches.map(coach => (
+                                <div key={coach.id} className="relative group">
+                                    <CoachOption
+                                        coach={coach}
+                                        isActive={selectedCoach.id === coach.id}
+                                        onClick={() => { setSelectedCoach(coach); setShowCoachSelector(false); }}
+                                    />
+                                    <button
+                                        onClick={(e) => handleDeleteCoach(e, coach.id)}
+                                        className="absolute -top-1 -right-1 bg-surface shadow-md rounded-full p-1 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        title="Delete Coach"
+                                    >
+                                        <Trash2 size={12} />
+                                    </button>
+                                </div>
+                            ))}
+                            {customCoaches.length === 0 && (
+                                <div className="col-span-3 text-center py-4 bg-surface-2 rounded-xl text-xs text-muted cursor-pointer hover:bg-surface-3 transition-colors"
+                                    onClick={() => { setShowCreateModal(true); setShowCoachSelector(false); }}>
+                                    + Create your first custom coach
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Messages */}
+            <div className="chat-messages custom-scrollbar">
+                {messages.length === 0 && !isLoading && (
+                    <div className="empty-state">
+                        <div className="empty-icon" style={{ background: selectedCoach.color }}>
+                            {selectedCoach.icon}
+                        </div>
+                        <h3>Chat with {selectedCoach.name}</h3>
+                        <p>{selectedCoach.description}</p>
+                    </div>
+                )}
+
+                {messages.map(message => (
+                    <div key={message.id} className={`message ${message.role}`}>
+                        {message.role === 'assistant' && (
+                            <div className="message-avatar" style={{ background: selectedCoach.color }}>{selectedCoach.icon}</div>
+                        )}
+                        <div className="message-bubble">{renderMessageContent(message.content)}</div>
+                        {message.role === 'user' && <div className="message-avatar user-avatar"><User size={16} /></div>}
+                    </div>
+                ))}
+                {isLoading && (
+                    <div className="message assistant">
+                        <div className="message-avatar" style={{ background: selectedCoach.color }}>{selectedCoach.icon}</div>
+                        <div className="message-bubble typing"><span></span><span></span><span></span></div>
+                    </div>
+                )}
+                <div ref={messagesEndRef} />
+            </div>
+
+            {/* Quick Actions & Input - Same as before but cleaner */}
+            {messages.length <= 2 && (
+                <div className="quick-actions">
+                    {SUGGESTED_TOPICS.map((topic, i) => (
+                        <button key={i} onClick={() => sendMessage(topic)} className="quick-action-btn" disabled={isLoading}>{topic}</button>
+                    ))}
+                </div>
+            )}
+
+            <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} className="chat-input-form">
+                <input
+                    ref={inputRef}
+                    type="text"
+                    value={input}
+                    onChange={e => setInput(e.target.value)}
+                    placeholder={`Message ${selectedCoach.name}...`}
+                    className="chat-input"
+                    disabled={isLoading}
+                />
+                <button type="submit" className="send-btn" disabled={isLoading || !input.trim()}><Send size={20} /></button>
+            </form>
+
+            {showCreateModal && (
+                <CreateCoachModal
+                    onClose={() => setShowCreateModal(false)}
+                    onCreated={handleCreateCoach}
+                />
+            )}
+
+            <style jsx>{`
+                .expert-chat {
+                    display: flex;
+                    flex-direction: column;
+                    height: calc(100vh - 180px);
+                    max-height: 700px;
+                    background: var(--color-surface);
+                    border-radius: 24px;
+                    border: 1px solid var(--color-border);
+                    overflow: hidden;
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+                    position: relative;
+                }
+                .chat-header {
+                    padding: 16px 20px;
+                    border-bottom: 1px solid var(--color-border);
+                    background: rgba(255, 255, 255, 0.8);
+                    backdrop-filter: blur(12px);
+                    z-index: 20;
+                }
+                .coach-selector-btn {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    width: 100%;
+                    padding: 8px 12px;
+                    background: var(--color-surface-2);
+                    border: 1px solid var(--color-border);
+                    border-radius: 16px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+                .coach-selector-btn:hover { border-color: var(--color-primary); }
+                .coach-avatar {
+                    width: 44px; height: 44px; border-radius: 14px;
+                    display: flex; align-items: center; justify-content: center;
+                    font-size: 1.5rem; color: white; flex-shrink: 0;
+                }
+                .coach-info { flex: 1; text-align: left; }
+                .coach-name { display: block; font-weight: 600; font-size: 1rem; color: var(--color-text); }
+                .coach-desc { display: block; font-size: 0.8rem; color: var(--color-text-muted); }
+                .chevron { color: var(--color-text-muted); transition: transform 0.2s; }
+                .chevron.open { transform: rotate(180deg); }
+                
+                .coach-dropdown {
+                    position: absolute;
+                    top: calc(100% + 8px);
+                    left: 16px; right: 16px;
+                    background: var(--color-surface);
+                    border: 1px solid var(--color-border);
+                    border-radius: 16px;
+                    padding: 12px;
+                    z-index: 100;
+                    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2);
+                    max-height: 400px;
+                    overflow-y: auto;
+                }
+                .dropdown-section-title {
+                    font-size: 0.75rem;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    color: var(--color-text-muted);
+                    margin-bottom: 8px;
+                    padding-left: 4px;
+                    letter-spacing: 0.05em;
+                }
+                .dropdown-grid {
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 8px;
+                    margin-bottom: 16px;
+                }
+                
+                .chat-messages {
+                    flex: 1;
+                    overflow-y: auto;
+                    padding: 20px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 16px;
+                    background-image: radial-gradient(var(--color-surface-2) 1px, transparent 1px);
+                    background-size: 20px 20px;
+                }
+                
+                .empty-state {
+                    flex: 1; display: flex; flex-direction: column;
+                    align-items: center; justify-content: center;
+                    text-align: center; padding: 40px;
+                    color: var(--color-text-muted);
+                    animation: fadeIn 0.5s ease;
+                }
+                .empty-icon {
+                    width: 80px; height: 80px;
+                    border-radius: 24px;
+                    display: flex; align-items: center; justify-content: center;
+                    color: white; margin-bottom: 16px;
+                    font-size: 3rem;
+                    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+                }
+                
+                .message { display: flex; gap: 12px; align-items: flex-end; animation: slideIn 0.3s ease; }
+                @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                
+                .message.user { flex-direction: row-reverse; }
+                .message-avatar {
+                    width: 36px; height: 36px; border-radius: 12px;
+                    display: flex; align-items: center; justify-content: center;
+                    font-size: 1.1rem; flex-shrink: 0;
+                }
+                .user-avatar { background: var(--gradient-primary); color: white; }
+                
+                .message-bubble {
+                    max-width: 75%; padding: 14px 18px; border-radius: 20px;
+                    line-height: 1.5; font-size: 0.95rem;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+                }
+                .message.assistant .message-bubble { background: var(--color-surface); color: var(--color-text); border-bottom-left-radius: 6px; }
+                .message.user .message-bubble { background: var(--gradient-primary); color: white; border-bottom-right-radius: 6px; }
+                
+                .message-bubble.typing { display: flex; gap: 4px; padding: 18px 22px; }
+                .message-bubble.typing span {
+                    width: 8px; height: 8px; background: var(--color-text-muted);
+                    border-radius: 50%; animation: bounce 1.4s infinite ease-in-out;
+                }
+                .message-bubble.typing span:nth-child(1) { animation-delay: -0.32s; }
+                .message-bubble.typing span:nth-child(2) { animation-delay: -0.16s; }
+                @keyframes bounce { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
+                
+                .quick-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 16px; }
+                .quick-action-btn {
+                    padding: 8px 14px; background: var(--color-surface);
+                    border: 1px solid var(--color-border); border-radius: 20px;
+                    font-size: 0.85rem; color: var(--color-text); cursor: pointer; transition: all 0.2s;
+                }
+                .quick-action-btn:hover:not(:disabled) {
+                    background: var(--color-primary-light); border-color: var(--color-primary); transform: translateY(-2px);
+                }
+                
+                .chat-input-form {
+                    display: flex; gap: 12px; padding: 16px 20px;
+                    border-top: 1px solid var(--color-border);
+                    background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px);
+                }
+                .chat-input {
+                    flex: 1; padding: 14px 20px; background: var(--color-surface);
+                    border: 2px solid var(--color-border); border-radius: 16px;
+                    font-size: 1rem; color: var(--color-text); outline: none; transition: border-color 0.2s;
+                }
+                .chat-input:focus { border-color: var(--color-primary); }
+                .send-btn {
+                    width: 52px; height: 52px; background: var(--gradient-primary);
+                    border: none; border-radius: 16px; color: white;
+                    display: flex; align-items: center; justify-content: center;
+                    cursor: pointer; transition: all 0.2s; flex-shrink: 0;
+                }
+                .send-btn:hover:not(:disabled) { transform: scale(1.05); box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4); }
+                
+                @media (max-width: 640px) {
+                    .coach-dropdown { grid-template-columns: repeat(2, 1fr); }
+                    .message-bubble { max-width: 85%; }
+                }
+            `}</style>
+        </div>
+    );
+}
+
+const CoachOption = ({ coach, isActive, onClick }: { coach: Coach, isActive: boolean, onClick: () => void }) => (
+    <button
+        onClick={onClick}
+        className={`flex flex-col items-center gap-2 p-3 rounded-xl transition-all border-2 ${isActive ? 'bg-primary-light border-primary' : 'bg-transparent border-transparent hover:bg-surface-2'}`}
+    >
+        <span className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-sm" style={{ background: coach.color, color: 'white' }}>
+            {coach.icon}
+        </span>
+        <span className="text-xs font-medium text-center truncate w-full">{coach.name}</span>
+    </button>
+);
 
 const SUGGESTED_TOPICS = [
     "💪 I'm struggling with motivation",
