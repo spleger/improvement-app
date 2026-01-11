@@ -43,7 +43,8 @@ async function getUserContext(userId: string) {
             dayInJourney,
             recentChallenges: challenges.slice(0, 5),
             preferences,
-            recentDiary: await db.getDiaryEntriesByUserId(userId, 3) // Fetch recent 3 entries
+            recentDiary: await db.getDiaryEntriesByUserId(userId, 3), // Fetch recent 3 entries
+            recentSurveys: surveys.slice(0, 3) // Include last 3 check-ins for AI context
         };
     } catch (error) {
         console.error('Error fetching user context:', error);
@@ -184,6 +185,17 @@ ${context.todayChallenge.description ? `- Description: ${context.todayChallenge.
                 prompt += `- [${date}] "${title}": ${e.aiSummary || 'No summary'}\n  ${insights}\n`;
             });
             prompt += `(Use these insights to be more empathetic. If they mentioned feeling down, acknowledge it.)\n`;
+        }
+
+        if (context.recentSurveys && context.recentSurveys.length > 0) {
+            prompt += `\n📊 RECENT CHECK-INS (Daily Wellness):\n`;
+            context.recentSurveys.slice(0, 3).forEach((s: any) => {
+                const date = new Date(s.surveyDate).toLocaleDateString();
+                prompt += `- [${date}] Energy: ${s.energyLevel}/10, Motivation: ${s.motivationLevel}/10, Mood: ${s.overallMood}/10\n`;
+                if (s.biggestWin) prompt += `  Win: "${s.biggestWin}"\n`;
+                if (s.biggestBlocker) prompt += `  Blocker: "${s.biggestBlocker}"\n`;
+            });
+            prompt += `(Reference these when discussing their recent state. If energy was low, be understanding.)\n`;
         }
 
         prompt += `\n=== END OF CONTEXT ===\n`;

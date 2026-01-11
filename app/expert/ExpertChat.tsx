@@ -580,7 +580,7 @@ export default function ExpertChat() {
                 .dropdown-grid {
                     display: grid;
                     grid-template-columns: repeat(3, 1fr);
-                    gap: 8px;
+                    gap: 12px;
                     margin-bottom: 16px;
                 }
 
@@ -812,11 +812,44 @@ export default function ExpertChat() {
 const CoachOption = ({ coach, isActive, onClick }: { coach: Coach, isActive: boolean, onClick: () => void }) => (
     <button
         onClick={onClick}
-        className={`flex flex-col items-center gap-2 p-3 rounded-xl transition-all border-2 ${isActive ? 'bg-primary-light border-primary' : 'bg-transparent border-transparent hover:bg-surface-2'}`}
+        style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 8px',
+            borderRadius: '12px',
+            border: isActive ? '2px solid var(--color-primary)' : '2px solid transparent',
+            background: isActive ? 'var(--color-primary-light)' : 'transparent',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+        }}
     >
-        <span className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-sm" style={{ background: coach.color, color: 'white' }}>
+        <span style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1.5rem',
+            background: coach.color,
+            color: 'white',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        }}>
             {coach.icon}
         </span>
-        <span className="text-xs font-medium text-center truncate w-full">{coach.name}</span>
+        <span style={{
+            fontSize: '0.75rem',
+            fontWeight: 500,
+            textAlign: 'center',
+            color: 'var(--color-text)',
+            width: '100%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+        }}>
+            {coach.name}
+        </span>
     </button>
 );

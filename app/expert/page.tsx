@@ -12,18 +12,7 @@ export default function ExpertPage() {
                 </p>
             </div>
 
-            {/* Expert Selection */}
-            <div className="card card-surface mb-lg">
-                <div className="flex items-center gap-md">
-                    <div style={{ fontSize: '2.5rem' }}>🧠</div>
-                    <div>
-                        <div className="heading-4">Transformation Coach</div>
-                        <div className="text-small text-muted">Specializes in habit formation and goal achievement</div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Chat Interface */}
+            {/* Chat Interface (includes its own coach selector) */}
             <ExpertChat />
 
             {/* Bottom Navigation */}
