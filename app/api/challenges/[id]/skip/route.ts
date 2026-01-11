@@ -30,12 +30,9 @@ export async function POST(
         // Let's implement it using a direct pool query for robustness given I don't want to re-read db.ts right now.
         // Actually, it is better to be consistent. 
 
-        const result = await db.pool.query(
-            'UPDATE "Challenge" SET status = $1, "completedAt" = NOW(), notes = $2 WHERE id = $3 RETURNING *',
-            ['skipped', reason, id]
-        );
+        const skippedChallenge = await db.skipChallenge(id, reason);
 
-        if (result.rowCount === 0) {
+        if (!skippedChallenge) {
             return NextResponse.json(
                 { success: false, error: 'Challenge not found' },
                 { status: 404 }
@@ -44,7 +41,7 @@ export async function POST(
 
         return NextResponse.json({
             success: true,
-            data: { challenge: result.rows[0] }
+            data: { challenge: skippedChallenge }
         });
 
     } catch (error) {
