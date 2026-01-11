@@ -702,6 +702,211 @@ export async function updateConversationMessages(id: string, messages: any[]) {
     return result.rows[0];
 }
 
+// ==================== HABIT OPERATIONS ====================
+
+export async function createHabit(data: {
+    userId: string;
+    goalId?: string;
+    name: string;
+    description?: string;
+    icon?: string;
+    frequency?: string;
+    targetDays?: string[];
+}) {
+    const id = generateId();
+    const result = await pool.query(
+        `INSERT INTO "Habit" (id, "userId", "goalId", name, description, icon, frequency, "targetDays", "isActive", "createdAt", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, NOW(), NOW()) RETURNING *`,
+        [id, data.userId, data.goalId || null, data.name, data.description || null,
+            data.icon || '✅', data.frequency || 'daily',
+            data.targetDays ? JSON.stringify(data.targetDays) : null]
+    );
+    return result.rows[0];
+}
+
+export async function getHabitsByUserId(userId: string, includeInactive: boolean = false) {
+    const query = includeInactive
+        ? `SELECT h.*, g.title as "goalTitle" FROM "Habit" h LEFT JOIN "Goal" g ON h."goalId" = g.id WHERE h."userId" = $1 ORDER BY h."createdAt" DESC`
+        : `SELECT h.*, g.title as "goalTitle" FROM "Habit" h LEFT JOIN "Goal" g ON h."goalId" = g.id WHERE h."userId" = $1 AND h."isActive" = true ORDER BY h."createdAt" DESC`;
+    const result = await pool.query(query, [userId]);
+    return result.rows.map(row => ({
+        ...row,
+        targetDays: row.targetDays ? JSON.parse(row.targetDays) : null
+    }));
+}
+
+export async function getHabitById(id: string) {
+    const result = await pool.query(
+        `SELECT h.*, g.title as "goalTitle" FROM "Habit" h LEFT JOIN "Goal" g ON h."goalId" = g.id WHERE h.id = $1`,
+        [id]
+    );
+    if (result.rows.length === 0) return null;
+    const row = result.rows[0];
+    return {
+        ...row,
+        targetDays: row.targetDays ? JSON.parse(row.targetDays) : null
+    };
+}
+
+export async function updateHabit(id: string, data: {
+    name?: string;
+    description?: string;
+    icon?: string;
+    frequency?: string;
+    targetDays?: string[];
+    goalId?: string | null;
+    isActive?: boolean;
+}) {
+    const fields: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    if (data.name !== undefined) { fields.push(`name = $${paramIndex++}`); values.push(data.name); }
+    if (data.description !== undefined) { fields.push(`description = $${paramIndex++}`); values.push(data.description); }
+    if (data.icon !== undefined) { fields.push(`icon = $${paramIndex++}`); values.push(data.icon); }
+    if (data.frequency !== undefined) { fields.push(`frequency = $${paramIndex++}`); values.push(data.frequency); }
+    if (data.targetDays !== undefined) { fields.push(`"targetDays" = $${paramIndex++}`); values.push(JSON.stringify(data.targetDays)); }
+    if (data.goalId !== undefined) { fields.push(`"goalId" = $${paramIndex++}`); values.push(data.goalId); }
+    if (data.isActive !== undefined) { fields.push(`"isActive" = $${paramIndex++}`); values.push(data.isActive); }
+
+    if (fields.length === 0) return null;
+
+    fields.push(`"updatedAt" = NOW()`);
+    values.push(id);
+
+    const result = await pool.query(
+        `UPDATE "Habit" SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+        values
+    );
+    return result.rows[0];
+}
+
+export async function deleteHabit(id: string) {
+    // Delete logs first
+    await pool.query('DELETE FROM "HabitLog" WHERE "habitId" = $1', [id]);
+    const result = await pool.query('DELETE FROM "Habit" WHERE id = $1 RETURNING *', [id]);
+    return result.rows[0];
+}
+
+// ==================== HABIT LOG OPERATIONS ====================
+
+export async function upsertHabitLog(data: {
+    habitId: string;
+    logDate: Date;
+    completed: boolean;
+    notes?: string;
+    source?: string;
+}) {
+    const id = generateId();
+    // Normalize logDate to start of day UTC
+    const normalizedDate = new Date(data.logDate);
+    normalizedDate.setUTCHours(0, 0, 0, 0);
+
+    const result = await pool.query(
+        `INSERT INTO "HabitLog" (id, "habitId", "logDate", completed, notes, source, "createdAt")
+         VALUES ($1, $2, $3, $4, $5, $6, NOW())
+         ON CONFLICT ("habitId", "logDate") DO UPDATE SET
+            completed = $4,
+            notes = COALESCE($5, "HabitLog".notes),
+            source = $6
+         RETURNING *`,
+        [id, data.habitId, normalizedDate.toISOString(), data.completed, data.notes || null, data.source || 'manual']
+    );
+    return result.rows[0];
+}
+
+export async function getHabitLogsForDate(userId: string, date: Date) {
+    const normalizedDate = new Date(date);
+    normalizedDate.setUTCHours(0, 0, 0, 0);
+    const nextDay = new Date(normalizedDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+
+    const result = await pool.query(
+        `SELECT hl.*, h.name as "habitName", h.icon as "habitIcon"
+         FROM "HabitLog" hl
+         JOIN "Habit" h ON hl."habitId" = h.id
+         WHERE h."userId" = $1 AND hl."logDate" >= $2 AND hl."logDate" < $3`,
+        [userId, normalizedDate.toISOString(), nextDay.toISOString()]
+    );
+    return result.rows;
+}
+
+export async function getHabitLogsForRange(userId: string, startDate: Date, endDate: Date) {
+    const result = await pool.query(
+        `SELECT hl.*, h.name as "habitName", h.icon as "habitIcon", h.id as "habitId"
+         FROM "HabitLog" hl
+         JOIN "Habit" h ON hl."habitId" = h.id
+         WHERE h."userId" = $1 AND hl."logDate" >= $2 AND hl."logDate" < $3
+         ORDER BY hl."logDate" DESC`,
+        [userId, startDate.toISOString(), endDate.toISOString()]
+    );
+    return result.rows;
+}
+
+export async function calculateHabitStreak(habitId: string): Promise<number> {
+    // Get last 60 days of logs for this habit
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 60);
+
+    const result = await pool.query(
+        `SELECT "logDate", completed FROM "HabitLog" 
+         WHERE "habitId" = $1 AND "logDate" >= $2 
+         ORDER BY "logDate" DESC`,
+        [habitId, startDate.toISOString()]
+    );
+
+    let streak = 0;
+    const checkDate = new Date();
+    checkDate.setUTCHours(0, 0, 0, 0);
+
+    for (let i = 0; i < 60; i++) {
+        const dateStr = checkDate.toISOString().split('T')[0];
+        const log = result.rows.find(r => new Date(r.logDate).toISOString().split('T')[0] === dateStr);
+
+        if (log && log.completed) {
+            streak++;
+            checkDate.setDate(checkDate.getDate() - 1);
+        } else if (i > 0) {
+            // Allow missing today, but break on any other gap
+            break;
+        } else {
+            checkDate.setDate(checkDate.getDate() - 1);
+        }
+    }
+
+    return streak;
+}
+
+export async function getHabitStats(userId: string, days: number = 7) {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    startDate.setUTCHours(0, 0, 0, 0);
+
+    const habits = await getHabitsByUserId(userId);
+    const logs = await getHabitLogsForRange(userId, startDate, new Date());
+
+    const totalPossible = habits.length * days;
+    const completed = logs.filter(l => l.completed).length;
+    const completionRate = totalPossible > 0 ? Math.round((completed / totalPossible) * 100) : 0;
+
+    // Get streaks for each habit
+    const habitsWithStreaks = await Promise.all(habits.map(async (h) => ({
+        ...h,
+        streak: await calculateHabitStreak(h.id)
+    })));
+
+    return {
+        habits: habitsWithStreaks,
+        totalHabits: habits.length,
+        completedToday: logs.filter(l => {
+            const logDate = new Date(l.logDate).toISOString().split('T')[0];
+            const today = new Date().toISOString().split('T')[0];
+            return logDate === today && l.completed;
+        }).length,
+        weeklyCompletionRate: completionRate
+    };
+}
+
 // Export pool for direct queries if needed
 export { pool, generateId };
 

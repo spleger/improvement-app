@@ -9,15 +9,16 @@ export default function BottomNavigation() {
     // Determine active tab based on pathname
     const active = pathname === '/' ? 'home'
         : pathname?.startsWith('/progress') ? 'progress'
-            : pathname?.startsWith('/diary') ? 'diary'
-                : pathname?.startsWith('/expert') ? 'expert'
-                    : pathname?.startsWith('/profile') ? 'profile'
-                        : '';
+            : pathname?.startsWith('/habits') ? 'habits'
+                : pathname?.startsWith('/diary') ? 'diary'
+                    : pathname?.startsWith('/expert') ? 'expert'
+                        : pathname?.startsWith('/profile') ? 'profile'
+                            : '';
 
     const items = [
         { id: 'home', icon: '🏠', label: 'Home', href: '/' },
+        { id: 'habits', icon: '✅', label: 'Habits', href: '/habits' },
         { id: 'progress', icon: '📊', label: 'Progress', href: '/progress' },
-        { id: 'diary', icon: '🎙️', label: 'Diary', href: '/diary' },
         { id: 'expert', icon: '💬', label: 'Expert', href: '/expert' },
         { id: 'profile', icon: '👤', label: 'Profile', href: '/profile' },
     ];

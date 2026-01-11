@@ -28,6 +28,10 @@ async function getUserContext(userId: string) {
             ? Math.round(surveys.reduce((sum, s) => sum + s.overallMood, 0) / surveys.length * 10) / 10
             : null;
 
+        // Get habit stats
+        const habitStats = await db.getHabitStats(userId, 7);
+        const todayHabitLogs = await db.getHabitLogsForDate(userId, new Date());
+
         // Calculate day in journey
         const dayInJourney = activeGoal
             ? Math.ceil((Date.now() - new Date(activeGoal.startedAt).getTime()) / (1000 * 60 * 60 * 24))
@@ -44,7 +48,9 @@ async function getUserContext(userId: string) {
             recentChallenges: challenges.slice(0, 5),
             preferences,
             recentDiary: await db.getDiaryEntriesByUserId(userId, 3), // Fetch recent 3 entries
-            recentSurveys: surveys.slice(0, 3) // Include last 3 check-ins for AI context
+            recentSurveys: surveys.slice(0, 3), // Include last 3 check-ins for AI context
+            habitStats,
+            todayHabitLogs
         };
     } catch (error) {
         console.error('Error fetching user context:', error);
@@ -204,6 +210,26 @@ ${context.todayChallenge.description ? `- Description: ${context.todayChallenge.
                 if (s.biggestBlocker) prompt += `  Blocker: "${s.biggestBlocker}"\n`;
             });
             prompt += `(Reference these when discussing their recent state. If energy was low, be understanding.)\n`;
+        }
+
+        // Habit tracking context
+        if (context.habitStats && context.habitStats.totalHabits > 0) {
+            prompt += `\n✅ HABIT TRACKING:\n`;
+            prompt += `Active Habits (${context.habitStats.totalHabits}):\n`;
+
+            context.habitStats.habits.forEach((h: any) => {
+                const todayLog = context.todayHabitLogs?.find((l: any) => l.habitId === h.id);
+                const status = todayLog?.completed ? '✓ Done' : '○ Pending';
+                const streakText = h.streak > 0 ? ` - ${h.streak} day streak 🔥` : '';
+                prompt += `- "${h.name}" (${h.icon}) [${status}]${streakText}\n`;
+                if (todayLog?.notes) {
+                    prompt += `  Note: "${todayLog.notes}"\n`;
+                }
+            });
+
+            prompt += `\nToday's Progress: ${context.habitStats.completedToday}/${context.habitStats.totalHabits}\n`;
+            prompt += `Weekly Completion Rate: ${context.habitStats.weeklyCompletionRate}%\n`;
+            prompt += `(Reference habits when discussing consistency. Celebrate streaks! If they're missing habits, gently encourage.)\n`;
         }
 
         prompt += `\n=== END OF CONTEXT ===\n`;

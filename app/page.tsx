@@ -26,6 +26,9 @@ async function getDashboardData(userId: string) {
         ? recentSurveys.reduce((sum, s) => sum + s.overallMood, 0) / recentSurveys.length
         : 0;
 
+    // Get habit stats
+    const habitStats = await db.getHabitStats(userId, 7);
+
     // Calculate overall progress
     const totalChallengesCompleted = todayChallenges.filter(c => c.status === 'completed').length;
     const totalChallengesTotal = todayChallenges.length;
@@ -34,6 +37,7 @@ async function getDashboardData(userId: string) {
         todayChallenges,
         activeGoals,
         allGoals,
+        habitStats,
         stats: {
             streak,
             completedChallenges,
@@ -65,7 +69,7 @@ export default async function DashboardPage() {
         redirect('/login');
     }
 
-    const { todayChallenges, activeGoals, allGoals, stats } = await getDashboardData(user.userId);
+    const { todayChallenges, activeGoals, allGoals, habitStats, stats } = await getDashboardData(user.userId);
     const greeting = getGreeting();
 
     const pendingChallenges = todayChallenges.filter(c => c.status === 'pending');
@@ -255,9 +259,64 @@ export default async function DashboardPage() {
                 </div>
             </section>
 
+            {/* Habits Summary */}
+            {habitStats.totalHabits > 0 && (
+                <section className="mb-lg">
+                    <div className="flex justify-between items-center mb-md">
+                        <h2 className="heading-4">✅ Your Habits</h2>
+                        <Link href="/habits" className="btn btn-ghost text-small">View All</Link>
+                    </div>
+                    <Link href="/habits" className="card" style={{ textDecoration: 'none', display: 'block' }}>
+                        <div className="flex items-center gap-md">
+                            <div style={{
+                                width: '56px',
+                                height: '56px',
+                                borderRadius: '16px',
+                                background: habitStats.completedToday === habitStats.totalHabits ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'var(--gradient-primary)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'white',
+                                fontWeight: 'bold',
+                                fontSize: '1.25rem'
+                            }}>
+                                {habitStats.completedToday}/{habitStats.totalHabits}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <div className="heading-5">
+                                    {habitStats.completedToday === habitStats.totalHabits && habitStats.totalHabits > 0
+                                        ? '🎉 All habits done today!'
+                                        : `${habitStats.totalHabits - habitStats.completedToday} habit${habitStats.totalHabits - habitStats.completedToday !== 1 ? 's' : ''} remaining`
+                                    }
+                                </div>
+                                <div className="text-small text-muted">Weekly rate: {habitStats.weeklyCompletionRate}%</div>
+                            </div>
+                            <span style={{ fontSize: '1.5rem' }}>→</span>
+                        </div>
+                        {/* Mini habit icons */}
+                        <div className="flex gap-xs mt-md" style={{ flexWrap: 'wrap' }}>
+                            {habitStats.habits.slice(0, 6).map((habit: any) => (
+                                <span key={habit.id} title={habit.name} style={{
+                                    fontSize: '1.25rem',
+                                    opacity: habit.streak > 0 ? 1 : 0.4
+                                }}>
+                                    {habit.icon}
+                                </span>
+                            ))}
+                            {habitStats.habits.length > 6 && (
+                                <span className="text-small text-muted">+{habitStats.habits.length - 6}</span>
+                            )}
+                        </div>
+                    </Link>
+                </section>
+            )}
+
             {/* Quick Actions */}
             <section className="mb-lg">
                 <div className="flex gap-md">
+                    <Link href="/habits" className="btn btn-secondary" style={{ flex: 1 }}>
+                        ✅ Log Habits
+                    </Link>
                     <Link href="/diary" className="btn btn-secondary" style={{ flex: 1 }}>
                         🎙️ Voice Diary
                     </Link>
