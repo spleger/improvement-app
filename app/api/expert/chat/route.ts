@@ -170,7 +170,7 @@ ${context.todayChallenge.description ? `- Description: ${context.todayChallenge.
         }
 
         if (context.recentDiary && context.recentDiary.length > 0) {
-            prompt += `\n🎙️ RECENT DIARY ENTRIES (Mental State):\n`;
+            prompt += `\n🎙️ RECENT DIARY ENTRIES (Full Context):\n`;
             context.recentDiary.slice(0, 3).forEach((e: any) => {
                 const date = new Date(e.createdAt).toLocaleDateString();
                 let insights = '';
@@ -182,9 +182,17 @@ ${context.todayChallenge.description ? `- Description: ${context.todayChallenge.
                     if (parsed.distortions?.length) insights += `Distortions: ${parsed.distortions.join(', ')}. `;
                 } catch (err) { }
 
-                prompt += `- [${date}] "${title}": ${e.aiSummary || 'No summary'}\n  ${insights}\n`;
+                // Include transcript excerpt (first 500 chars) for real context
+                const transcriptExcerpt = e.transcript
+                    ? (e.transcript.length > 500 ? e.transcript.substring(0, 500) + '...' : e.transcript)
+                    : 'No transcript';
+
+                prompt += `- [${date}] "${title}":\n`;
+                prompt += `  Summary: ${e.aiSummary || 'No AI summary'}\n`;
+                prompt += `  ${insights}\n`;
+                prompt += `  Transcript: "${transcriptExcerpt}"\n\n`;
             });
-            prompt += `(Use these insights to be more empathetic. If they mentioned feeling down, acknowledge it.)\n`;
+            prompt += `(Use these diary insights to be deeply empathetic. Reference what they actually said.)\n`;
         }
 
         if (context.recentSurveys && context.recentSurveys.length > 0) {
