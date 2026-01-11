@@ -218,12 +218,47 @@ export async function POST(request: NextRequest) {
 
         // Get user context
         const context = await getUserContext(user.userId);
-        const systemPrompt = buildSystemPrompt(context, coachId);
+        let systemPrompt = '';
+
+        // Check if using a custom coach (ID usually starts with random chars, unlike 'general', 'health')
+        // We'll query DB for custom coach if ID is not in standard list
+        const standardCoachIds = ['general', 'languages', 'mobility', 'emotional', 'relationships', 'health', 'tolerance', 'skills', 'habits'];
+
+        if (coachId && !standardCoachIds.includes(coachId)) {
+            // It's likely a custom coach ID
+            // We need a way to fetch a single custom coach. Since we only have getCustomCoachesByUserId, we can use that or add getCustomCoachById
+            // For now, let's just fetch all and filter (not optimal but works for MVP) or assumes we added getCustomCoachById in a better world.
+            // Actually, let's modify getCustomCoachesByUserId to be getAll or use a direct query here?
+            // To keep it clean, let's use db.pool directly or add a helper.
+            // I'll add a helper inline or assume the user has few coaches.
+
+            // Better: Add getCustomCoachById to db.ts? No, I can't easily jump files.
+            // I'll execute a raw query here for speed, or fetch list.
+            const coaches = await db.getCustomCoachesByUserId(user.userId);
+            const customCoach = coaches.find((c: any) => c.id === coachId);
+
+            if (customCoach) {
+                systemPrompt = `${customCoach.systemPrompt}\n\n`;
+                systemPrompt += `You are "${customCoach.name}", a specialized AI coach.\n`;
+                systemPrompt += `Stay in character. Your goal is to help the user with: ${customCoach.name}.\n\n`;
+                // Add standard context
+                systemPrompt += buildSystemPrompt(context, 'custom_overlay').split('=== INTERACTIVE WIDGETS PROCTOCOL ===')[1] ?
+                    '=== INTERACTIVE WIDGETS PROCTOCOL ===' + buildSystemPrompt(context, 'custom_overlay').split('=== INTERACTIVE WIDGETS PROCTOCOL ===')[1]
+                    : buildSystemPrompt(context, 'general'); // Fallback to reusing the protocol section if parsing fails
+
+                // Actually, simpler: Use the buildSystemPrompt but replace the role description
+                const basePrompt = buildSystemPrompt(context, 'general');
+                // Inject custom role
+                systemPrompt = `You are ${customCoach.name}. ${customCoach.systemPrompt}\n\n` + basePrompt.replace(/^You are a Transformation Coach.*?\n\n/s, '');
+            } else {
+                systemPrompt = buildSystemPrompt(context, coachId);
+            }
+        } else {
+            systemPrompt = buildSystemPrompt(context, coachId);
+        }
 
         // Build conversation history for Claude
         const messages = [];
-
-        // Add previous messages if any
         if (history && Array.isArray(history)) {
             for (const msg of history.slice(-6)) {
                 if (msg.content && typeof msg.content === 'string' && msg.content.trim().length > 0) {

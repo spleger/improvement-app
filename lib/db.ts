@@ -607,6 +607,42 @@ export async function getDiaryEntriesByUserId(userId: string, limit: number = 10
     return result.rows;
 }
 
+// ==================== CUSTOM COACH OPERATIONS ====================
+
+export async function createCustomCoach(data: {
+    userId: string;
+    name: string;
+    icon?: string;
+    color?: string;
+    systemPrompt: string;
+    isGoalCoach?: boolean;
+    goalId?: string;
+}) {
+    const id = generateId();
+    const result = await pool.query(
+        `INSERT INTO "CustomCoach" (id, "userId", name, icon, color, "systemPrompt", "isGoalCoach", "goalId", "createdAt")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW()) RETURNING *`,
+        [id, data.userId, data.name, data.icon || '🤖', data.color || '#8b5cf6', data.systemPrompt, data.isGoalCoach || false, data.goalId || null]
+    );
+    return result.rows[0];
+}
+
+export async function getCustomCoachesByUserId(userId: string) {
+    const result = await pool.query(
+        `SELECT * FROM "CustomCoach" WHERE "userId" = $1 ORDER BY "createdAt" DESC`,
+        [userId]
+    );
+    return result.rows;
+}
+
+export async function deleteCustomCoach(id: string, userId: string) {
+    const result = await pool.query(
+        `DELETE FROM "CustomCoach" WHERE id = $1 AND "userId" = $2 RETURNING *`,
+        [id, userId]
+    );
+    return result.rows[0];
+}
+
 // ==================== CONVERSATION OPERATIONS ====================
 
 export async function createConversation(data: {
