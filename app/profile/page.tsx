@@ -131,6 +131,11 @@ export default async function ProfilePage() {
                         <span style={{ flex: 1 }}>General Settings</span>
                         <span className="text-muted">→</span>
                     </Link>
+                    <Link href="/api/auth/logout" className="card flex items-center gap-md" style={{ width: '100%', textAlign: 'left', textDecoration: 'none', color: 'var(--color-error)' }}>
+                        <span>🚪</span>
+                        <span style={{ flex: 1 }}>Logout</span>
+                        <span className="text-muted">→</span>
+                    </Link>
                 </div>
             </section>
 
