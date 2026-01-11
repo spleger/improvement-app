@@ -249,7 +249,9 @@ export async function POST(request: NextRequest) {
                 // Actually, simpler: Use the buildSystemPrompt but replace the role description
                 const basePrompt = buildSystemPrompt(context, 'general');
                 // Inject custom role
-                systemPrompt = `You are ${customCoach.name}. ${customCoach.systemPrompt}\n\n` + basePrompt.replace(/^You are a Transformation Coach.*?\n\n/s, '');
+                const promptPrefix = `You are ${customCoach.name}. ${customCoach.systemPrompt}\n\n`;
+                // Use [\s\S] instead of DOTALL /s flag for compatibility
+                systemPrompt = promptPrefix + basePrompt.replace(/^You are a Transformation Coach[\s\S]*?\n\n/, '');
             } else {
                 systemPrompt = buildSystemPrompt(context, coachId);
             }
