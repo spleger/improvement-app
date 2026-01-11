@@ -55,6 +55,13 @@ export default function ExpertChat() {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
+    // Save selected coach to localStorage when it changes
+    useEffect(() => {
+        if (selectedCoach) {
+            localStorage.setItem('selectedCoachId', selectedCoach.id);
+        }
+    }, [selectedCoach]);
+
     // Initial Data Fetch
     useEffect(() => {
         const fetchData = async () => {
@@ -77,7 +84,7 @@ export default function ExpertChat() {
                         name: goal.title, // Coach Name = Goal Title
                         icon: goal.domain?.icon || '🎯',
                         color: goal.domain?.color || '#3b82f6',
-                        description: 'Goal-specific accountability',
+                        description: 'Goal Coach',
                         type: 'goal',
                         isGoalCoach: true
                     }));
@@ -91,7 +98,7 @@ export default function ExpertChat() {
                         name: c.name,
                         icon: c.icon,
                         color: c.color,
-                        description: 'Custom AI Coach',
+                        description: 'Custom Coach',
                         type: 'custom',
                         systemPrompt: c.systemPrompt
                     }));
@@ -99,6 +106,15 @@ export default function ExpertChat() {
                 }
 
                 setCoaches(newCoaches);
+
+                // Restore previously selected coach from localStorage
+                const savedCoachId = localStorage.getItem('selectedCoachId');
+                if (savedCoachId) {
+                    const savedCoach = newCoaches.find(c => c.id === savedCoachId);
+                    if (savedCoach) {
+                        setSelectedCoach(savedCoach);
+                    }
+                }
             } catch (error) {
                 console.error("Failed to load coaches/goals", error);
             }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Check, Command, Sparkles, Smile, Zap, Heart, Brain, Crown, Star } from 'lucide-react';
+import { X, Sparkles } from 'lucide-react';
 
 interface CreateCoachModalProps {
     onClose: () => void;
@@ -47,124 +47,285 @@ export default function CreateCoachModal({ onClose, onCreated }: CreateCoachModa
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-surface w-full max-w-md rounded-2xl shadow-2xl border border-border overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-
+        <div style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 50,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            background: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(8px)'
+        }}>
+            <div style={{
+                background: 'var(--color-surface)',
+                width: '100%',
+                maxWidth: '420px',
+                borderRadius: '24px',
+                boxShadow: '0 24px 48px rgba(0,0,0,0.3)',
+                border: '1px solid var(--color-border)',
+                overflow: 'hidden'
+            }}>
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-border bg-surface-2">
-                    <h2 className="text-xl font-bold flex items-center gap-2">
-                        <Sparkles className="text-primary" size={20} />
-                        Create AI Coach
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '20px 24px',
+                    background: 'var(--color-surface-2)',
+                    borderBottom: '1px solid var(--color-border)'
+                }}>
+                    <h2 style={{
+                        fontSize: '1.25rem',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        color: 'var(--color-text)'
+                    }}>
+                        <Sparkles size={22} style={{ color: 'var(--color-primary)' }} />
+                        Create Custom Coach
                     </h2>
-                    <button onClick={onClose} className="p-2 hover:bg-surface-3 rounded-full transition-colors">
-                        <X size={20} />
+                    <button
+                        onClick={onClose}
+                        style={{
+                            padding: '8px',
+                            borderRadius: '12px',
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: 'var(--color-text-muted)'
+                        }}
+                    >
+                        <X size={22} />
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-6">
-
-                    {/* Preview Card */}
-                    <div className="flex justify-center mb-6">
-                        <div className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-surface-2 border border-border w-40 transition-all duration-300"
-                            style={{ borderColor: selectedColor, boxShadow: `0 8px 24px -6px ${selectedColor}40` }}>
-                            <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-inner transition-colors duration-300"
-                                style={{ background: selectedColor }}>
+                <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
+                    {/* Live Preview */}
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        marginBottom: '24px'
+                    }}>
+                        <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '12px',
+                            padding: '20px 24px',
+                            borderRadius: '20px',
+                            background: 'var(--color-surface-2)',
+                            border: `2px solid ${selectedColor}`,
+                            boxShadow: `0 8px 32px ${selectedColor}30`,
+                            minWidth: '140px'
+                        }}>
+                            <div style={{
+                                width: '64px',
+                                height: '64px',
+                                borderRadius: '16px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '2rem',
+                                background: selectedColor,
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                            }}>
                                 {selectedIcon}
                             </div>
-                            <div className="text-center">
-                                <span className="block font-bold text-sm truncate w-32">{name || 'Coach Name'}</span>
-                                <span className="text-xs text-muted">Custom AI</span>
+                            <div style={{ textAlign: 'center' }}>
+                                <div style={{
+                                    fontWeight: 600,
+                                    fontSize: '0.95rem',
+                                    color: 'var(--color-text)',
+                                    maxWidth: '120px',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap'
+                                }}>
+                                    {name || 'Your Coach'}
+                                </div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                                    Custom AI
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     {/* Name Input */}
-                    <div>
-                        <label className="block text-sm font-medium mb-1.5 ml-1">Name</label>
+                    <div style={{ marginBottom: '20px' }}>
+                        <label style={{
+                            display: 'block',
+                            fontSize: '0.875rem',
+                            fontWeight: 500,
+                            marginBottom: '8px',
+                            color: 'var(--color-text)'
+                        }}>
+                            Coach Name
+                        </label>
                         <input
                             type="text"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            placeholder="e.g. Tough Love Coach"
-                            className="w-full p-3 rounded-xl bg-surface-2 border-2 border-border focus:border-primary outline-none transition-colors"
-                            maxLength={30}
+                            placeholder="e.g. Drill Sergeant"
+                            maxLength={25}
                             required
+                            style={{
+                                width: '100%',
+                                padding: '14px 16px',
+                                borderRadius: '12px',
+                                background: 'var(--color-surface-2)',
+                                border: '2px solid var(--color-border)',
+                                fontSize: '1rem',
+                                color: 'var(--color-text)',
+                                outline: 'none'
+                            }}
                         />
                     </div>
 
-                    {/* Instructions */}
-                    <div>
-                        <label className="block text-sm font-medium mb-1.5 ml-1">Instructions (Persona)</label>
+                    {/* Persona Instructions */}
+                    <div style={{ marginBottom: '20px' }}>
+                        <label style={{
+                            display: 'block',
+                            fontSize: '0.875rem',
+                            fontWeight: 500,
+                            marginBottom: '8px',
+                            color: 'var(--color-text)'
+                        }}>
+                            Personality & Instructions
+                        </label>
                         <textarea
                             value={systemPrompt}
                             onChange={(e) => setSystemPrompt(e.target.value)}
-                            placeholder="e.g. You are a strict military drill sergeant. Push me to my limits and accept no excuses!"
-                            className="w-full p-3 rounded-xl bg-surface-2 border-2 border-border focus:border-primary outline-none transition-colors h-24 resize-none"
+                            placeholder="Describe how this coach should behave. Example: 'You are a strict but caring military drill sergeant. Push me hard but celebrate my wins. No excuses allowed!'"
                             required
+                            style={{
+                                width: '100%',
+                                padding: '14px 16px',
+                                borderRadius: '12px',
+                                background: 'var(--color-surface-2)',
+                                border: '2px solid var(--color-border)',
+                                fontSize: '0.95rem',
+                                color: 'var(--color-text)',
+                                outline: 'none',
+                                resize: 'none',
+                                height: '100px',
+                                lineHeight: 1.5
+                            }}
                         />
-                        <p className="text-xs text-muted mt-1 ml-1">Describe how this coach should talk and behave.</p>
                     </div>
 
-                    {/* Icon Selection */}
-                    <div>
-                        <label className="block text-sm font-medium mb-2 ml-1">Choose Icon</label>
-                        <div className="grid grid-cols-8 gap-2">
-                            {ICONS.map(icon => (
-                                <button
-                                    key={icon}
-                                    type="button"
-                                    onClick={() => setSelectedIcon(icon)}
-                                    className={`aspect-square rounded-lg flex items-center justify-center text-lg transition-all ${selectedIcon === icon ? 'bg-surface-3 ring-2 ring-primary scale-110' : 'hover:bg-surface-2'}`}
-                                >
-                                    {icon}
-                                </button>
-                            ))}
+                    {/* Icon & Color Selection - Side by Side */}
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '20px',
+                        marginBottom: '24px'
+                    }}>
+                        {/* Icons */}
+                        <div>
+                            <label style={{
+                                display: 'block',
+                                fontSize: '0.875rem',
+                                fontWeight: 500,
+                                marginBottom: '10px',
+                                color: 'var(--color-text)'
+                            }}>
+                                Icon
+                            </label>
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(5, 1fr)',
+                                gap: '6px'
+                            }}>
+                                {ICONS.map(icon => (
+                                    <button
+                                        key={icon}
+                                        type="button"
+                                        onClick={() => setSelectedIcon(icon)}
+                                        style={{
+                                            aspectRatio: '1',
+                                            borderRadius: '10px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontSize: '1.25rem',
+                                            background: selectedIcon === icon ? 'var(--color-primary-light)' : 'var(--color-surface-2)',
+                                            border: selectedIcon === icon ? '2px solid var(--color-primary)' : '2px solid transparent',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.15s'
+                                        }}
+                                    >
+                                        {icon}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Colors */}
+                        <div>
+                            <label style={{
+                                display: 'block',
+                                fontSize: '0.875rem',
+                                fontWeight: 500,
+                                marginBottom: '10px',
+                                color: 'var(--color-text)'
+                            }}>
+                                Color
+                            </label>
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(4, 1fr)',
+                                gap: '8px'
+                            }}>
+                                {COLORS.map(color => (
+                                    <button
+                                        key={color}
+                                        type="button"
+                                        onClick={() => setSelectedColor(color)}
+                                        style={{
+                                            aspectRatio: '1',
+                                            borderRadius: '10px',
+                                            background: color,
+                                            border: selectedColor === color ? '3px solid var(--color-text)' : '3px solid transparent',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.15s',
+                                            boxShadow: selectedColor === color ? '0 0 0 2px var(--color-surface)' : 'none'
+                                        }}
+                                    />
+                                ))}
+                            </div>
                         </div>
                     </div>
 
-                    {/* Color Selection */}
-                    <div>
-                        <label className="block text-sm font-medium mb-2 ml-1">Theme Color</label>
-                        <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
-                            {COLORS.map(color => (
-                                <button
-                                    key={color}
-                                    type="button"
-                                    onClick={() => setSelectedColor(color)}
-                                    className={`w-8 h-8 rounded-full flex-shrink-0 transition-transform ${selectedColor === color ? 'ring-2 ring-offset-2 ring-offset-surface ring-primary scale-110' : 'hover:scale-110'}`}
-                                    style={{ background: color }}
-                                />
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="pt-2">
-                        <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="w-full py-3.5 rounded-xl bg-gradient-primary text-white font-bold shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                        >
-                            {isSubmitting ? 'Creating...' : (
-                                <>
-                                    <Sparkles size={18} /> Create Coach
-                                </>
-                            )}
-                        </button>
-                    </div>
-
+                    {/* Submit Button */}
+                    <button
+                        type="submit"
+                        disabled={isSubmitting || !name || !systemPrompt}
+                        style={{
+                            width: '100%',
+                            padding: '16px',
+                            borderRadius: '14px',
+                            background: 'var(--gradient-primary)',
+                            color: 'white',
+                            fontWeight: 600,
+                            fontSize: '1rem',
+                            border: 'none',
+                            cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                            opacity: isSubmitting || !name || !systemPrompt ? 0.6 : 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            boxShadow: '0 4px 16px rgba(99, 102, 241, 0.3)'
+                        }}
+                    >
+                        <Sparkles size={18} />
+                        {isSubmitting ? 'Creating...' : 'Create Coach'}
+                    </button>
                 </form>
             </div>
-
-            <style jsx global>{`
-                .custom-scrollbar::-webkit-scrollbar {
-                    height: 4px;
-                }
-                .custom-scrollbar::-webkit-scrollbar-thumb {
-                    background: var(--color-border);
-                    border-radius: 4px;
-                }
-            `}</style>
         </div>
     );
 }
