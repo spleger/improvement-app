@@ -12,7 +12,8 @@ const PUBLIC_PATHS = [
     '/api/onboarding', // Allow onboarding API calls
     '/manifest.json',
     '/icons',
-    '/assets'
+    '/assets',
+    '/.well-known' // Allow TWA verification
 ];
 
 export async function middleware(request: NextRequest) {
