@@ -101,6 +101,8 @@ html {
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 body {
@@ -109,6 +111,8 @@ body {
   color: var(--color-text-primary);
   line-height: 1.6;
   min-height: 100vh;
+  overflow-x: hidden;
+  max-width: 100vw;
   /* Mobile Safe Area support */
   padding-top: env(safe-area-inset-top);
   padding-right: env(safe-area-inset-right);
@@ -136,6 +140,9 @@ button {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 /* ===================================
