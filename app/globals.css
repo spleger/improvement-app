@@ -656,6 +656,9 @@ button {
   padding-bottom: calc(var(--spacing-xl) + 80px + env(safe-area-inset-bottom));
   max-width: 600px;
   margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .page-header {
@@ -914,5 +917,50 @@ button {
 
   .challenge-actions {
     flex-direction: column;
+  }
+
+  /* Prevent horizontal overflow in cards and sections */
+  .card {
+    max-width: 100%;
+    overflow-x: hidden;
+    word-wrap: break-word;
+  }
+
+  /* Flex containers should wrap on mobile */
+  .flex {
+    flex-wrap: wrap !important;
+  }
+
+  .flex.gap-sm,
+  .flex.gap-md {
+    gap: var(--spacing-sm);
+  }
+
+  /* Settings page button grids */
+  .settings-form .flex {
+    flex-wrap: wrap;
+  }
+
+  .settings-form .btn {
+    min-width: 80px;
+    flex: 1 1 auto;
+  }
+
+  /* Expert chat sizing for mobile */
+  .expert-chat {
+    max-height: calc(100vh - 200px) !important;
+    border-radius: 16px;
+  }
+
+  /* Stats grid mobile adjustments */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Page header flex wrapping */
+  .page-header.flex {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
   }
 }
