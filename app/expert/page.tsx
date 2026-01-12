@@ -3,15 +3,7 @@ import ExpertChat from './ExpertChat';
 
 export default function ExpertPage() {
     return (
-        <div className="page animate-fade-in" style={{ paddingBottom: '80px' }}>
-            {/* Header */}
-            <div className="page-header">
-                <h1 className="heading-2">💬 AI Expert</h1>
-                <p className="text-secondary">
-                    Get personalized guidance on your transformation journey
-                </p>
-            </div>
-
+        <div className="page animate-fade-in" style={{ paddingBottom: '80px', paddingTop: '16px' }}>
             {/* Chat Interface (includes its own coach selector) */}
             <ExpertChat />
 
