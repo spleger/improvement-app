@@ -230,7 +230,39 @@ export default function VoiceRecorder({ onSave }: VoiceRecorderProps) {
         setState('processing');
         setIsSaving(true);
         try {
-            await onSave(transcript, duration);
+            let finalTranscript = transcript;
+
+            // If we have no transcript (common on mobile where Web Speech API failed),
+            // try server-side transcription with the recorded audio.
+            if ((!finalTranscript || finalTranscript.trim().length === 0) && audioUrl) {
+                try {
+                    // Convert the blob url back to blob
+                    const response = await fetch(audioUrl);
+                    const blob = await response.blob();
+
+                    const formData = new FormData();
+                    formData.append('file', blob, 'recording.webm');
+
+                    const transcribeReq = await fetch('/api/transcribe', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (transcribeReq.ok) {
+                        const data = await transcribeReq.json();
+                        if (data.text) {
+                            finalTranscript = data.text;
+                            setTranscript(finalTranscript); // Update UI
+                        }
+                    } else {
+                        console.error('Server transcription failed', await transcribeReq.text());
+                    }
+                } catch (e) {
+                    console.error('Failed to prepare audio for server transcription', e);
+                }
+            }
+
+            await onSave(finalTranscript, duration);
             setState('saved');
         } catch (err) {
             console.error('Error saving:', err);
