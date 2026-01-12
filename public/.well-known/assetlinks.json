@@ -7,7 +7,8 @@
             "namespace": "android_app",
             "package_name": "app.vercel.improvement_app.twa",
             "sha256_cert_fingerprints": [
-                "E0:FF:04:B7:5A:F2:86:25:04:3F:FE:52:F2:CE:3F:CB:C5:95:0B:2F:D8:39:FD:08:51:58:84:24:B5:6A:9C:06"
+                "E0:FF:04:B7:5A:F2:86:25:04:3F:FE:52:F2:CE:3F:CB:C5:95:0B:2F:D8:39:FD:08:51:58:84:24:B5:6A:9C:06",
+                "B8:EF:70:20:14:CB:D4:C7:06:A1:94:32:BA:A5:43:53:93:76:AA:74:24:2B:4E:99:0B:99:B6:A1:8A:40:48:2C"
             ]
         }
     }
