@@ -496,14 +496,17 @@ export default function ExpertChat() {
                 .expert-chat {
                     display: flex;
                     flex-direction: column;
-                    height: calc(100vh - 180px);
-                    max-height: 700px;
+                    height: calc(100vh - 160px);
+                    min-height: 400px;
+                    max-height: 600px;
                     background: var(--color-surface);
                     border-radius: 24px;
                     border: 1px solid var(--color-border);
                     overflow: hidden;
                     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
                     position: relative;
+                    margin: 0 auto;
+                    width: 100%;
                 }
 
                 .chat-header {

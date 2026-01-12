@@ -83,12 +83,6 @@ export default async function DashboardPage() {
                 <h1 className="greeting">
                     {greeting.text}! <span className="greeting-emoji">{greeting.emoji}</span>
                 </h1>
-                <div className="flex items-center gap-sm">
-                    <ThemeToggle />
-                    <Link href="/settings" className="btn btn-ghost" style={{ fontSize: '1.5rem' }}>
-                        ⚙️
-                    </Link>
-                </div>
             </div>
 
             {/* Today's Progress Bar */}
