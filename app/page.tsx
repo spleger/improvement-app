@@ -305,21 +305,6 @@ export default async function DashboardPage() {
                 </section>
             )}
 
-            {/* Quick Actions */}
-            <section className="mb-lg">
-                <div className="flex gap-md">
-                    <Link href="/habits" className="btn btn-secondary" style={{ flex: 1 }}>
-                        ✅ Log Habits
-                    </Link>
-                    <Link href="/diary" className="btn btn-secondary" style={{ flex: 1 }}>
-                        🎙️ Voice Diary
-                    </Link>
-                    <Link href="/survey" className="btn btn-secondary" style={{ flex: 1 }}>
-                        📝 Check-in
-                    </Link>
-                </div>
-            </section>
-
             {/* Bottom Navigation */}
             <BottomNavigation />
         </div>
