@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useTheme } from '../ThemeContext';
 
 interface Preferences {
     displayName?: string;
@@ -17,6 +18,7 @@ interface Preferences {
     dailyReminderTime?: string;
     streakReminders?: boolean;
     theme?: string;
+    accentColor?: string;
 }
 
 const DEFAULT_PREFS: Preferences = {
@@ -32,18 +34,33 @@ const DEFAULT_PREFS: Preferences = {
     notificationsEnabled: true,
     dailyReminderTime: '09:00',
     streakReminders: true,
-    theme: 'minimal'
+    theme: 'minimal',
+    accentColor: 'teal'
 };
+
+const ACCENT_COLORS = [
+    { id: 'teal', name: 'Teal', primary: '#0d9488', secondary: '#06b6d4', emoji: '🌊' },
+    { id: 'gold', name: 'Gold', primary: '#d97706', secondary: '#f59e0b', emoji: '✨' },
+    { id: 'blue', name: 'Blue', primary: '#3b82f6', secondary: '#60a5fa', emoji: '💙' },
+    { id: 'purple', name: 'Purple', primary: '#8b5cf6', secondary: '#a78bfa', emoji: '💜' },
+    { id: 'rose', name: 'Rose', primary: '#e11d48', secondary: '#f43f5e', emoji: '🌹' },
+];
 
 export default function SettingsForm({ initialPreferences }: { initialPreferences: Preferences | null }) {
     const [prefs, setPrefs] = useState<Preferences>({ ...DEFAULT_PREFS, ...initialPreferences });
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [focusInput, setFocusInput] = useState('');
+    const { setAccentColor } = useTheme();
 
     const updatePref = (key: keyof Preferences, value: any) => {
         setPrefs(prev => ({ ...prev, [key]: value }));
         setSaved(false);
+
+        // Immediate update for visual feedback
+        if (key === 'accentColor') {
+            setAccentColor(value);
+        }
     };
 
     const addFocusArea = () => {
@@ -82,7 +99,7 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
             <section className="card mb-lg">
                 <h2 className="heading-4 mb-md">👤 Profile</h2>
 
-                <div className="form-group">
+                <div className="form-group mb-md">
                     <label className="form-label">Display Name</label>
                     <input
                         type="text"
@@ -91,6 +108,38 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                         placeholder="Your name"
                         className="form-input"
                     />
+                </div>
+
+                <div className="form-group">
+                    <label className="form-label">Accent Color</label>
+                    <div className="flex gap-sm flex-wrap">
+                        {ACCENT_COLORS.map(color => (
+                            <button
+                                key={color.id}
+                                onClick={() => updatePref('accentColor', color.id)}
+                                className={`btn`}
+                                style={{
+                                    flex: 1,
+                                    minWidth: '80px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    padding: '12px',
+                                    border: prefs.accentColor === color.id ? `2px solid ${color.primary}` : '1px solid var(--color-border)',
+                                    background: prefs.accentColor === color.id ? 'var(--color-surface-2)' : 'var(--color-surface)',
+                                }}
+                            >
+                                <div style={{
+                                    width: '24px',
+                                    height: '24px',
+                                    borderRadius: '50%',
+                                    background: `linear-gradient(135deg, ${color.primary}, ${color.secondary})`
+                                }} />
+                                <span className="text-small">{color.name}</span>
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </section>
 
