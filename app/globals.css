@@ -157,6 +157,8 @@ button {
   width: 100%;
   max-width: 100vw;
   overflow-x: hidden;
+  /* Account for fixed top navigation height (44px inner + padding + safe area) */
+  padding-top: calc(60px + env(safe-area-inset-top));
 }
 
 /* ===================================

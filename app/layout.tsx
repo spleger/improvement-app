@@ -21,6 +21,7 @@ export const viewport: Viewport = {
 };
 
 import { ThemeProvider } from './ThemeContext';
+import TopNavigation from './components/TopNavigation';
 
 export default function RootLayout({
     children,
@@ -31,6 +32,7 @@ export default function RootLayout({
         <html lang="en" suppressHydrationWarning>
             <body className={inter.className}>
                 <ThemeProvider>
+                    <TopNavigation />
                     <div className="app-container">
                         {children}
                     </div>
