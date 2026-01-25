@@ -28,12 +28,20 @@ type RecordingState = 'idle' | 'recording' | 'processing' | 'confirming';
 export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLoggerProps) {
     const [state, setState] = useState<RecordingState>('idle');
     const [transcript, setTranscript] = useState('');
+    const [interimTranscript, setInterimTranscript] = useState('');
     const [interpretedLogs, setInterpretedLogs] = useState<InterpretedLog[]>([]);
     const [error, setError] = useState('');
     const [saving, setSaving] = useState(false);
     const [editedNotes, setEditedNotes] = useState<{ [key: string]: string }>({});
 
     const recognitionRef = useRef<any>(null);
+    const transcriptRef = useRef('');
+    const stateRef = useRef<RecordingState>('idle');
+
+    useEffect(() => {
+        transcriptRef.current = transcript;
+        stateRef.current = state;
+    }, [transcript, state]);
 
     useEffect(() => {
         // Initialize speech recognition
@@ -51,13 +59,14 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                 for (let i = event.resultIndex; i < event.results.length; i++) {
                     const result = event.results[i];
                     if (result.isFinal) {
-                        finalTranscript += result[0].transcript;
+                        finalTranscript += result[0].transcript + ' ';
                     } else {
                         interimTranscript += result[0].transcript;
                     }
                 }
 
                 setTranscript(prev => prev + finalTranscript);
+                setInterimTranscript(interimTranscript);
             };
 
             recognition.onerror = (event: any) => {
@@ -68,7 +77,7 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
             };
 
             recognition.onend = () => {
-                if (state === 'recording') {
+                if (stateRef.current === 'recording') {
                     // Auto-process when stopped
                     processTranscript();
                 }
@@ -105,7 +114,8 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
     };
 
     const processTranscript = async () => {
-        if (!transcript.trim()) {
+        const text = transcriptRef.current;
+        if (!text.trim()) {
             setError('No speech detected. Please try again.');
             setState('idle');
             return;
@@ -117,7 +127,7 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
             const res = await fetch('/api/habits/interpret', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ transcript: transcript.trim() })
+                body: JSON.stringify({ transcript: text.trim() })
             });
 
             const data = await res.json();
@@ -228,7 +238,9 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                             <h2>Listening...</h2>
 
                             <div className="transcript-preview">
-                                {transcript || 'Start speaking...'}
+                                {transcript}
+                                <span className="interim-text" style={{ opacity: 0.7 }}>{interimTranscript}</span>
+                                {!transcript && !interimTranscript && 'Start speaking...'}
                             </div>
 
                             <button className="stop-btn" onClick={stopRecording}>

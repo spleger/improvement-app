@@ -138,3 +138,25 @@ export interface ThemeColors {
     warning: string;
     error: string;
 }
+
+// AI Types
+export interface UserPrefs {
+    preferredDifficulty: number;
+    focusAreas: string[];
+    avoidAreas: string[];
+    realityShiftEnabled: boolean;
+    aiPersonality: 'tough_love' | 'scientific' | 'empathetic';
+}
+
+export interface Message {
+    role: 'system' | 'user' | 'assistant';
+    content: string;
+}
+
+export interface ShiftSuggestion {
+    isShiftRecommended: boolean;
+    reasoning: string;
+    intensity: number;
+    suggestedFocus: string;
+}
+
