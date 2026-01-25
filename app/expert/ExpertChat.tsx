@@ -568,7 +568,6 @@ export default function ExpertChat() {
                     flex-direction: column;
                     height: calc(100vh - 160px);
                     min-height: 400px;
-                    max-height: 600px;
                     background: var(--color-surface);
                     border-radius: 24px;
                     border: 1px solid var(--color-border);
