@@ -26,20 +26,44 @@ export default function GoalActions({ goalId, goalTitle }: { goalId: string, goa
     };
 
     return (
-        <div className="flex gap-1 ml-2">
+        <div className="flex gap-sm">
             <button
                 onClick={() => handleAction('complete')}
                 disabled={loading}
-                className="btn btn-ghost p-2 text-success hover:bg-success/10 rounded-full"
+                className="btn btn-ghost text-success"
                 title="Mark as Complete"
+                style={{
+                    minHeight: '44px',
+                    minWidth: '44px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '50%',
+                    fontSize: '1.25rem',
+                    padding: '0.5rem',
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)'
+                }}
             >
                 ✅
             </button>
             <button
                 onClick={() => handleAction('delete')}
                 disabled={loading}
-                className="btn btn-ghost p-2 text-error hover:bg-error/10 rounded-full"
+                className="btn btn-ghost text-error"
                 title="Delete Goal"
+                style={{
+                    minHeight: '44px',
+                    minWidth: '44px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '50%',
+                    fontSize: '1.25rem',
+                    padding: '0.5rem',
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)'
+                }}
             >
                 🗑️
             </button>

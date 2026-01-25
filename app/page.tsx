@@ -117,18 +117,21 @@ export default async function DashboardPage() {
                 </div>
 
                 {activeGoals.length === 0 ? (
-                    <Link href="/goals/new" className="card card-highlight" style={{ display: 'block', textDecoration: 'none' }}>
+                    <Link href="/goals/new" className="card-glass card-highlight" style={{ display: 'block', textDecoration: 'none' }}>
                         <div className="heading-4 mb-md">🚀 Start Your Transformation</div>
                         <p className="text-secondary">Set your first goal to begin receiving daily challenges.</p>
                     </Link>
                 ) : (
-                    <div className="flex flex-col gap-sm">
+                    <div className="flex flex-col gap-md">
                         {activeGoals.map(goal => {
                             const dayInJourney = Math.ceil((Date.now() - new Date(goal.startedAt).getTime()) / (1000 * 60 * 60 * 24));
                             const progress = Math.min(Math.round((dayInJourney / 30) * 100), 100);
                             return (
-                                <div key={goal.id} className="card">
-                                    <div className="flex items-center gap-md">
+                                <div key={goal.id} className="card-glass" style={{
+                                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                                }}>
+                                    <div className="flex items-center gap-md" style={{ flexWrap: 'wrap' }}>
                                         <div style={{
                                             width: '48px',
                                             height: '48px',
@@ -137,7 +140,8 @@ export default async function DashboardPage() {
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
-                                            fontSize: '1.5rem'
+                                            fontSize: '1.5rem',
+                                            flexShrink: 0
                                         }}>
                                             {goal.domain?.name === 'Languages' ? '🗣️' :
                                                 goal.domain?.name === 'Mobility' ? '🧘' :
@@ -148,16 +152,29 @@ export default async function DashboardPage() {
                                                                     goal.domain?.name === 'Skills' ? '🎯' :
                                                                         goal.domain?.name === 'Habits' ? '🔄' : '🎯'}
                                         </div>
-                                        <div style={{ flex: 1 }}>
+                                        <div style={{ flex: 1, minWidth: '120px' }}>
                                             <div className="heading-5">{goal.title}</div>
                                             <div className="text-small text-muted">Day {dayInJourney}/30 • {progress}%</div>
                                         </div>
-                                        <Link href={`/challenges/generate?goalId=${goal.id}`} className="btn btn-ghost text-small">
-                                            + Challenge
-                                        </Link>
-                                        <GoalActions goalId={goal.id} goalTitle={goal.title} />
+                                        <div className="flex gap-sm" style={{ flexShrink: 0 }}>
+                                            <Link
+                                                href={`/challenges/generate?goalId=${goal.id}`}
+                                                className="btn btn-ghost text-small"
+                                                style={{
+                                                    minHeight: '44px',
+                                                    minWidth: '44px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    padding: '0.5rem 1rem'
+                                                }}
+                                            >
+                                                + Challenge
+                                            </Link>
+                                            <GoalActions goalId={goal.id} goalTitle={goal.title} />
+                                        </div>
                                     </div>
-                                    <div className="progress-bar mt-md" style={{ height: '6px' }}>
+                                    <div className="progress-bar mt-md" style={{ height: '6px', background: 'rgba(255, 255, 255, 0.1)' }}>
                                         <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
                                     </div>
                                 </div>
