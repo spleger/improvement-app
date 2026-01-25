@@ -56,7 +56,7 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                 let finalTranscript = '';
                 let interimTranscript = '';
 
-                for (let i = event.resultIndex; i < event.results.length; i++) {
+                for (let i = 0; i < event.results.length; i++) {
                     const result = event.results[i];
                     if (result.isFinal) {
                         finalTranscript += result[0].transcript + ' ';
@@ -65,7 +65,7 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                     }
                 }
 
-                setTranscript(prev => prev + finalTranscript);
+                setTranscript(finalTranscript);
                 setInterimTranscript(interimTranscript);
             };
 

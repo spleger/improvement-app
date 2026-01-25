@@ -2,21 +2,18 @@ import { generateChallenge, chatWithExpert, transcribeAudio, analyzeRealityShift
 import { UserPrefs, Goal, Message } from '../../lib/types';
 import OpenAI from 'openai';
 
-// Mock OpenAI
-const mockCreateChatCompletion = jest.fn();
-const mockCreateTranscription = jest.fn();
-
+// Define the mock factory
 jest.mock('openai', () => {
     return jest.fn().mockImplementation(() => {
         return {
             chat: {
                 completions: {
-                    create: mockCreateChatCompletion,
+                    create: jest.fn(),
                 },
             },
             audio: {
                 transcriptions: {
-                    create: mockCreateTranscription,
+                    create: jest.fn(),
                 },
             },
         };
@@ -24,8 +21,30 @@ jest.mock('openai', () => {
 });
 
 describe('AI Service Layer', () => {
+    let mockCreateChatCompletion: jest.Mock;
+    let mockCreateTranscription: jest.Mock;
+
+    beforeAll(() => {
+        // Get the instance that was created when lib/ai.ts was imported
+        const mockOpenAIConstructor = OpenAI as unknown as jest.Mock;
+
+        // Debugging
+        // console.log("Mock calls:", mockOpenAIConstructor.mock.calls.length);
+
+        if (mockOpenAIConstructor.mock.results.length > 0) {
+            const mockInstance = mockOpenAIConstructor.mock.results[0].value;
+            mockCreateChatCompletion = mockInstance.chat.completions.create as jest.Mock;
+            mockCreateTranscription = mockInstance.audio.transcriptions.create as jest.Mock;
+        } else {
+            console.error("Failed to capture OpenAI instance mock from lib/ai.ts. Calls:", mockOpenAIConstructor.mock.calls.length);
+        }
+    });
+
+
     beforeEach(() => {
-        jest.clearAllMocks();
+        // Clear the specific mocks used by the instance
+        if (mockCreateChatCompletion) mockCreateChatCompletion.mockClear();
+        if (mockCreateTranscription) mockCreateTranscription.mockClear();
     });
 
     describe('generateChallenge', () => {
@@ -82,6 +101,10 @@ describe('AI Service Layer', () => {
     describe('chatWithExpert', () => {
         it('respects system prompt based on persona: tough_love', async () => {
             const messages: Message[] = [{ role: 'user', content: 'Help me' }];
+
+            // Need to mock return to avoid crash
+            mockCreateChatCompletion.mockResolvedValueOnce({});
+
             await chatWithExpert(messages, 'tough_love');
 
             expect(mockCreateChatCompletion).toHaveBeenCalledWith(expect.objectContaining({
@@ -93,6 +116,8 @@ describe('AI Service Layer', () => {
 
         it('respects system prompt based on persona: scientific', async () => {
             const messages: Message[] = [{ role: 'user', content: 'Help me' }];
+            mockCreateChatCompletion.mockResolvedValueOnce({});
+
             await chatWithExpert(messages, 'scientific');
 
             expect(mockCreateChatCompletion).toHaveBeenCalledWith(expect.objectContaining({

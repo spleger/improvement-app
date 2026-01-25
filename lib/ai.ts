@@ -12,7 +12,11 @@ export const SYSTEM_PROMPTS = {
     EMPATHETIC: "Be understanding and supportive. Focus on emotional well-being and steady progress."
 };
 
-export async function generateChallenge(userPrefs: UserPrefs, goal: Goal): Promise<Partial<Challenge>> {
+export async function generateChallenge(userPrefs: UserPrefs, goal: Goal, recentChallenges: Challenge[] = []): Promise<Partial<Challenge>> {
+    const historyText = recentChallenges.length > 0
+        ? recentChallenges.map(c => `- ${c.title} (Difficulty: ${c.difficulty})`).join('\n')
+        : 'No recent history.';
+
     const prompt = `
     Generate a challenge for a user with the goal: "${goal.title}" (${goal.description}).
     Current State: ${goal.currentState}
@@ -23,6 +27,14 @@ export async function generateChallenge(userPrefs: UserPrefs, goal: Goal): Promi
     - Focus Areas: ${userPrefs.focusAreas.join(', ')}
     - Avoid: ${userPrefs.avoidAreas.join(', ')}
     - Reality Shift: ${userPrefs.realityShiftEnabled ? 'ON' : 'OFF'}
+
+    Recent Completed Challenges:
+    ${historyText}
+
+    Instructions:
+    - Do NOT repeat recent challenges.
+    - If Reality Shift is ON, slightly increase difficulty from preference.
+    - Otherwise, keep it consistent with preference.
     
     Return a JSON object with:
     - title

@@ -1,0 +1,47 @@
+jest-haste-map: Haste module naming collision: goal-transformation-app
+  The following files share their name; please adjust your hasteImpl:
+    * <rootDir>\package.json
+    * <rootDir>\.auto-claude\worktrees\tasks\001-reference-the-ui-improvement-plan-md-doc-to-improv\package.json
+
+  console.error
+    Error generating challenge: Error: AI overloaded
+        at Object.<anonymous> (C:\Users\spleg\IdeaProjects\ImprovementApp\__tests__\api\challenges\generate.test.ts:108:60)
+        at Promise.finally.completed (C:\Users\spleg\IdeaProjects\ImprovementApp\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (C:\Users\spleg\IdeaProjects\ImprovementApp\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+        at _callCircusTest (C:\Users\spleg\IdeaProjects\ImprovementApp\node_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+        at _runTest (C:\Users\spleg\IdeaProjects\ImprovementApp\node_modules\jest-circus\build\jestAdapterInit.js:947:3)
+        at C:\Users\spleg\IdeaProjects\ImprovementApp\node_modules\jest-circus\build\jestAdapterInit.js:849:7
+        at _runTestsForDescribeBlock (C:\Users\spleg\IdeaProjects\ImprovementApp\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+        at _runTestsForDescribeBlock (C:\Users\spleg\IdeaProjects\ImprovementApp\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+        at run (C:\Users\spleg\IdeaProjects\ImprovementApp\node_modules\jest-circus\build\jestAdapterInit.js:761:3)
+        at runAndTransformResultsToJestFormat (C:\Users\spleg\IdeaProjects\ImprovementApp\node_modules\jest-circus\build\jestAdapterInit.js:1918:21)
+        at jestAdapter (C:\Users\spleg\IdeaProjects\ImprovementApp\node_modules\jest-circus\build\runner.js:101:19)
+        at runTestInternal (C:\Users\spleg\IdeaProjects\ImprovementApp\node_modules\jest-runner\build\index.js:275:16)
+        at runTest (C:\Users\spleg\IdeaProjects\ImprovementApp\node_modules\jest-runner\build\index.js:343:7)
+
+    [0m [90m 81 |[39m
+     [90m 82 |[39m     } [36mcatch[39m (error[33m:[39m any) {
+    [31m[1m>[22m[39m[90m 83 |[39m         console[33m.[39merror([32m'Error generating challenge:'[39m[33m,[39m error)[33m;[39m
+     [90m    |[39m                 [31m[1m^[22m[39m
+     [90m 84 |[39m         [36mreturn[39m [33mNextResponse[39m[33m.[39mjson({ success[33m:[39m [36mfalse[39m[33m,[39m error[33m:[39m error[33m.[39mmessage [33m||[39m [32m'Internal server error'[39m }[33m,[39m { status[33m:[39m [35m500[39m })[33m;[39m
+     [90m 85 |[39m     }
+     [90m 86 |[39m }[0m
+
+      at error (app/api/challenges/generate/route.ts:83:17)
+      at Object.<anonymous> (__tests__/api/challenges/generate.test.ts:112:21)
+
+PASS __tests__/api/challenges/generate.test.ts
+  POST /api/challenges/generate
+    √ returns 401 if not authenticated (11 ms)
+    √ returns 400 if goalId is missing (2 ms)
+    √ returns 404 if goal is not found or does not belong to user (2 ms)
+    √ successfully creates a challenge with history (5 ms)
+    √ successfully creates a challenge (4 ms)
+    √ handles AI generation failure (47 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       6 passed, 6 total
+Snapshots:   0 total
+Time:        0.788 s
+Ran all test suites matching __tests__/api/challenges/generate.test.ts.

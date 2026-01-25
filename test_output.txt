@@ -1,0 +1,70 @@
+jest-haste-map: Haste module naming collision: goal-transformation-app
+  The following files share their name; please adjust your hasteImpl:
+    * <rootDir>\package.json
+    * <rootDir>\.auto-claude\worktrees\tasks\001-reference-the-ui-improvement-plan-md-doc-to-improv\package.json
+
+  console.error
+    Error generating challenge: Error: AI overloaded
+        at Object.<anonymous> (C:\Users\spleg\IdeaProjects\ImprovementApp\__tests__\api\challenges\generate.test.ts:109:60)
+        at Promise.finally.completed (C:\Users\spleg\IdeaProjects\ImprovementApp\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (C:\Users\spleg\IdeaProjects\ImprovementApp\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+        at _callCircusTest (C:\Users\spleg\IdeaProjects\ImprovementApp\node_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+        at _runTest (C:\Users\spleg\IdeaProjects\ImprovementApp\node_modules\jest-circus\build\jestAdapterInit.js:947:3)
+        at C:\Users\spleg\IdeaProjects\ImprovementApp\node_modules\jest-circus\build\jestAdapterInit.js:849:7
+        at _runTestsForDescribeBlock (C:\Users\spleg\IdeaProjects\ImprovementApp\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+        at _runTestsForDescribeBlock (C:\Users\spleg\IdeaProjects\ImprovementApp\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+        at run (C:\Users\spleg\IdeaProjects\ImprovementApp\node_modules\jest-circus\build\jestAdapterInit.js:761:3)
+        at runAndTransformResultsToJestFormat (C:\Users\spleg\IdeaProjects\ImprovementApp\node_modules\jest-circus\build\jestAdapterInit.js:1918:21)
+        at jestAdapter (C:\Users\spleg\IdeaProjects\ImprovementApp\node_modules\jest-circus\build\runner.js:101:19)
+        at runTestInternal (C:\Users\spleg\IdeaProjects\ImprovementApp\node_modules\jest-runner\build\index.js:275:16)
+        at runTest (C:\Users\spleg\IdeaProjects\ImprovementApp\node_modules\jest-runner\build\index.js:343:7)
+
+    [0m [90m 81 |[39m
+     [90m 82 |[39m     } [36mcatch[39m (error[33m:[39m any) {
+    [31m[1m>[22m[39m[90m 83 |[39m         console[33m.[39merror([32m'Error generating challenge:'[39m[33m,[39m error)[33m;[39m
+     [90m    |[39m                 [31m[1m^[22m[39m
+     [90m 84 |[39m         [36mreturn[39m [33mNextResponse[39m[33m.[39mjson({ success[33m:[39m [36mfalse[39m[33m,[39m error[33m:[39m error[33m.[39mmessage [33m||[39m [32m'Internal server error'[39m }[33m,[39m { status[33m:[39m [35m500[39m })[33m;[39m
+     [90m 85 |[39m     }
+     [90m 86 |[39m }[0m
+
+      at error (app/api/challenges/generate/route.ts:83:17)
+      at Object.<anonymous> (__tests__/api/challenges/generate.test.ts:113:21)
+
+FAIL __tests__/api/challenges/generate.test.ts
+  POST /api/challenges/generate
+    √ returns 401 if not authenticated (9 ms)
+    √ returns 400 if goalId is missing (1 ms)
+    √ returns 404 if goal is not found or does not belong to user (1 ms)
+    √ successfully creates a challenge with history (4 ms)
+    × successfully creates a challenge (6 ms)
+    √ handles AI generation failure (41 ms)
+
+  ● POST /api/challenges/generate › successfully creates a challenge
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    - Expected
+    + Received
+
+      {"aiPersonality": "empathetic", "avoidAreas": [], "focusAreas": [], "preferredDifficulty": 5, "realityShiftEnabled": false},
+      {"id": "goal-1", "title": "Lose Weight", "userId": "user-123"},
+    + [],
+
+    Number of calls: 1
+
+    [0m [90m  97 |[39m         expect(res[33m.[39mstatus)[33m.[39mtoBe([35m200[39m)[33m;[39m
+     [90m  98 |[39m         expect(data[33m.[39msuccess)[33m.[39mtoBe([36mtrue[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m  99 |[39m         expect(generateChallenge)[33m.[39mtoHaveBeenCalledWith(expect[33m.[39manything()[33m,[39m mockGoal)[33m;[39m
+     [90m     |[39m                                   [31m[1m^[22m[39m
+     [90m 100 |[39m         expect(db[33m.[39mcreateChallenge)[33m.[39mtoHaveBeenCalledWith(expect[33m.[39mobjectContaining({
+     [90m 101 |[39m             userId[33m:[39m [32m'user-123'[39m[33m,[39m
+     [90m 102 |[39m             goalId[33m:[39m [32m'goal-1'[39m[33m,[39m[0m
+
+      at Object.toHaveBeenCalledWith (__tests__/api/challenges/generate.test.ts:99:35)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 5 passed, 6 total
+Snapshots:   0 total
+Time:        0.71 s
+Ran all test suites matching __tests__/api/challenges/generate.test.ts.
