@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown, Plus, Trash2, MoreHorizontal } from 'lucide-react';
+import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown, Plus, Trash2, MoreHorizontal, Mic } from 'lucide-react';
 import { getIcon } from '@/lib/icons';
 import ChallengeProposal from './widgets/ChallengeProposal';
 import MoodLogWidget from './widgets/MoodLogWidget';
@@ -55,6 +55,12 @@ export default function ExpertChat() {
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    // Voice Recording State
+    const [isRecording, setIsRecording] = useState(false);
+    const [isTranscribing, setIsTranscribing] = useState(false);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
 
     // Save selected coach to localStorage when it changes (skip initial render)
     const isInitialMount = useRef(true);
@@ -309,6 +315,61 @@ export default function ExpertChat() {
         sendMessage(input);
     };
 
+    // Voice Recording Functions
+    const handleVoiceInput = async () => {
+        if (isRecording) {
+            // Stop recording
+            mediaRecorderRef.current?.stop();
+            setIsRecording(false);
+        } else {
+            // Start recording
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+                mediaRecorderRef.current = mediaRecorder;
+                audioChunksRef.current = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunksRef.current.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = async () => {
+                    stream.getTracks().forEach(track => track.stop());
+                    const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+
+                    // Transcribe the audio
+                    setIsTranscribing(true);
+                    try {
+                        const formData = new FormData();
+                        formData.append('audio', audioBlob, 'recording.webm');
+
+                        const response = await fetch('/api/transcribe', {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        const data = await response.json();
+                        if (data.success && data.data.text) {
+                            setInput(prev => prev + (prev ? ' ' : '') + data.data.text);
+                            inputRef.current?.focus();
+                        }
+                    } catch (error) {
+                        console.error('Transcription failed:', error);
+                    } finally {
+                        setIsTranscribing(false);
+                    }
+                };
+
+                mediaRecorder.start();
+                setIsRecording(true);
+            } catch (error) {
+                console.error('Microphone access denied:', error);
+            }
+        }
+    };
+
     // Group coaches
     const defaultCoaches = coaches.filter(c => c.type === 'default');
     const goalCoaches = coaches.filter(c => c.type === 'goal');
@@ -467,14 +528,23 @@ export default function ExpertChat() {
 
             {/* Input Area */}
             <form onSubmit={handleSubmit} className="chat-input-form">
+                <button
+                    type="button"
+                    onClick={handleVoiceInput}
+                    className={`mic-btn ${isRecording ? 'recording' : ''} ${isTranscribing ? 'transcribing' : ''}`}
+                    disabled={isLoading || isTranscribing}
+                    title={isRecording ? 'Stop recording' : 'Voice input'}
+                >
+                    <Mic size={20} />
+                </button>
                 <input
                     ref={inputRef}
                     type="text"
                     value={input}
                     onChange={e => setInput(e.target.value)}
-                    placeholder={`Message ${selectedCoach.name}...`}
+                    placeholder={isTranscribing ? 'Transcribing...' : `Message ${selectedCoach.name}...`}
                     className="chat-input"
-                    disabled={isLoading}
+                    disabled={isLoading || isTranscribing}
                 />
                 <button
                     type="submit"
@@ -810,6 +880,41 @@ export default function ExpertChat() {
 
                 .send-btn:disabled {
                     opacity: 0.5;
+                    cursor: not-allowed;
+                }
+
+                .mic-btn {
+                    width: 44px;
+                    height: 44px;
+                    background: transparent;
+                    border: none;
+                    border-radius: 12px;
+                    color: var(--color-text-muted);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    flex-shrink: 0;
+                }
+
+                .mic-btn:hover:not(:disabled) {
+                    color: var(--color-accent);
+                    background: var(--color-surface-2);
+                }
+
+                .mic-btn.recording {
+                    color: #ef4444;
+                    animation: pulse 1s infinite;
+                }
+
+                .mic-btn.transcribing {
+                    color: var(--color-accent);
+                    opacity: 0.6;
+                }
+
+                .mic-btn:disabled {
+                    opacity: 0.4;
                     cursor: not-allowed;
                 }
                 

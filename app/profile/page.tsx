@@ -2,6 +2,8 @@ import Link from 'next/link';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
+import BottomNavigation from '../components/BottomNavigation';
+import PageHeader from '../components/PageHeader';
 
 export default async function ProfilePage() {
     const user = await getCurrentUser();
@@ -38,25 +40,11 @@ export default async function ProfilePage() {
     return (
         <div className="page animate-fade-in">
             {/* Header */}
-            <div className="page-header text-center">
-                <div style={{
-                    width: '80px',
-                    height: '80px',
-                    borderRadius: '50%',
-                    background: 'var(--gradient-primary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto 1rem',
-                    fontSize: '2.5rem'
-                }}>
-                    👤
-                </div>
-                <h1 className="heading-2">My Profile</h1>
-                <p className="text-secondary">
-                    {stats.daysOnPlatform} days on your transformation journey
-                </p>
-            </div>
+            <PageHeader
+                icon="👤"
+                title="My Profile"
+                subtitle={`${stats.daysOnPlatform} days on your transformation journey`}
+            />
 
             {/* Stats Grid */}
             <section className="mb-lg">
@@ -140,15 +128,7 @@ export default async function ProfilePage() {
             </section>
 
             {/* Bottom Navigation */}
-            <nav className="nav-bottom">
-                <div className="nav-bottom-inner">
-                    <Link href="/" className="nav-item"><span className="nav-item-icon">🏠</span><span className="nav-item-label">Home</span></Link>
-                    <Link href="/progress" className="nav-item"><span className="nav-item-icon">📊</span><span className="nav-item-label">Progress</span></Link>
-                    <Link href="/diary" className="nav-item"><span className="nav-item-icon">🎙️</span><span className="nav-item-label">Diary</span></Link>
-                    <Link href="/expert" className="nav-item"><span className="nav-item-icon">💬</span><span className="nav-item-label">Expert</span></Link>
-                    <Link href="/profile" className="nav-item active"><span className="nav-item-icon">👤</span><span className="nav-item-label">Profile</span></Link>
-                </div>
-            </nav>
+            <BottomNavigation />
         </div>
     );
 }

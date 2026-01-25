@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import VoiceRecorder from '@/app/components/VoiceRecorder';
 import BottomNavigation from '@/app/components/BottomNavigation';
+import PageHeader from '@/app/components/PageHeader';
 import { Calendar, Mic, Clock, BarChart2 } from 'lucide-react';
 
 interface DiaryEntry {
@@ -71,13 +72,12 @@ export default function DiaryPage() {
     };
 
     return (
-        <div className="container-page max-w-4xl mx-auto p-md space-y-lg">
-            <header className="mb-lg">
-                <h1 className="text-4xl font-bold gradient-text mb-sm">Voice Diary</h1>
-                <p className="text-muted text-lg">
-                    Capture your daily reflections, wins, and blockers. Speak freely—we'll handle the writing.
-                </p>
-            </header>
+        <div className="page" style={{ paddingBottom: '100px' }}>
+            <PageHeader
+                icon="📝"
+                title="Voice Diary"
+                subtitle="Capture your daily reflections, wins, and blockers"
+            />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-lg">
                 {/* Recorder Section */}

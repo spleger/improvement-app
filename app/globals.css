@@ -59,24 +59,38 @@
 
 /* CSS Variables - Dark Theme */
 [data-theme="dark"] {
+  /* Base Colors - Glassmorphism optimized */
   --color-primary: #e0e0e0;
   --color-secondary: #a0a0a0;
-  --color-accent: #667eea;
-  --color-highlight: #e94560;
-  --color-background: #0f0f1a;
-  --color-surface: #1a1a2e;
-  --color-surface-2: #252540;
-  --color-surface-hover: #252540;
-  --color-border: #2d2d44;
+  --color-accent: #0d9488;
+  --color-accent-light: #14b8a6;
+  --color-highlight: #0d9488;
+  --color-background: #121212;
+  --color-surface: rgba(30, 30, 40, 0.7);
+  --color-surface-solid: #1e1e28;
+  --color-surface-2: rgba(40, 40, 55, 0.7);
+  --color-surface-hover: rgba(50, 50, 65, 0.8);
+  --color-border: rgba(255, 255, 255, 0.1);
   --color-text: #f0f0f5;
   --color-text-primary: #f0f0f5;
   --color-text-secondary: #a0a0b0;
   --color-text-muted: #6c6c80;
-  --color-success: #38ef7d;
-  --color-warning: #ffc107;
-  --color-error: #ff6b6b;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
 
-  /* Darker shadows for dark mode */
+  /* Teal Accent Gradients */
+  --gradient-primary: linear-gradient(135deg, #0d9488 0%, #06b6d4 100%);
+  --gradient-accent: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
+  --gradient-success: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  --gradient-fire: linear-gradient(135deg, #f12711 0%, #f5af19 100%);
+
+  /* Glassmorphism */
+  --glass-blur: blur(12px);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+
+  /* Shadows for dark mode */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
@@ -285,11 +299,12 @@ button {
    =================================== */
 
 .card {
-  background: var(--color-background);
+  background: var(--color-surface-solid);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
   padding: var(--spacing-xl);
   transition: all var(--transition-normal);
+  border: var(--glass-border);
 }
 
 .card:hover {
@@ -297,13 +312,33 @@ button {
 }
 
 .card-highlight {
-  border: 2px solid var(--color-highlight);
-  background: linear-gradient(135deg, rgba(233, 69, 96, 0.03) 0%, rgba(233, 69, 96, 0.08) 100%);
+  border: 2px solid var(--color-accent);
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.05) 0%, rgba(6, 182, 212, 0.1) 100%);
 }
 
 .card-surface {
   background: var(--color-surface);
   box-shadow: none;
+}
+
+/* Glassmorphism Cards */
+.card-glass {
+  background: var(--color-surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-radius: var(--radius-lg);
+  border: var(--glass-border);
+  padding: var(--spacing-lg);
+  box-shadow: var(--glass-shadow);
+}
+
+.card-glass-subtle {
+  background: rgba(30, 30, 40, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: var(--spacing-md);
 }
 
 /* ===================================
@@ -561,9 +596,10 @@ button {
 
 .slider {
   -webkit-appearance: none;
+  appearance: none;
   width: 100%;
   height: 8px;
-  background: var(--color-surface);
+  background: var(--color-surface-solid);
   border-radius: var(--radius-full);
   outline: none;
 }
@@ -606,10 +642,11 @@ button {
   bottom: 0;
   left: 0;
   right: 0;
-  background: var(--color-background);
-  border-top: 1px solid var(--color-surface);
+  background: var(--color-surface-solid);
+  border-top: 1px solid var(--color-border);
   padding: var(--spacing-sm) 0;
   z-index: 100;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   /* Safe Area for Bottom Nav */
   padding-bottom: calc(var(--spacing-sm) + env(safe-area-inset-bottom));
 }
@@ -626,14 +663,20 @@ button {
   flex-direction: column;
   align-items: center;
   gap: var(--spacing-xs);
-  padding: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
   color: var(--color-text-muted);
-  transition: color var(--transition-fast);
+  transition: all var(--transition-fast);
+  border-radius: var(--radius-sm);
+  min-width: 64px;
 }
 
-.nav-item:hover,
+.nav-item:hover {
+  color: var(--color-text-secondary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
 .nav-item.active {
-  color: var(--color-highlight);
+  color: var(--color-accent);
 }
 
 .nav-item-icon {
@@ -645,6 +688,7 @@ button {
   font-size: 0.625rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  font-weight: 500;
 }
 
 /* ===================================
@@ -963,4 +1007,85 @@ button {
     align-items: flex-start;
     gap: var(--spacing-md);
   }
+}
+
+/* ===================================
+   STYLED PAGE HEADER
+   =================================== */
+
+.page-header-styled {
+  text-align: center;
+  padding: var(--spacing-xl) 0;
+  margin-bottom: var(--spacing-lg);
+}
+
+.page-header-icon {
+  font-size: 2rem;
+  margin-bottom: var(--spacing-sm);
+}
+
+.page-header-title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.page-header-subtitle {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  max-width: 280px;
+  margin: 0 auto;
+}
+
+/* ===================================
+   EXPERT CHAT FULL HEIGHT
+   =================================== */
+
+.expert-chat-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 80px - env(safe-area-inset-bottom));
+  padding-top: var(--spacing-md);
+}
+
+.expert-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-md);
+}
+
+.expert-chat-input {
+  display: flex;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background: var(--color-surface-solid);
+  border-top: 1px solid var(--color-border);
+  align-items: center;
+}
+
+.expert-chat-input input {
+  flex: 1;
+}
+
+.expert-chat-mic-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border-radius: var(--radius-full);
+  color: var(--color-text-muted);
+  transition: all var(--transition-fast);
+}
+
+.expert-chat-mic-btn:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-accent);
+}
+
+.expert-chat-mic-btn.recording {
+  color: var(--color-error);
+  animation: pulse 1s infinite;
 }

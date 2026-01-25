@@ -1,22 +1,14 @@
-import Link from 'next/link';
 import ExpertChat from './ExpertChat';
+import BottomNavigation from '../components/BottomNavigation';
 
 export default function ExpertPage() {
     return (
-        <div className="page animate-fade-in" style={{ paddingBottom: '80px', paddingTop: '16px' }}>
+        <div className="expert-page" style={{ minHeight: '100vh', background: 'var(--color-background)' }}>
             {/* Chat Interface (includes its own coach selector) */}
             <ExpertChat />
 
             {/* Bottom Navigation */}
-            <nav className="nav-bottom">
-                <div className="nav-bottom-inner">
-                    <Link href="/" className="nav-item"><span className="nav-item-icon">🏠</span><span className="nav-item-label">Home</span></Link>
-                    <Link href="/progress" className="nav-item"><span className="nav-item-icon">📊</span><span className="nav-item-label">Progress</span></Link>
-                    <Link href="/diary" className="nav-item"><span className="nav-item-icon">🎙️</span><span className="nav-item-label">Diary</span></Link>
-                    <Link href="/expert" className="nav-item active"><span className="nav-item-icon">💬</span><span className="nav-item-label">Expert</span></Link>
-                    <Link href="/profile" className="nav-item"><span className="nav-item-icon">👤</span><span className="nav-item-label">Profile</span></Link>
-                </div>
-            </nav>
+            <BottomNavigation />
         </div>
     );
 }

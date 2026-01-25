@@ -2,7 +2,8 @@ import Link from 'next/link';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-
+import BottomNavigation from '../components/BottomNavigation';
+import PageHeader from '../components/PageHeader';
 
 export default async function ProgressPage() {
     const user = await getCurrentUser();
@@ -67,14 +68,11 @@ export default async function ProgressPage() {
     return (
         <div className="page animate-fade-in">
             {/* Header */}
-            <div className="page-header">
-                <h1 className="heading-2">📊 Your Progress</h1>
-                {activeGoal && (
-                    <p className="text-secondary">
-                        Day {dayInJourney} of your {activeGoal.title} journey
-                    </p>
-                )}
-            </div>
+            <PageHeader
+                icon="📊"
+                title="Your Progress"
+                subtitle={activeGoal ? `Day ${dayInJourney} of your ${activeGoal.title} journey` : 'Track your transformation'}
+            />
 
             {/* Stats Overview */}
             <section className="mb-lg">
@@ -197,15 +195,7 @@ export default async function ProgressPage() {
             </section>
 
             {/* Bottom Navigation */}
-            <nav className="nav-bottom">
-                <div className="nav-bottom-inner">
-                    <Link href="/" className="nav-item"><span className="nav-item-icon">🏠</span><span className="nav-item-label">Home</span></Link>
-                    <Link href="/progress" className="nav-item active"><span className="nav-item-icon">📊</span><span className="nav-item-label">Progress</span></Link>
-                    <Link href="/diary" className="nav-item"><span className="nav-item-icon">🎙️</span><span className="nav-item-label">Diary</span></Link>
-                    <Link href="/expert" className="nav-item"><span className="nav-item-icon">💬</span><span className="nav-item-label">Expert</span></Link>
-                    <Link href="/profile" className="nav-item"><span className="nav-item-icon">👤</span><span className="nav-item-label">Profile</span></Link>
-                </div>
-            </nav>
+            <BottomNavigation />
         </div>
     );
 }

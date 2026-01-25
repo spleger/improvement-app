@@ -17,10 +17,9 @@ export default function BottomNavigation() {
 
     const items = [
         { id: 'home', icon: '🏠', label: 'Home', href: '/' },
+        { id: 'diary', icon: '📝', label: 'Diary', href: '/diary' },
         { id: 'habits', icon: '✅', label: 'Habits', href: '/habits' },
-        { id: 'progress', icon: '📊', label: 'Progress', href: '/progress' },
         { id: 'expert', icon: '💬', label: 'Expert', href: '/expert' },
-        { id: 'profile', icon: '👤', label: 'Profile', href: '/profile' },
     ];
 
     return (

@@ -40,3 +40,6 @@ prisma/*.db-journal
 # IDE
 .idea
 .vscode
+
+# Auto Claude data directory
+.auto-claude/
