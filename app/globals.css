@@ -942,6 +942,250 @@ button {
 }
 
 /* ===================================
+   SECTION SEPARATORS
+   =================================== */
+
+/* Basic horizontal separator */
+.section-separator {
+  height: 1px;
+  background: var(--color-border);
+  margin: var(--spacing-lg) 0;
+  border: none;
+}
+
+/* Gradient separator with accent color */
+.section-separator-gradient {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--color-accent) 50%,
+    transparent 100%
+  );
+  margin: var(--spacing-lg) 0;
+  border: none;
+}
+
+/* Thick separator for major sections */
+.section-separator-thick {
+  height: 2px;
+  background: var(--color-border);
+  margin: var(--spacing-xl) 0;
+  border: none;
+}
+
+/* Spaced separator with extra margin */
+.section-separator-spaced {
+  height: 1px;
+  background: var(--color-border);
+  margin: var(--spacing-2xl) 0;
+  border: none;
+}
+
+/* Subtle separator for tight spaces */
+.section-separator-subtle {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.05);
+  margin: var(--spacing-md) 0;
+  border: none;
+}
+
+/* Separator with label */
+.section-separator-labeled {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin: var(--spacing-xl) 0;
+}
+
+.section-separator-labeled::before,
+.section-separator-labeled::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.section-separator-labeled span {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+/* Dashed separator */
+.section-separator-dashed {
+  height: 0;
+  border: none;
+  border-top: 1px dashed var(--color-border);
+  margin: var(--spacing-lg) 0;
+}
+
+/* ===================================
+   CARD BOXING UTILITIES
+   =================================== */
+
+/* Standard boxed section */
+.boxed {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  border: 1px solid var(--color-border);
+}
+
+/* Boxed section with subtle styling */
+.boxed-subtle {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Boxed section with glassmorphism effect */
+.boxed-glass {
+  background: var(--color-surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  border: var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+/* Boxed section with accent border */
+.boxed-accent {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  border: 1px solid var(--color-accent);
+  box-shadow: 0 0 20px rgba(13, 148, 136, 0.1);
+}
+
+/* Boxed section with top accent line */
+.boxed-accent-top {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  border: 1px solid var(--color-border);
+  position: relative;
+  overflow: hidden;
+}
+
+.boxed-accent-top::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-primary);
+}
+
+/* Inset boxed section (nested look) */
+.boxed-inset {
+  background: var(--color-surface-2);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Light theme inset adjustment */
+:root .boxed-inset {
+  background: var(--color-surface);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Outlined box (no background) */
+.boxed-outline {
+  background: transparent;
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  border: 1px solid var(--color-border);
+}
+
+/* Interactive boxed section */
+.boxed-interactive {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  border: 1px solid var(--color-border);
+  transition: all var(--transition-normal);
+  cursor: pointer;
+}
+
+.boxed-interactive:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-accent);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Box with header styling */
+.boxed-header {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-surface-2);
+  border-bottom: 1px solid var(--color-border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  margin: calc(-1 * var(--spacing-lg));
+  margin-bottom: var(--spacing-lg);
+}
+
+/* Spacing utilities for boxed content */
+.boxed-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.boxed-stack > * + * {
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-border);
+}
+
+/* No separator variant */
+.boxed-stack-clean > * + * {
+  padding-top: 0;
+  border-top: none;
+}
+
+/* Compact boxed section */
+.boxed-compact {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border);
+}
+
+/* Large boxed section */
+.boxed-large {
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-xl);
+  border: 1px solid var(--color-border);
+}
+
+/* Group of boxed items */
+.boxed-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+/* Horizontal boxed group */
+.boxed-group-horizontal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+}
+
+.boxed-group-horizontal > * {
+  flex: 1 1 auto;
+  min-width: 200px;
+}
+
+/* ===================================
    RESPONSIVE
    =================================== */
 
