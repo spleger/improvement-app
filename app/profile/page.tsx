@@ -71,12 +71,7 @@ export default async function ProfilePage() {
 
             {/* Active Goals */}
             <section className="mb-lg">
-                <div className="flex justify-between items-center mb-md">
-                    <h2 className="heading-4">Your Goals</h2>
-                    <Link href="/goals/new" className="btn btn-ghost text-small">
-                        + New Goal
-                    </Link>
-                </div>
+                <h2 className="heading-4 mb-md">Your Goals</h2>
 
                 {goals.length === 0 ? (
                     <div className="card text-center">
@@ -113,13 +108,13 @@ export default async function ProfilePage() {
             {/* Settings Section */}
             <section className="mb-lg">
                 <h2 className="heading-4 mb-md">Settings</h2>
-                <div className="flex flex-col gap-sm">
-                    <Link href="/settings" className="card flex items-center gap-md" style={{ width: '100%', textAlign: 'left', textDecoration: 'none', color: 'inherit' }}>
+                <div className="flex flex-col gap-md">
+                    <Link href="/settings" className="card card-glass flex items-center gap-md" style={{ width: '100%', textAlign: 'left', textDecoration: 'none', color: 'inherit' }}>
                         <span>⚙️</span>
                         <span style={{ flex: 1 }}>General Settings</span>
                         <span className="text-muted">→</span>
                     </Link>
-                    <Link href="/api/auth/logout" className="card flex items-center gap-md" style={{ width: '100%', textAlign: 'left', textDecoration: 'none', color: 'var(--color-error)' }}>
+                    <Link href="/api/auth/logout" className="card card-glass flex items-center gap-md" style={{ width: '100%', textAlign: 'left', textDecoration: 'none', color: 'var(--color-error)' }}>
                         <span>🚪</span>
                         <span style={{ flex: 1 }}>Logout</span>
                         <span className="text-muted">→</span>

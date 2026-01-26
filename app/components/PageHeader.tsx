@@ -8,10 +8,10 @@ interface PageHeaderProps {
 
 export default function PageHeader({ icon, title, subtitle }: PageHeaderProps) {
     return (
-        <div className="page-header-styled">
-            <div className="page-header-icon">{icon}</div>
+        <header className="page-header-styled" role="banner">
+            <span className="page-header-icon" aria-hidden="true">{icon}</span>
             <h1 className="page-header-title">{title}</h1>
             {subtitle && <p className="page-header-subtitle">{subtitle}</p>}
-        </div>
+        </header>
     );
 }

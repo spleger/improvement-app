@@ -150,26 +150,28 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                 {/* Preferred Difficulty */}
                 <div className="form-group">
                     <label className="form-label">Default Difficulty Level</label>
-                    <div className="flex items-center gap-md">
-                        <input
-                            type="range"
-                            min="1"
-                            max="10"
-                            value={prefs.preferredDifficulty}
-                            onChange={e => updatePref('preferredDifficulty', parseInt(e.target.value))}
-                            className="slider"
-                            style={{ flex: 1 }}
-                        />
-                        <span className="heading-5" style={{ width: '40px', textAlign: 'center' }}>
-                            {prefs.preferredDifficulty}
-                        </span>
+                    <div className="slider-container">
+                        <div className="flex items-center gap-md">
+                            <input
+                                type="range"
+                                min="1"
+                                max="10"
+                                value={prefs.preferredDifficulty}
+                                onChange={e => updatePref('preferredDifficulty', parseInt(e.target.value))}
+                                className="slider"
+                                style={{ flex: 1 }}
+                            />
+                            <span className="heading-5" style={{ width: '40px', textAlign: 'center' }}>
+                                {prefs.preferredDifficulty}
+                            </span>
+                        </div>
+                        <p className="text-tiny text-muted" style={{ marginTop: 'var(--spacing-sm)' }}>
+                            {prefs.preferredDifficulty! <= 3 ? 'Gentle start - building momentum' :
+                                prefs.preferredDifficulty! <= 6 ? 'Moderate - balanced challenge' :
+                                    prefs.preferredDifficulty! <= 8 ? 'Intense - pushing boundaries' :
+                                        'Extreme - maximum growth'}
+                        </p>
                     </div>
-                    <p className="text-tiny text-muted">
-                        {prefs.preferredDifficulty! <= 3 ? 'Gentle start - building momentum' :
-                            prefs.preferredDifficulty! <= 6 ? 'Moderate - balanced challenge' :
-                                prefs.preferredDifficulty! <= 8 ? 'Intense - pushing boundaries' :
-                                    'Extreme - maximum growth'}
-                    </p>
                 </div>
 
                 {/* Challenges Per Day */}
@@ -214,7 +216,7 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                 {/* Preferred Time */}
                 <div className="form-group">
                     <label className="form-label">Best Time for Challenges</label>
-                    <div className="flex gap-xs flex-wrap">
+                    <div className="flex gap-sm flex-wrap" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--spacing-sm)' }}>
                         {[
                             { value: 'morning', label: 'Morning', emoji: '🌅' },
                             { value: 'afternoon', label: 'Afternoon', emoji: '☀️' },
@@ -225,9 +227,17 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                                 key={opt.value}
                                 onClick={() => updatePref('preferredChallengeTime', opt.value)}
                                 className={`btn ${prefs.preferredChallengeTime === opt.value ? 'btn-primary' : 'btn-secondary'}`}
-                                style={{ padding: '0.5rem 0.75rem', fontSize: '0.9rem' }}
+                                style={{
+                                    padding: '0.75rem 1rem',
+                                    fontSize: '0.9rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 'var(--spacing-xs)'
+                                }}
                             >
-                                {opt.emoji} {opt.label}
+                                <span>{opt.emoji}</span>
+                                <span>{opt.label}</span>
                             </button>
                         ))}
                     </div>
@@ -235,18 +245,20 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
 
                 {/* Reality Shift Mode */}
                 <div className="form-group">
-                    <label className="flex items-center gap-md" style={{ cursor: 'pointer' }}>
-                        <input
-                            type="checkbox"
-                            checked={prefs.realityShiftEnabled}
-                            onChange={e => updatePref('realityShiftEnabled', e.target.checked)}
-                            style={{ width: '20px', height: '20px' }}
-                        />
-                        <div>
+                    <label className="flex items-center gap-md" style={{ cursor: 'pointer', justifyContent: 'space-between' }}>
+                        <div style={{ flex: 1 }}>
                             <div className="heading-5">⚡ Reality Shift Mode</div>
                             <div className="text-small text-muted">
                                 Enable extreme, life-changing challenges that push you far outside your comfort zone
                             </div>
+                        </div>
+                        <div className="toggle-switch">
+                            <input
+                                type="checkbox"
+                                checked={prefs.realityShiftEnabled}
+                                onChange={e => updatePref('realityShiftEnabled', e.target.checked)}
+                            />
+                            <span className="toggle-slider"></span>
                         </div>
                     </label>
                 </div>
@@ -334,18 +346,20 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                 </div>
 
                 <div className="form-group mt-md">
-                    <label className="flex items-center gap-md" style={{ cursor: 'pointer' }}>
-                        <input
-                            type="checkbox"
-                            checked={prefs.includeScientificBasis}
-                            onChange={e => updatePref('includeScientificBasis', e.target.checked)}
-                            style={{ width: '20px', height: '20px' }}
-                        />
-                        <div>
+                    <label className="flex items-center gap-md" style={{ cursor: 'pointer', justifyContent: 'space-between' }}>
+                        <div style={{ flex: 1 }}>
                             <div className="heading-5">📚 Include Scientific Basis</div>
                             <div className="text-small text-muted">
                                 Show why each challenge works based on research
                             </div>
+                        </div>
+                        <div className="toggle-switch">
+                            <input
+                                type="checkbox"
+                                checked={prefs.includeScientificBasis}
+                                onChange={e => updatePref('includeScientificBasis', e.target.checked)}
+                            />
+                            <span className="toggle-slider"></span>
                         </div>
                     </label>
                 </div>
@@ -356,16 +370,18 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                 <h2 className="heading-4 mb-md">🔔 Notifications</h2>
 
                 <div className="form-group">
-                    <label className="flex items-center gap-md" style={{ cursor: 'pointer' }}>
-                        <input
-                            type="checkbox"
-                            checked={prefs.notificationsEnabled}
-                            onChange={e => updatePref('notificationsEnabled', e.target.checked)}
-                            style={{ width: '20px', height: '20px' }}
-                        />
-                        <div>
+                    <label className="flex items-center gap-md" style={{ cursor: 'pointer', justifyContent: 'space-between' }}>
+                        <div style={{ flex: 1 }}>
                             <div className="heading-5">Daily Reminders</div>
                             <div className="text-small text-muted">Get reminded about your challenges</div>
+                        </div>
+                        <div className="toggle-switch">
+                            <input
+                                type="checkbox"
+                                checked={prefs.notificationsEnabled}
+                                onChange={e => updatePref('notificationsEnabled', e.target.checked)}
+                            />
+                            <span className="toggle-slider"></span>
                         </div>
                     </label>
                 </div>
@@ -384,16 +400,18 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                 )}
 
                 <div className="form-group">
-                    <label className="flex items-center gap-md" style={{ cursor: 'pointer' }}>
-                        <input
-                            type="checkbox"
-                            checked={prefs.streakReminders}
-                            onChange={e => updatePref('streakReminders', e.target.checked)}
-                            style={{ width: '20px', height: '20px' }}
-                        />
-                        <div>
+                    <label className="flex items-center gap-md" style={{ cursor: 'pointer', justifyContent: 'space-between' }}>
+                        <div style={{ flex: 1 }}>
                             <div className="heading-5">Streak Protection</div>
                             <div className="text-small text-muted">Warn me before I lose my streak</div>
+                        </div>
+                        <div className="toggle-switch">
+                            <input
+                                type="checkbox"
+                                checked={prefs.streakReminders}
+                                onChange={e => updatePref('streakReminders', e.target.checked)}
+                            />
+                            <span className="toggle-slider"></span>
                         </div>
                     </label>
                 </div>

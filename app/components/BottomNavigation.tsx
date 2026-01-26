@@ -7,13 +7,12 @@ export default function BottomNavigation() {
     const pathname = usePathname();
 
     // Determine active tab based on pathname
+    // Only check paths for the 4 navigation items: home, diary, habits, expert
     const active = pathname === '/' ? 'home'
-        : pathname?.startsWith('/progress') ? 'progress'
+        : pathname?.startsWith('/diary') ? 'diary'
             : pathname?.startsWith('/habits') ? 'habits'
-                : pathname?.startsWith('/diary') ? 'diary'
-                    : pathname?.startsWith('/expert') ? 'expert'
-                        : pathname?.startsWith('/profile') ? 'profile'
-                            : '';
+                : pathname?.startsWith('/expert') ? 'expert'
+                    : '';
 
     const items = [
         { id: 'home', icon: '🏠', label: 'Home', href: '/' },

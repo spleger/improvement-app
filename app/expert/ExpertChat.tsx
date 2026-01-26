@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, ReactNode } from 'react';
 import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown, Plus, Trash2, MoreHorizontal, Mic } from 'lucide-react';
 import { getIcon } from '@/lib/icons';
 import ChallengeProposal from './widgets/ChallengeProposal';
@@ -13,7 +13,71 @@ interface Message {
     role: 'user' | 'assistant';
     content: string;
     timestamp: Date;
+    isAnimating?: boolean;
 }
+
+// Typewriter effect component for AI responses
+const TypewriterText = ({
+    content,
+    onComplete,
+    renderContent,
+    onType
+}: {
+    content: string;
+    onComplete: () => void;
+    renderContent: (text: string) => ReactNode;
+    onType?: () => void;
+}) => {
+    const [displayedText, setDisplayedText] = useState('');
+    const [isComplete, setIsComplete] = useState(false);
+
+    useEffect(() => {
+        if (isComplete) return;
+
+        let currentIndex = 0;
+        const text = content;
+        let timeoutId: ReturnType<typeof setTimeout>;
+
+        // Speed: faster for longer messages, with a minimum delay
+        const baseDelay = Math.max(8, Math.min(20, 1200 / text.length));
+
+        const typeNextChar = () => {
+            if (currentIndex < text.length) {
+                // Type multiple characters at once for faster effect
+                const charsToAdd = text.length > 300 ? 4 : text.length > 150 ? 3 : text.length > 50 ? 2 : 1;
+                const nextIndex = Math.min(currentIndex + charsToAdd, text.length);
+                setDisplayedText(text.slice(0, nextIndex));
+                currentIndex = nextIndex;
+
+                // Scroll during typing
+                if (onType && currentIndex % 20 === 0) {
+                    onType();
+                }
+
+                // Variable delay for more natural feel
+                const nextDelay = baseDelay + Math.random() * 8;
+                timeoutId = setTimeout(typeNextChar, nextDelay);
+            } else {
+                setIsComplete(true);
+                onComplete();
+            }
+        };
+
+        // Start typing after a brief delay
+        timeoutId = setTimeout(typeNextChar, 100);
+
+        return () => {
+            clearTimeout(timeoutId);
+        };
+    }, [content, isComplete, onComplete, onType]);
+
+    return (
+        <span className="typewriter-container">
+            {renderContent(displayedText)}
+            {!isComplete && <span className="typewriter-cursor">|</span>}
+        </span>
+    );
+};
 
 interface Coach {
     id: string;
@@ -46,6 +110,9 @@ export default function ExpertChat() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+
+    // Typewriter animation state
+    const [animatingMessageId, setAnimatingMessageId] = useState<string | null>(null);
 
     // Coach State
     const [coaches, setCoaches] = useState<Coach[]>(DEFAULT_COACHES);
@@ -135,9 +202,17 @@ export default function ExpertChat() {
         fetchData();
     }, []);
 
-    const scrollToBottom = () => {
+    const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    };
+    }, []);
+
+    // Handler for when typewriter animation completes
+    const handleAnimationComplete = useCallback((messageId: string) => {
+        setAnimatingMessageId(null);
+        setMessages(prev => prev.map(msg =>
+            msg.id === messageId ? { ...msg, isAnimating: false } : msg
+        ));
+    }, []);
 
     const renderMessageContent = (content: string) => {
         const parts = content.split(/(<<<\{.*?\}>>>)/g);
@@ -255,29 +330,38 @@ export default function ExpertChat() {
             const data = await response.json();
 
             if (data.success && data.data.reply) {
+                const messageId = (Date.now() + 1).toString();
                 const assistantMessage: Message = {
-                    id: (Date.now() + 1).toString(),
+                    id: messageId,
                     role: 'assistant',
                     content: data.data.reply,
-                    timestamp: new Date()
+                    timestamp: new Date(),
+                    isAnimating: true
                 };
+                setAnimatingMessageId(messageId);
                 setMessages(prev => [...prev, assistantMessage]);
             } else {
+                const messageId = (Date.now() + 1).toString();
                 const fallbackMessage: Message = {
-                    id: (Date.now() + 1).toString(),
+                    id: messageId,
                     role: 'assistant',
                     content: "I understand you're working on your transformation. Could you tell me more?",
-                    timestamp: new Date()
+                    timestamp: new Date(),
+                    isAnimating: true
                 };
+                setAnimatingMessageId(messageId);
                 setMessages(prev => [...prev, fallbackMessage]);
             }
         } catch (error) {
+            const messageId = (Date.now() + 1).toString();
             const errorMessage: Message = {
-                id: (Date.now() + 1).toString(),
+                id: messageId,
                 role: 'assistant',
                 content: "I'm having trouble connecting. Please try again.",
-                timestamp: new Date()
+                timestamp: new Date(),
+                isAnimating: true
             };
+            setAnimatingMessageId(messageId);
             setMessages(prev => [...prev, errorMessage]);
         } finally {
             setIsLoading(false);
@@ -486,7 +570,16 @@ export default function ExpertChat() {
                             </div>
                         )}
                         <div className="message-bubble">
-                            {renderMessageContent(message.content)}
+                            {message.role === 'assistant' && message.id === animatingMessageId ? (
+                                <TypewriterText
+                                    content={message.content}
+                                    onComplete={() => handleAnimationComplete(message.id)}
+                                    renderContent={renderMessageContent}
+                                    onType={scrollToBottom}
+                                />
+                            ) : (
+                                renderMessageContent(message.content)
+                            )}
                         </div>
                         {message.role === 'user' && (
                             <div className="message-avatar user-avatar">
@@ -568,7 +661,6 @@ export default function ExpertChat() {
                     flex-direction: column;
                     height: calc(100vh - 160px);
                     min-height: 400px;
-                    max-height: 600px;
                     background: var(--color-surface);
                     border-radius: 24px;
                     border: 1px solid var(--color-border);
@@ -798,6 +890,23 @@ export default function ExpertChat() {
                 @keyframes bounce {
                     0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
                     40% { transform: scale(1); opacity: 1; }
+                }
+
+                .typewriter-container {
+                    display: inline;
+                }
+
+                .typewriter-cursor {
+                    display: inline-block;
+                    color: var(--color-primary);
+                    font-weight: 300;
+                    animation: blink 0.8s infinite;
+                    margin-left: 1px;
+                }
+
+                @keyframes blink {
+                    0%, 50% { opacity: 1; }
+                    51%, 100% { opacity: 0; }
                 }
 
                 .quick-actions {
