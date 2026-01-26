@@ -12,9 +12,16 @@
   - **Processing:** Loading/processing state hangs or looks bugged (needs indicator, but also simply doesn't work).
 - **Challenge Library:**
   - **Success Criteria:** "See details" button is broken; shows no content.
+  - **AI Generation:** "Generate more with AI" button does not work; challenges are not generated.
+- **Home Screen - Goal/Challenge Display:** ✅ FIXED
+  - Challenges now appear nested (indented) underneath their parent goal with a visual border-left hierarchy.
 - **Voice Diary:**
   - **Transcription:** Logic seems to run in background, but the "Transcript edit if needed" text box remains empty.
   - **Insights:** The "Insights" section is empty. It should generate and display cool insights about the voice entry/journey.
+- **Challenge Generator - Quality:**
+  - **Issue:** Does not generate real, meaningful challenges. Even when selecting multiple challenges, only one very basic challenge is created.
+  - **Current Behavior:** Generated challenges are trivial—essentially just rewording the goal's starting point and end point rather than creating actionable, progressive challenges.
+  - **Expected:** Multiple diverse, actionable challenges that progressively build toward the goal.
 
 ## Workflow Improvements
 
