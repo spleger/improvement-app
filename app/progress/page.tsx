@@ -147,7 +147,7 @@ export default async function ProgressPage() {
             />
 
             {/* Stats Overview */}
-            <section className="mb-lg">
+            <section style={{ marginBottom: 'var(--spacing-2xl)' }}>
                 <h2 className="heading-4 mb-md">Overview</h2>
                 <div className="stats-grid">
                     <div className="stat-card">
@@ -169,8 +169,11 @@ export default async function ProgressPage() {
                 </div>
             </section>
 
+            {/* Section Separator */}
+            <hr className="section-separator-gradient" />
+
             {/* Calendar View */}
-            <section className="mb-lg">
+            <section style={{ marginBottom: 'var(--spacing-2xl)' }}>
                 <div className="flex items-center justify-between mb-md">
                     <h2 className="heading-4">Last 30 Days</h2>
                     <span className="text-tiny text-muted">{monthRange}</span>
@@ -319,7 +322,11 @@ export default async function ProgressPage() {
 
             {/* Goal-Specific Progress (only if multiple goals with data) */}
             {goalStats.size > 1 && (
-                <section className="mb-lg">
+                <>
+                    {/* Section Separator */}
+                    <hr className="section-separator-gradient" />
+
+                    <section style={{ marginBottom: 'var(--spacing-2xl)' }}>
                     <h2 className="heading-4 mb-md">Progress by Goal</h2>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {Array.from(goalStats.entries()).map(([goalId, stats]) => {
@@ -375,12 +382,17 @@ export default async function ProgressPage() {
                             );
                         })}
                     </div>
-                </section>
+                    </section>
+                </>
             )}
 
             {/* Mood Chart (Simplified) */}
             {chartData.length > 0 && (
-                <section className="mb-lg">
+                <>
+                    {/* Section Separator */}
+                    <hr className="section-separator-gradient" />
+
+                    <section style={{ marginBottom: 'var(--spacing-2xl)' }}>
                     <h2 className="heading-4 mb-md">Mood & Energy Trends</h2>
                     <div className="card">
                         <div style={{ height: '150px', display: 'flex', alignItems: 'flex-end', gap: '4px' }}>
@@ -402,11 +414,15 @@ export default async function ProgressPage() {
                             Last {Math.min(14, chartData.length)} days • Mood levels (1-10)
                         </div>
                     </div>
-                </section>
+                    </section>
+                </>
             )}
 
+            {/* Section Separator */}
+            <hr className="section-separator-subtle" />
+
             {/* Quick Actions */}
-            <section className="mb-lg">
+            <section style={{ marginTop: 'var(--spacing-xl)' }}>
                 <div className="flex gap-md">
                     <Link href="/survey" className="btn btn-primary" style={{ flex: 1 }}>
                         📝 Daily Check-in
