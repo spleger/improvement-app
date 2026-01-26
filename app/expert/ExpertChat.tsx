@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown, Plus, Trash2, MoreHorizontal, Mic } from 'lucide-react';
+import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown, Plus, Trash2, MoreHorizontal, Mic, Volume2, VolumeX } from 'lucide-react';
 import { getIcon } from '@/lib/icons';
 import ChallengeProposal from './widgets/ChallengeProposal';
 import MoodLogWidget from './widgets/MoodLogWidget';
@@ -63,6 +63,11 @@ export default function ExpertChat() {
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
 
+    // TTS Audio State
+    const [isMuted, setIsMuted] = useState(false);
+    const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+
     // Save selected coach to localStorage when it changes (skip initial render)
     const isInitialMount = useRef(true);
     useEffect(() => {
@@ -74,6 +79,104 @@ export default function ExpertChat() {
             localStorage.setItem('selectedCoachId', selectedCoach.id);
         }
     }, [selectedCoach]);
+
+    // Load TTS mute preference from localStorage
+    useEffect(() => {
+        const savedMuted = localStorage.getItem('expertChatMuted');
+        if (savedMuted !== null) {
+            setIsMuted(savedMuted === 'true');
+        }
+    }, []);
+
+    // Cleanup audio on unmount to prevent memory leaks
+    useEffect(() => {
+        return () => {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                if (audioRef.current.src) {
+                    URL.revokeObjectURL(audioRef.current.src);
+                }
+                audioRef.current = null;
+            }
+        };
+    }, []);
+
+    // Save mute preference to localStorage
+    const toggleMute = () => {
+        const newMuted = !isMuted;
+        setIsMuted(newMuted);
+        localStorage.setItem('expertChatMuted', String(newMuted));
+        // Stop any currently playing audio when muting
+        if (newMuted && audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
+            setIsPlayingAudio(false);
+        }
+    };
+
+    // Play TTS audio for a given text
+    const playTTSAudio = async (text: string) => {
+        if (isMuted || !text.trim()) return;
+
+        // Strip any widget JSON markers from the text
+        const cleanText = text.replace(/<<<\{.*?\}>>>/g, '').trim();
+        if (!cleanText) return;
+
+        // Truncate to 4096 chars (API limit)
+        const truncatedText = cleanText.length > 4096 ? cleanText.slice(0, 4096) : cleanText;
+
+        try {
+            setIsPlayingAudio(true);
+
+            const response = await fetch('/api/tts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: truncatedText })
+            });
+
+            if (!response.ok) {
+                // TTS failed - fail silently as per spec (fall back to text-only)
+                return;
+            }
+
+            const audioBlob = await response.blob();
+            const audioUrl = URL.createObjectURL(audioBlob);
+
+            // Stop any existing audio
+            if (audioRef.current) {
+                audioRef.current.pause();
+                URL.revokeObjectURL(audioRef.current.src);
+            }
+
+            const audio = new Audio(audioUrl);
+            audioRef.current = audio;
+
+            audio.onended = () => {
+                setIsPlayingAudio(false);
+                URL.revokeObjectURL(audioUrl);
+                audioRef.current = null;
+            };
+
+            audio.onerror = () => {
+                // Handle audio playback errors gracefully (e.g., autoplay blocked)
+                setIsPlayingAudio(false);
+                URL.revokeObjectURL(audioUrl);
+                audioRef.current = null;
+            };
+
+            // Try to play - may be blocked by browser autoplay policy
+            await audio.play().catch(() => {
+                // Autoplay blocked - fail silently
+                setIsPlayingAudio(false);
+                URL.revokeObjectURL(audioUrl);
+                audioRef.current = null;
+            });
+
+        } catch {
+            // Network or other error - fail silently
+            setIsPlayingAudio(false);
+        }
+    };
 
     // Initial Data Fetch
     useEffect(() => {
@@ -280,6 +383,7 @@ export default function ExpertChat() {
 
             const decoder = new TextDecoder();
             let buffer = '';
+            let accumulatedText = ''; // Track full response for TTS
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -303,6 +407,7 @@ export default function ExpertChat() {
                         try {
                             const parsed = JSON.parse(data);
                             if (parsed.text) {
+                                accumulatedText += parsed.text; // Track for TTS
                                 // Update assistant message with new text chunk
                                 setMessages(prev => prev.map(msg =>
                                     msg.id === assistantMessageId
@@ -322,6 +427,11 @@ export default function ExpertChat() {
                         }
                     }
                 }
+            }
+
+            // Play TTS audio after streaming completes successfully
+            if (accumulatedText) {
+                playTTSAudio(accumulatedText);
             }
         } catch (error) {
             // Update the assistant message with error
@@ -431,19 +541,29 @@ export default function ExpertChat() {
         <div className="expert-chat">
             {/* Header with Coach Selector */}
             <div className="chat-header">
-                <button
-                    className="coach-selector-btn"
-                    onClick={() => setShowCoachSelector(!showCoachSelector)}
-                >
-                    <div className="coach-avatar" style={{ background: selectedCoach.color }}>
-                        <span>{selectedCoach.icon}</span>
-                    </div>
-                    <div className="coach-info">
-                        <span className="coach-name">{selectedCoach.name} {selectedCoach.type === 'goal' ? '' : 'Coach'}</span>
-                        <span className="coach-desc">{selectedCoach.description}</span>
-                    </div>
-                    <ChevronDown size={20} className={`chevron ${showCoachSelector ? 'open' : ''}`} />
-                </button>
+                <div className="header-row">
+                    <button
+                        className="coach-selector-btn"
+                        onClick={() => setShowCoachSelector(!showCoachSelector)}
+                    >
+                        <div className="coach-avatar" style={{ background: selectedCoach.color }}>
+                            <span>{selectedCoach.icon}</span>
+                        </div>
+                        <div className="coach-info">
+                            <span className="coach-name">{selectedCoach.name} {selectedCoach.type === 'goal' ? '' : 'Coach'}</span>
+                            <span className="coach-desc">{selectedCoach.description}</span>
+                        </div>
+                        <ChevronDown size={20} className={`chevron ${showCoachSelector ? 'open' : ''}`} />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={toggleMute}
+                        className={`audio-toggle-btn ${isMuted ? 'muted' : ''} ${isPlayingAudio ? 'playing' : ''}`}
+                        title={isMuted ? 'Unmute AI voice' : 'Mute AI voice'}
+                    >
+                        {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                    </button>
+                </div>
 
                 {showCoachSelector && (
                     <div className="coach-dropdown custom-scrollbar">
@@ -639,11 +759,52 @@ export default function ExpertChat() {
                     z-index: 20;
                 }
 
+                .header-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                }
+
+                .audio-toggle-btn {
+                    width: 44px;
+                    height: 44px;
+                    background: var(--color-surface-2);
+                    border: 1px solid var(--color-border);
+                    border-radius: 12px;
+                    color: var(--color-text-muted);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    flex-shrink: 0;
+                }
+
+                .audio-toggle-btn:hover {
+                    color: var(--color-primary);
+                    border-color: var(--color-primary);
+                }
+
+                .audio-toggle-btn.muted {
+                    color: var(--color-text-muted);
+                    opacity: 0.6;
+                }
+
+                .audio-toggle-btn.playing {
+                    color: var(--color-primary);
+                    animation: pulse 1.5s infinite;
+                }
+
+                @keyframes pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.6; }
+                }
+
                 .coach-selector-btn {
                     display: flex;
                     align-items: center;
                     gap: 12px;
-                    width: 100%;
+                    flex: 1;
                     padding: 8px 12px;
                     background: var(--color-surface-2);
                     border: 1px solid var(--color-border);
