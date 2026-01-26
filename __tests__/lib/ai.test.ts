@@ -1,35 +1,55 @@
-import { generateChallenge, chatWithExpert, transcribeAudio, analyzeRealityShift, SYSTEM_PROMPTS } from '../../lib/ai';
 import { UserPrefs, Goal, Message } from '../../lib/types';
-import OpenAI from 'openai';
 
-// Mock OpenAI
-const mockCreateChatCompletion = jest.fn();
-const mockCreateTranscription = jest.fn();
+// Create mock functions and store them on a module-level object that survives hoisting
+const mockFns = {
+    chatCreate: jest.fn(),
+    audioCreate: jest.fn()
+};
 
+// Use a factory function that doesn't reference external variables
 jest.mock('openai', () => {
-    return jest.fn().mockImplementation(() => {
-        return {
-            chat: {
-                completions: {
-                    create: mockCreateChatCompletion,
-                },
+    // Define mocks directly in the factory
+    const chatCreate = jest.fn();
+    const audioCreate = jest.fn();
+
+    // Expose them for test access via the module
+    const MockOpenAI = jest.fn().mockImplementation(() => ({
+        chat: {
+            completions: {
+                create: chatCreate,
             },
-            audio: {
-                transcriptions: {
-                    create: mockCreateTranscription,
-                },
+        },
+        audio: {
+            transcriptions: {
+                create: audioCreate,
             },
-        };
-    });
+        },
+    }));
+
+    // Attach mock functions to constructor for test access
+    (MockOpenAI as any).__mocks = { chatCreate, audioCreate };
+
+    return MockOpenAI;
 });
+
+// Import after mock setup
+import OpenAI from 'openai';
+import { generateChallenge, chatWithExpert, transcribeAudio, SYSTEM_PROMPTS } from '../../lib/ai';
+
+// Get references to the mocks
+const getMocks = () => (OpenAI as any).__mocks as { chatCreate: jest.Mock; audioCreate: jest.Mock };
 
 describe('AI Service Layer', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        const mocks = getMocks();
+        mocks.chatCreate.mockReset();
+        mocks.audioCreate.mockReset();
     });
 
     describe('generateChallenge', () => {
         it('returns structured JSON matching Challenge schema', async () => {
+            const mocks = getMocks();
+
             const mockGoal: Goal = {
                 id: '1',
                 title: 'Run Marathon',
@@ -61,7 +81,7 @@ describe('AI Service Layer', () => {
                 isRealityShift: true
             };
 
-            mockCreateChatCompletion.mockResolvedValueOnce({
+            mocks.chatCreate.mockResolvedValueOnce({
                 choices: [{ message: { content: JSON.stringify(mockResponse) } }]
             });
 
@@ -73,7 +93,7 @@ describe('AI Service Layer', () => {
                 isRealityShift: true
             }));
 
-            expect(mockCreateChatCompletion).toHaveBeenCalledWith(expect.objectContaining({
+            expect(mocks.chatCreate).toHaveBeenCalledWith(expect.objectContaining({
                 response_format: { type: 'json_object' }
             }));
         });
@@ -81,10 +101,18 @@ describe('AI Service Layer', () => {
 
     describe('chatWithExpert', () => {
         it('respects system prompt based on persona: tough_love', async () => {
+            const mocks = getMocks();
             const messages: Message[] = [{ role: 'user', content: 'Help me' }];
+
+            mocks.chatCreate.mockResolvedValueOnce({
+                [Symbol.asyncIterator]: async function* () {
+                    yield { choices: [{ delta: { content: 'response' } }] };
+                }
+            });
+
             await chatWithExpert(messages, 'tough_love');
 
-            expect(mockCreateChatCompletion).toHaveBeenCalledWith(expect.objectContaining({
+            expect(mocks.chatCreate).toHaveBeenCalledWith(expect.objectContaining({
                 messages: expect.arrayContaining([
                     { role: 'system', content: SYSTEM_PROMPTS.TOUGH_LOVE }
                 ])
@@ -92,10 +120,18 @@ describe('AI Service Layer', () => {
         });
 
         it('respects system prompt based on persona: scientific', async () => {
+            const mocks = getMocks();
             const messages: Message[] = [{ role: 'user', content: 'Help me' }];
+
+            mocks.chatCreate.mockResolvedValueOnce({
+                [Symbol.asyncIterator]: async function* () {
+                    yield { choices: [{ delta: { content: 'response' } }] };
+                }
+            });
+
             await chatWithExpert(messages, 'scientific');
 
-            expect(mockCreateChatCompletion).toHaveBeenCalledWith(expect.objectContaining({
+            expect(mocks.chatCreate).toHaveBeenCalledWith(expect.objectContaining({
                 messages: expect.arrayContaining([
                     { role: 'system', content: SYSTEM_PROMPTS.SCIENTIFIC }
                 ])
@@ -105,13 +141,14 @@ describe('AI Service Layer', () => {
 
     describe('transcribeAudio', () => {
         it('calls openai transcription with file', async () => {
+            const mocks = getMocks();
             const mockBlob = new Blob(['audio data'], { type: 'audio/wav' });
-            mockCreateTranscription.mockResolvedValueOnce({ text: 'Hello world' });
+            mocks.audioCreate.mockResolvedValueOnce({ text: 'Hello world' });
 
             const text = await transcribeAudio(mockBlob);
 
             expect(text).toBe('Hello world');
-            expect(mockCreateTranscription).toHaveBeenCalledTimes(1);
+            expect(mocks.audioCreate).toHaveBeenCalledTimes(1);
         });
     });
 });
