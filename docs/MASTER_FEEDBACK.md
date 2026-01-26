@@ -16,6 +16,8 @@
 - [ ] **Challenge Library "See details" broken** — Button shows no content
 - [ ] **Challenge Library "Generate more with AI" broken** — Challenges are not generated
 - [ ] **Challenge Generator quality bug** — Does not create real challenges; only generates one trivial challenge that rewords goal start/end points instead of multiple actionable challenges
+- [ ] **Tips for Success are generic** — Always the same tips regardless of challenge content; should be tailored to the specific challenge
+- [ ] **Challenge needs better structure** — Add separate fields: Description (what to do) and Success Criteria (how you know it's complete)
 
 ### Voice Features
 
@@ -47,6 +49,10 @@
 - [ ] **Top bar branding** — Replace "Transform" text with squirrel logo image and a short motivational quote (e.g., "Let's do this!", "Go for it!")
 - [ ] **Action buttons too small** — Finish/Delete goal buttons need to be larger
 - [ ] **Misplaced quick actions** — Log habits, Voice diary, Check-in should be in nav, not homepage
+- [ ] **Challenges not visible under goals** — Currently only shows "1 completed today" summary with no way to see actual challenges. Need:
+  - Summary at top: "X completed today"
+  - Below summary: Individual box for each outstanding (non-completed) challenge
+  - Each challenge should be clickable/viewable
 
 ### Navigation
 
@@ -118,7 +124,7 @@
 
 ### Design Polish
 
-- [ ] **Confirmation modals look terrible** — "Are you sure..." dialogs need visual overhaul
+- [ ] **Confirmation modals use browser defaults** — Goal complete/delete shows browser dialog with "improvement-app.vercel.app says: Are you sure..."; needs custom in-app modal with nicer message and styling that matches the app
 - [ ] **Loading states missing** — Needs breathing animations, transitionary color fades
 - [ ] **Icons too basic** — Need nicer icons throughout (especially Expert Coach)
 
