@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { MessageCircle, Sparkles, ArrowLeft } from 'lucide-react';
+import { MessageCircle, Sparkles } from 'lucide-react';
+import InterviewChat from './InterviewChat';
 
 type AIMode = 'interview' | 'expert' | null;
 
@@ -68,19 +69,9 @@ export default function AIConversation({ onBack }: AIConversationProps) {
                 </div>
             )}
 
-            {/* Interview Mode Placeholder */}
+            {/* Interview Mode */}
             {selectedMode === 'interview' && (
-                <div className="card">
-                    <div className="placeholder-content">
-                        <div className="placeholder-icon">
-                            <MessageCircle size={48} />
-                        </div>
-                        <h3 className="heading-3">Guided Interview</h3>
-                        <p className="text-secondary text-center">
-                            Interview mode coming soon...
-                        </p>
-                    </div>
-                </div>
+                <InterviewChat />
             )}
 
             {/* Expert Chat Mode Placeholder */}
