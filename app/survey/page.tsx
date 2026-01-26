@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import DailySurveyForm from './DailySurveyForm';
+import AIConversation from './AIConversation';
 
 type SurveyMode = 'survey' | 'ai' | null;
 
@@ -75,21 +76,9 @@ export default function SurveyPage() {
                 </>
             )}
 
-            {/* AI Conversation (placeholder until AIConversation component is built) */}
+            {/* AI Conversation */}
             {selectedMode === 'ai' && (
-                <>
-                    <button
-                        onClick={handleBackToModeSelection}
-                        className="btn btn-ghost mb-md text-small"
-                    >
-                        ← Change mode
-                    </button>
-                    <div className="card">
-                        <p className="text-center text-secondary">
-                            AI Conversation mode coming soon...
-                        </p>
-                    </div>
-                </>
+                <AIConversation onBack={handleBackToModeSelection} />
             )}
 
             <style jsx>{`
