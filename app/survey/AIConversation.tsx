@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { MessageCircle, Sparkles } from 'lucide-react';
 import InterviewChat from './InterviewChat';
+import ExpertChat from '../expert/ExpertChat';
 
 type AIMode = 'interview' | 'expert' | null;
 
@@ -12,10 +13,16 @@ interface AIConversationProps {
 
 export default function AIConversation({ onBack }: AIConversationProps) {
     const [selectedMode, setSelectedMode] = useState<AIMode>(null);
+    const [interviewCompleted, setInterviewCompleted] = useState(false);
 
-    const handleBackToModeSelection = () => {
+    const handleBackToModeSelection = useCallback(() => {
         setSelectedMode(null);
-    };
+        setInterviewCompleted(false);
+    }, []);
+
+    const handleInterviewComplete = useCallback(() => {
+        setInterviewCompleted(true);
+    }, []);
 
     return (
         <div className="ai-conversation">
@@ -71,21 +78,13 @@ export default function AIConversation({ onBack }: AIConversationProps) {
 
             {/* Interview Mode */}
             {selectedMode === 'interview' && (
-                <InterviewChat />
+                <InterviewChat onComplete={handleInterviewComplete} />
             )}
 
-            {/* Expert Chat Mode Placeholder */}
+            {/* Expert Chat Mode */}
             {selectedMode === 'expert' && (
-                <div className="card">
-                    <div className="placeholder-content">
-                        <div className="placeholder-icon expert">
-                            <Sparkles size={48} />
-                        </div>
-                        <h3 className="heading-3">Expert Chat</h3>
-                        <p className="text-secondary text-center">
-                            Expert chat integration coming soon...
-                        </p>
-                    </div>
+                <div className="expert-chat-wrapper">
+                    <ExpertChat />
                 </div>
             )}
 
@@ -159,34 +158,8 @@ export default function AIConversation({ onBack }: AIConversationProps) {
                     line-height: 1.5;
                 }
 
-                .placeholder-content {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    padding: var(--spacing-xl);
-                    text-align: center;
-                    min-height: 300px;
-                }
-
-                .placeholder-icon {
-                    width: 80px;
-                    height: 80px;
-                    border-radius: 20px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    margin-bottom: var(--spacing-lg);
-                    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
-                    color: white;
-                }
-
-                .placeholder-icon.expert {
-                    background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
-                }
-
-                .placeholder-content .heading-3 {
-                    margin-bottom: var(--spacing-sm);
+                .expert-chat-wrapper {
+                    width: 100%;
                 }
             `}</style>
         </div>
