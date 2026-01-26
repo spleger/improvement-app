@@ -747,6 +747,39 @@ export async function updateConversationMessages(id: string, messages: any[]) {
     return updated;
 }
 
+export async function getConversationByType(userId: string, conversationType: string) {
+    // Get the most recent conversation of a specific type for today
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const conv = await prisma.conversation.findFirst({
+        where: {
+            userId,
+            conversationType,
+            createdAt: { gte: todayStart }
+        },
+        orderBy: { updatedAt: 'desc' },
+    });
+
+    if (!conv) return null;
+
+    return {
+        ...conv,
+        messages: conv.messages ? JSON.parse(conv.messages) : [],
+        context: conv.context ? JSON.parse(conv.context) : null
+    };
+}
+
+export async function updateConversationContext(id: string, context: any) {
+    const updated = await prisma.conversation.update({
+        where: { id },
+        data: {
+            context: JSON.stringify(context),
+        },
+    });
+    return updated;
+}
+
 // ==================== HABIT OPERATIONS ====================
 
 export async function createHabit(data: {

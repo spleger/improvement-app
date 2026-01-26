@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback, ReactNode } from 'react';
-import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown, Plus, Trash2, MoreHorizontal, Mic } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown, Plus, Trash2, MoreHorizontal, Mic, Volume2, VolumeX } from 'lucide-react';
 import { getIcon } from '@/lib/icons';
 import ChallengeProposal from './widgets/ChallengeProposal';
 import MoodLogWidget from './widgets/MoodLogWidget';
@@ -13,71 +13,7 @@ interface Message {
     role: 'user' | 'assistant';
     content: string;
     timestamp: Date;
-    isAnimating?: boolean;
 }
-
-// Typewriter effect component for AI responses
-const TypewriterText = ({
-    content,
-    onComplete,
-    renderContent,
-    onType
-}: {
-    content: string;
-    onComplete: () => void;
-    renderContent: (text: string) => ReactNode;
-    onType?: () => void;
-}) => {
-    const [displayedText, setDisplayedText] = useState('');
-    const [isComplete, setIsComplete] = useState(false);
-
-    useEffect(() => {
-        if (isComplete) return;
-
-        let currentIndex = 0;
-        const text = content;
-        let timeoutId: ReturnType<typeof setTimeout>;
-
-        // Speed: faster for longer messages, with a minimum delay
-        const baseDelay = Math.max(8, Math.min(20, 1200 / text.length));
-
-        const typeNextChar = () => {
-            if (currentIndex < text.length) {
-                // Type multiple characters at once for faster effect
-                const charsToAdd = text.length > 300 ? 4 : text.length > 150 ? 3 : text.length > 50 ? 2 : 1;
-                const nextIndex = Math.min(currentIndex + charsToAdd, text.length);
-                setDisplayedText(text.slice(0, nextIndex));
-                currentIndex = nextIndex;
-
-                // Scroll during typing
-                if (onType && currentIndex % 20 === 0) {
-                    onType();
-                }
-
-                // Variable delay for more natural feel
-                const nextDelay = baseDelay + Math.random() * 8;
-                timeoutId = setTimeout(typeNextChar, nextDelay);
-            } else {
-                setIsComplete(true);
-                onComplete();
-            }
-        };
-
-        // Start typing after a brief delay
-        timeoutId = setTimeout(typeNextChar, 100);
-
-        return () => {
-            clearTimeout(timeoutId);
-        };
-    }, [content, isComplete, onComplete, onType]);
-
-    return (
-        <span className="typewriter-container">
-            {renderContent(displayedText)}
-            {!isComplete && <span className="typewriter-cursor">|</span>}
-        </span>
-    );
-};
 
 interface Coach {
     id: string;
@@ -110,9 +46,7 @@ export default function ExpertChat() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-
-    // Typewriter animation state
-    const [animatingMessageId, setAnimatingMessageId] = useState<string | null>(null);
+    const [isStreaming, setIsStreaming] = useState(false);
 
     // Coach State
     const [coaches, setCoaches] = useState<Coach[]>(DEFAULT_COACHES);
@@ -129,6 +63,11 @@ export default function ExpertChat() {
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
 
+    // TTS Audio State
+    const [isMuted, setIsMuted] = useState(false);
+    const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+
     // Save selected coach to localStorage when it changes (skip initial render)
     const isInitialMount = useRef(true);
     useEffect(() => {
@@ -140,6 +79,104 @@ export default function ExpertChat() {
             localStorage.setItem('selectedCoachId', selectedCoach.id);
         }
     }, [selectedCoach]);
+
+    // Load TTS mute preference from localStorage
+    useEffect(() => {
+        const savedMuted = localStorage.getItem('expertChatMuted');
+        if (savedMuted !== null) {
+            setIsMuted(savedMuted === 'true');
+        }
+    }, []);
+
+    // Cleanup audio on unmount to prevent memory leaks
+    useEffect(() => {
+        return () => {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                if (audioRef.current.src) {
+                    URL.revokeObjectURL(audioRef.current.src);
+                }
+                audioRef.current = null;
+            }
+        };
+    }, []);
+
+    // Save mute preference to localStorage
+    const toggleMute = () => {
+        const newMuted = !isMuted;
+        setIsMuted(newMuted);
+        localStorage.setItem('expertChatMuted', String(newMuted));
+        // Stop any currently playing audio when muting
+        if (newMuted && audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
+            setIsPlayingAudio(false);
+        }
+    };
+
+    // Play TTS audio for a given text
+    const playTTSAudio = async (text: string) => {
+        if (isMuted || !text.trim()) return;
+
+        // Strip any widget JSON markers from the text
+        const cleanText = text.replace(/<<<\{.*?\}>>>/g, '').trim();
+        if (!cleanText) return;
+
+        // Truncate to 4096 chars (API limit)
+        const truncatedText = cleanText.length > 4096 ? cleanText.slice(0, 4096) : cleanText;
+
+        try {
+            setIsPlayingAudio(true);
+
+            const response = await fetch('/api/tts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: truncatedText })
+            });
+
+            if (!response.ok) {
+                // TTS failed - fail silently as per spec (fall back to text-only)
+                return;
+            }
+
+            const audioBlob = await response.blob();
+            const audioUrl = URL.createObjectURL(audioBlob);
+
+            // Stop any existing audio
+            if (audioRef.current) {
+                audioRef.current.pause();
+                URL.revokeObjectURL(audioRef.current.src);
+            }
+
+            const audio = new Audio(audioUrl);
+            audioRef.current = audio;
+
+            audio.onended = () => {
+                setIsPlayingAudio(false);
+                URL.revokeObjectURL(audioUrl);
+                audioRef.current = null;
+            };
+
+            audio.onerror = () => {
+                // Handle audio playback errors gracefully (e.g., autoplay blocked)
+                setIsPlayingAudio(false);
+                URL.revokeObjectURL(audioUrl);
+                audioRef.current = null;
+            };
+
+            // Try to play - may be blocked by browser autoplay policy
+            await audio.play().catch(() => {
+                // Autoplay blocked - fail silently
+                setIsPlayingAudio(false);
+                URL.revokeObjectURL(audioUrl);
+                audioRef.current = null;
+            });
+
+        } catch {
+            // Network or other error - fail silently
+            setIsPlayingAudio(false);
+        }
+    };
 
     // Initial Data Fetch
     useEffect(() => {
@@ -202,17 +239,9 @@ export default function ExpertChat() {
         fetchData();
     }, []);
 
-    const scrollToBottom = useCallback(() => {
+    const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, []);
-
-    // Handler for when typewriter animation completes
-    const handleAnimationComplete = useCallback((messageId: string) => {
-        setAnimatingMessageId(null);
-        setMessages(prev => prev.map(msg =>
-            msg.id === messageId ? { ...msg, isAnimating: false } : msg
-        ));
-    }, []);
+    };
 
     const renderMessageContent = (content: string) => {
         const parts = content.split(/(<<<\{.*?\}>>>)/g);
@@ -299,8 +328,11 @@ export default function ExpertChat() {
     }, [selectedCoach]);
 
     useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
+        // Only auto-scroll when not streaming (user controls scroll during streaming)
+        if (!isStreaming) {
+            scrollToBottom();
+        }
+    }, [messages, isStreaming]);
 
     const sendMessage = async (content: string) => {
         if (!content.trim()) return;
@@ -316,8 +348,18 @@ export default function ExpertChat() {
         setInput('');
         setIsLoading(true);
 
+        // Create placeholder assistant message for streaming
+        const assistantMessageId = (Date.now() + 1).toString();
+        const assistantMessage: Message = {
+            id: assistantMessageId,
+            role: 'assistant',
+            content: '',
+            timestamp: new Date()
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+
         try {
-            const response = await fetch('/api/expert/chat', {
+            const response = await fetch('/api/expert/chat/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -327,44 +369,80 @@ export default function ExpertChat() {
                 })
             });
 
-            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
-            if (data.success && data.data.reply) {
-                const messageId = (Date.now() + 1).toString();
-                const assistantMessage: Message = {
-                    id: messageId,
-                    role: 'assistant',
-                    content: data.data.reply,
-                    timestamp: new Date(),
-                    isAnimating: true
-                };
-                setAnimatingMessageId(messageId);
-                setMessages(prev => [...prev, assistantMessage]);
-            } else {
-                const messageId = (Date.now() + 1).toString();
-                const fallbackMessage: Message = {
-                    id: messageId,
-                    role: 'assistant',
-                    content: "I understand you're working on your transformation. Could you tell me more?",
-                    timestamp: new Date(),
-                    isAnimating: true
-                };
-                setAnimatingMessageId(messageId);
-                setMessages(prev => [...prev, fallbackMessage]);
+            const reader = response.body?.getReader();
+            if (!reader) {
+                throw new Error('No response body');
+            }
+
+            setIsLoading(false);
+            setIsStreaming(true);
+
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let accumulatedText = ''; // Track full response for TTS
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+
+                // Process SSE events from buffer
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6);
+
+                        if (data === '[DONE]') {
+                            // Streaming complete
+                            continue;
+                        }
+
+                        try {
+                            const parsed = JSON.parse(data);
+                            if (parsed.text) {
+                                accumulatedText += parsed.text; // Track for TTS
+                                // Update assistant message with new text chunk
+                                setMessages(prev => prev.map(msg =>
+                                    msg.id === assistantMessageId
+                                        ? { ...msg, content: msg.content + parsed.text }
+                                        : msg
+                                ));
+                            } else if (parsed.error) {
+                                // Handle stream error
+                                setMessages(prev => prev.map(msg =>
+                                    msg.id === assistantMessageId
+                                        ? { ...msg, content: "I'm having trouble connecting. Please try again." }
+                                        : msg
+                                ));
+                            }
+                        } catch {
+                            // Ignore parse errors for malformed chunks
+                        }
+                    }
+                }
+            }
+
+            // Play TTS audio after streaming completes successfully
+            if (accumulatedText) {
+                playTTSAudio(accumulatedText);
             }
         } catch (error) {
-            const messageId = (Date.now() + 1).toString();
-            const errorMessage: Message = {
-                id: messageId,
-                role: 'assistant',
-                content: "I'm having trouble connecting. Please try again.",
-                timestamp: new Date(),
-                isAnimating: true
-            };
-            setAnimatingMessageId(messageId);
-            setMessages(prev => [...prev, errorMessage]);
+            // Update the assistant message with error
+            setMessages(prev => prev.map(msg =>
+                msg.id === assistantMessageId
+                    ? { ...msg, content: "I'm having trouble connecting. Please try again." }
+                    : msg
+            ));
         } finally {
             setIsLoading(false);
+            setIsStreaming(false);
             inputRef.current?.focus();
         }
     };
@@ -463,19 +541,29 @@ export default function ExpertChat() {
         <div className="expert-chat">
             {/* Header with Coach Selector */}
             <div className="chat-header">
-                <button
-                    className="coach-selector-btn"
-                    onClick={() => setShowCoachSelector(!showCoachSelector)}
-                >
-                    <div className="coach-avatar" style={{ background: selectedCoach.color }}>
-                        <span>{selectedCoach.icon}</span>
-                    </div>
-                    <div className="coach-info">
-                        <span className="coach-name">{selectedCoach.name} {selectedCoach.type === 'goal' ? '' : 'Coach'}</span>
-                        <span className="coach-desc">{selectedCoach.description}</span>
-                    </div>
-                    <ChevronDown size={20} className={`chevron ${showCoachSelector ? 'open' : ''}`} />
-                </button>
+                <div className="header-row">
+                    <button
+                        className="coach-selector-btn"
+                        onClick={() => setShowCoachSelector(!showCoachSelector)}
+                    >
+                        <div className="coach-avatar" style={{ background: selectedCoach.color }}>
+                            <span>{selectedCoach.icon}</span>
+                        </div>
+                        <div className="coach-info">
+                            <span className="coach-name">{selectedCoach.name} {selectedCoach.type === 'goal' ? '' : 'Coach'}</span>
+                            <span className="coach-desc">{selectedCoach.description}</span>
+                        </div>
+                        <ChevronDown size={20} className={`chevron ${showCoachSelector ? 'open' : ''}`} />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={toggleMute}
+                        className={`audio-toggle-btn ${isMuted ? 'muted' : ''} ${isPlayingAudio ? 'playing' : ''}`}
+                        title={isMuted ? 'Unmute AI voice' : 'Mute AI voice'}
+                    >
+                        {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                    </button>
+                </div>
 
                 {showCoachSelector && (
                     <div className="coach-dropdown custom-scrollbar">
@@ -570,16 +658,7 @@ export default function ExpertChat() {
                             </div>
                         )}
                         <div className="message-bubble">
-                            {message.role === 'assistant' && message.id === animatingMessageId ? (
-                                <TypewriterText
-                                    content={message.content}
-                                    onComplete={() => handleAnimationComplete(message.id)}
-                                    renderContent={renderMessageContent}
-                                    onType={scrollToBottom}
-                                />
-                            ) : (
-                                renderMessageContent(message.content)
-                            )}
+                            {renderMessageContent(message.content)}
                         </div>
                         {message.role === 'user' && (
                             <div className="message-avatar user-avatar">
@@ -661,6 +740,7 @@ export default function ExpertChat() {
                     flex-direction: column;
                     height: calc(100vh - 160px);
                     min-height: 400px;
+                    max-height: 600px;
                     background: var(--color-surface);
                     border-radius: 24px;
                     border: 1px solid var(--color-border);
@@ -679,11 +759,52 @@ export default function ExpertChat() {
                     z-index: 20;
                 }
 
+                .header-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                }
+
+                .audio-toggle-btn {
+                    width: 44px;
+                    height: 44px;
+                    background: var(--color-surface-2);
+                    border: 1px solid var(--color-border);
+                    border-radius: 12px;
+                    color: var(--color-text-muted);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    flex-shrink: 0;
+                }
+
+                .audio-toggle-btn:hover {
+                    color: var(--color-primary);
+                    border-color: var(--color-primary);
+                }
+
+                .audio-toggle-btn.muted {
+                    color: var(--color-text-muted);
+                    opacity: 0.6;
+                }
+
+                .audio-toggle-btn.playing {
+                    color: var(--color-primary);
+                    animation: pulse 1.5s infinite;
+                }
+
+                @keyframes pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.6; }
+                }
+
                 .coach-selector-btn {
                     display: flex;
                     align-items: center;
                     gap: 12px;
-                    width: 100%;
+                    flex: 1;
                     padding: 8px 12px;
                     background: var(--color-surface-2);
                     border: 1px solid var(--color-border);
@@ -890,23 +1011,6 @@ export default function ExpertChat() {
                 @keyframes bounce {
                     0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
                     40% { transform: scale(1); opacity: 1; }
-                }
-
-                .typewriter-container {
-                    display: inline;
-                }
-
-                .typewriter-cursor {
-                    display: inline-block;
-                    color: var(--color-primary);
-                    font-weight: 300;
-                    animation: blink 0.8s infinite;
-                    margin-left: 1px;
-                }
-
-                @keyframes blink {
-                    0%, 50% { opacity: 1; }
-                    51%, 100% { opacity: 0; }
                 }
 
                 .quick-actions {

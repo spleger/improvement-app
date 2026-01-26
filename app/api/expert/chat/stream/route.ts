@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
@@ -16,7 +16,7 @@ async function getUserContext(userId: string) {
         // Get streak
         const streak = await db.calculateStreak(userId);
 
-        // Get user preferences (NEW)
+        // Get user preferences
         const preferences = await db.getUserPreferences(userId);
 
         // Get recent surveys for mood data
@@ -44,8 +44,8 @@ async function getUserContext(userId: string) {
             dayInJourney,
             recentChallenges: challenges.slice(0, 5),
             preferences,
-            recentDiary: await db.getDiaryEntriesByUserId(userId, 3), // Fetch recent 3 entries
-            recentSurveys: surveys.slice(0, 3), // Include last 3 check-ins for AI context
+            recentDiary: await db.getDiaryEntriesByUserId(userId, 3),
+            recentSurveys: surveys.slice(0, 3),
             habitStats,
             todayHabitLogs
         };
@@ -185,7 +185,6 @@ ${context.todayChallenge.description ? `- Description: ${context.todayChallenge.
                     if (parsed.distortions?.length) insights += `Distortions: ${parsed.distortions.join(', ')}. `;
                 } catch (err) { }
 
-                // Include transcript excerpt (first 500 chars) for real context
                 const transcriptExcerpt = e.transcript
                     ? (e.transcript.length > 500 ? e.transcript.substring(0, 500) + '...' : e.transcript)
                     : 'No transcript';
@@ -209,7 +208,6 @@ ${context.todayChallenge.description ? `- Description: ${context.todayChallenge.
             prompt += `(Reference these when discussing their recent state. If energy was low, be understanding.)\n`;
         }
 
-        // Habit tracking context
         if (context.habitStats && context.habitStats.totalHabits > 0) {
             prompt += `\n✅ HABIT TRACKING:\n`;
             prompt += `Active Habits (${context.habitStats.totalHabits}):\n`;
@@ -243,54 +241,36 @@ export async function POST(request: NextRequest) {
     try {
         const user = await getCurrentUser();
         if (!user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+                status: 401,
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
 
         const body = await request.json();
         const { message, history, coachId } = body;
 
         if (!message) {
-            return NextResponse.json(
-                { success: false, error: 'Message is required' },
-                { status: 400 }
-            );
+            return new Response(JSON.stringify({ success: false, error: 'Message is required' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
 
         // Get user context
         const context = await getUserContext(user.userId);
         let systemPrompt = '';
 
-        // Check if using a custom coach (ID usually starts with random chars, unlike 'general', 'health')
-        // We'll query DB for custom coach if ID is not in standard list
+        // Check if using a custom coach
         const standardCoachIds = ['general', 'languages', 'mobility', 'emotional', 'relationships', 'health', 'tolerance', 'skills', 'habits'];
 
         if (coachId && !standardCoachIds.includes(coachId)) {
-            // It's likely a custom coach ID
-            // We need a way to fetch a single custom coach. Since we only have getCustomCoachesByUserId, we can use that or add getCustomCoachById
-            // For now, let's just fetch all and filter (not optimal but works for MVP) or assumes we added getCustomCoachById in a better world.
-            // Actually, let's modify getCustomCoachesByUserId to be getAll or use a direct query here?
-            // To keep it clean, let's use db.pool directly or add a helper.
-            // I'll add a helper inline or assume the user has few coaches.
-
-            // Better: Add getCustomCoachById to db.ts? No, I can't easily jump files.
-            // I'll execute a raw query here for speed, or fetch list.
             const coaches = await db.getCustomCoachesByUserId(user.userId);
             const customCoach = coaches.find((c: any) => c.id === coachId);
 
             if (customCoach) {
-                systemPrompt = `${customCoach.systemPrompt}\n\n`;
-                systemPrompt += `You are "${customCoach.name}", a specialized AI coach.\n`;
-                systemPrompt += `Stay in character. Your goal is to help the user with: ${customCoach.name}.\n\n`;
-                // Add standard context
-                systemPrompt += buildSystemPrompt(context, 'custom_overlay').split('=== INTERACTIVE WIDGETS PROCTOCOL ===')[1] ?
-                    '=== INTERACTIVE WIDGETS PROCTOCOL ===' + buildSystemPrompt(context, 'custom_overlay').split('=== INTERACTIVE WIDGETS PROCTOCOL ===')[1]
-                    : buildSystemPrompt(context, 'general'); // Fallback to reusing the protocol section if parsing fails
-
-                // Actually, simpler: Use the buildSystemPrompt but replace the role description
                 const basePrompt = buildSystemPrompt(context, 'general');
-                // Inject custom role
                 const promptPrefix = `You are ${customCoach.name}. ${customCoach.systemPrompt}\n\n`;
-                // Use [\s\S] instead of DOTALL /s flag for compatibility
                 systemPrompt = promptPrefix + basePrompt.replace(/^You are a Transformation Coach[\s\S]*?\n\n/, '');
             } else {
                 systemPrompt = buildSystemPrompt(context, coachId);
@@ -300,7 +280,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Build conversation history for Claude
-        const messages = [];
+        const messages: Anthropic.MessageParam[] = [];
         if (history && Array.isArray(history)) {
             for (const msg of history.slice(-6)) {
                 if (msg.content && typeof msg.content === 'string' && msg.content.trim().length > 0) {
@@ -316,195 +296,105 @@ export async function POST(request: NextRequest) {
         // Add current message
         messages.push({ role: 'user', content: message.trim() });
 
-        try {
-            // Find specific conversation for this coach
-            const targetCoachId = coachId || 'general';
-            let conversation = await db.getExpertConversation(user.userId, targetCoachId);
-            let conversationMessages = conversation?.messages || [];
-
-            // If no conversation found or it's empty, create one
-            if (!conversation) {
-                conversation = await db.createConversation({
-                    userId: user.userId,
-                    conversationType: 'expert_chat',
-                    title: `${targetCoachId.charAt(0).toUpperCase() + targetCoachId.slice(1)} Coaching`,
-                    initialMessages: [],
-                    context: { coachId: targetCoachId }
-                });
-                conversationMessages = [];
-            }
-
-            // Append user message to our history tracking
-            const userMsgObj = {
-                role: 'user',
-                content: message,
-                timestamp: new Date().toISOString()
-            };
-            conversationMessages.push(userMsgObj);
-
-            // Initialize Anthropic client
-            const apiKey = process.env.ANTHROPIC_API_KEY?.replace(/^["']|["']$/g, '').trim();
-            if (!apiKey) {
-                throw new Error('Server configuration error: Missing Anthropic Key');
-            }
-            const anthropic = new Anthropic({ apiKey });
-
-            // Call Claude API using Anthropic SDK
-            const response = await anthropic.messages.create({
-                model: 'claude-3-haiku-20240307',
-                max_tokens: 1000,
-                system: systemPrompt,
-                messages: messages as Anthropic.MessageParam[]
-            });
-
-            // Extract text from response
-            const textContent = response.content.find(block => block.type === 'text');
-            const reply = textContent?.type === 'text' ? textContent.text : getFallbackResponse(message, context);
-
-            // Append assistant message
-            const assistantMsgObj = {
-                role: 'assistant',
-                content: reply,
-                timestamp: new Date().toISOString()
-            };
-            conversationMessages.push(assistantMsgObj);
-
-            // Save updated conversation to DB
-            if (conversation && conversation.id) {
-                await db.updateConversationMessages(conversation.id, conversationMessages);
-            }
-
-            return NextResponse.json({
-                success: true,
-                data: { reply }
-            });
-
-        } catch (apiError) {
-            console.error('Claude API call failed:', apiError);
-            const errorMsg = apiError instanceof Error ? apiError.message : String(apiError);
-            const apiKey = process.env.ANTHROPIC_API_KEY?.replace(/^["']|["']$/g, '').trim();
-            const keyInfo = apiKey ? `Key present (len: ${apiKey.length}, start: ${apiKey.slice(0, 5)})` : 'Key is MISSING in Vercel env';
-
-            const reply = getFallbackResponse(message, context, `${errorMsg} | ${keyInfo}`);
-
-            // Even on error fallback, we want to save interaction to the correct context
-            const targetCoachId = coachId || 'general';
-            let conversation = await db.getExpertConversation(user.userId, targetCoachId);
-
-            if (!conversation) {
-                conversation = await db.createConversation({
-                    userId: user.userId,
-                    conversationType: 'expert_chat',
-                    title: `${targetCoachId.charAt(0).toUpperCase() + targetCoachId.slice(1)} Coaching`,
-                    initialMessages: [],
-                    context: { coachId: targetCoachId }
-                });
-            }
-
-            if (conversation && conversation.id) {
-                const msgs = conversation.messages || [];
-                msgs.push({ role: 'user', content: message, timestamp: new Date().toISOString() });
-                msgs.push({ role: 'assistant', content: reply, timestamp: new Date().toISOString() });
-                await db.updateConversationMessages(conversation.id, msgs);
-            }
-
-            return NextResponse.json({
-                success: true,
-                data: { reply }
+        // Initialize Anthropic client
+        const apiKey = process.env.ANTHROPIC_API_KEY?.replace(/^["']|["']$/g, '').trim();
+        if (!apiKey) {
+            return new Response(JSON.stringify({ error: 'Server configuration error: Missing Anthropic Key' }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' }
             });
         }
+        const anthropic = new Anthropic({ apiKey });
 
-    } catch (error) {
-        console.error('Error in expert chat:', error);
-        return NextResponse.json(
-            { success: false, error: 'Internal server error' },
-            { status: 500 }
-        );
-    }
-}
+        // Create streaming response
+        const encoder = new TextEncoder();
+        let fullResponse = '';
 
-// GET /api/expert/chat - Get chat history
-export async function GET(request: NextRequest) {
-    try {
-        const user = await getCurrentUser();
-        if (!user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        const stream = new ReadableStream({
+            async start(controller) {
+                try {
+                    const streamResponse = await anthropic.messages.stream({
+                        model: 'claude-3-haiku-20240307',
+                        max_tokens: 1000,
+                        system: systemPrompt,
+                        messages: messages
+                    });
 
-        const coachId = request.nextUrl.searchParams.get('coachId') || 'general';
-        const conversation = await db.getExpertConversation(user.userId, coachId);
+                    for await (const event of streamResponse) {
+                        if (event.type === 'content_block_delta') {
+                            const delta = event.delta;
+                            if ('text' in delta) {
+                                fullResponse += delta.text;
+                                const data = JSON.stringify({ text: delta.text });
+                                controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+                            }
+                        }
+                    }
 
-        let messages = [];
-        if (conversation && conversation.messages) {
-            messages = conversation.messages;
-        } else {
-            // Default welcome message if no history
-            // We can customize this based on coachId too!
-            let welcomeMsg = "Hi! I'm your Transformation Coach. I'm here to help you achieve your goals and build lasting habits.";
+                    // Send done signal
+                    controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
 
-            switch (coachId) {
-                case 'languages': welcomeMsg = "Hello! Ready to unlock your language potential?"; break;
-                case 'mobility': welcomeMsg = "Welcome. Let's work on getting you moving freely and without pain."; break;
-                case 'emotional': welcomeMsg = "Hi there. I'm here to help you navigate your emotional landscape."; break;
-                case 'relationships': welcomeMsg = "Hello. Let's talk about building stronger, healthier connections."; break;
-                case 'health': welcomeMsg = "Hi! Let's get your health and vitality to the next level."; break;
-                case 'tolerance': welcomeMsg = "Welcome. Ready to embrace discomfort and build resilience?"; break;
-                case 'skills': welcomeMsg = "Hi! Let's optimize your practice and master new skills."; break;
-                case 'habits': welcomeMsg = "Hello! Let's build some rock-solid habits together."; break;
+                    // Save conversation to database after streaming completes
+                    try {
+                        const targetCoachId = coachId || 'general';
+                        let conversation = await db.getExpertConversation(user.userId, targetCoachId);
+                        let conversationMessages = conversation?.messages || [];
+
+                        if (!conversation) {
+                            conversation = await db.createConversation({
+                                userId: user.userId,
+                                conversationType: 'expert_chat',
+                                title: `${targetCoachId.charAt(0).toUpperCase() + targetCoachId.slice(1)} Coaching`,
+                                initialMessages: [],
+                                context: { coachId: targetCoachId }
+                            });
+                            conversationMessages = [];
+                        }
+
+                        // Append user message
+                        conversationMessages.push({
+                            role: 'user',
+                            content: message,
+                            timestamp: new Date().toISOString()
+                        });
+
+                        // Append assistant message
+                        conversationMessages.push({
+                            role: 'assistant',
+                            content: fullResponse,
+                            timestamp: new Date().toISOString()
+                        });
+
+                        if (conversation && conversation.id) {
+                            await db.updateConversationMessages(conversation.id, conversationMessages);
+                        }
+                    } catch (dbError) {
+                        console.error('Error saving conversation:', dbError);
+                    }
+
+                    controller.close();
+                } catch (error) {
+                    console.error('Streaming error:', error);
+                    const errorData = JSON.stringify({ error: 'Stream error occurred' });
+                    controller.enqueue(encoder.encode(`data: ${errorData}\n\n`));
+                    controller.close();
+                }
             }
-
-            messages = [{
-                role: 'assistant',
-                content: welcomeMsg + " What would you like to discuss?",
-                timestamp: new Date()
-            }];
-        }
-
-        return NextResponse.json({
-            success: true,
-            data: { messages }
         });
+
+        return new Response(stream, {
+            headers: {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+            }
+        });
+
     } catch (error) {
-        console.error('Error fetching chat history:', error);
-        return NextResponse.json(
-            { status: 500 }
-        );
+        console.error('Error in expert chat stream:', error);
+        return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
-}
-
-// Fallback responses with context
-function getFallbackResponse(message: string, context: any, errorMsg?: string): string {
-    const goalName = context?.activeGoal?.title || 'your goal';
-    const streak = context?.streak || 0;
-
-    const lowerMessage = message.toLowerCase();
-
-    if (lowerMessage.includes('motivation') || lowerMessage.includes('struggling')) {
-        return `I see you're working on "${goalName}" and you're on day ${context?.dayInJourney || 1}. That's real commitment! 💪
-
-When motivation dips, remember why you started. What was the spark that made you want this change?
-
-${streak > 0 ? `You've got a ${streak}-day streak going - that's not nothing! Let's protect it.` : 'Every day is a chance to start fresh.'}
-
-What specific part feels hardest right now? (Debug: ${errorMsg || 'No detail'})`;
-    }
-
-    if (lowerMessage.includes('progress') || lowerMessage.includes('how am i doing')) {
-        return `Let me check your stats! 📊
-
-${context?.activeGoal ? `You're on Day ${context.dayInJourney} of your "${goalName}" journey.` : ''}
-${context?.completedChallengesCount ? `You've completed ${context.completedChallengesCount} challenges.` : ''}
-${streak > 0 ? `Current streak: ${streak} days! 🔥` : ''}
-${context?.avgMood ? `Your average mood this week: ${context.avgMood}/10` : ''}
-
-${context?.completedChallengesCount > 5 ? "You're building real momentum!" : "Every completed challenge builds the foundation."}
-
-What would you like to focus on next? (Debug: ${errorMsg || 'No detail'})`;
-    }
-
-    return `I'm here to help with your journey toward "${goalName}". 
-
-${context?.todayChallenge ? `I see today's challenge is "${context.todayChallenge.title}" - how's that going?` : ''}
-
-What's on your mind? (Debug Error: ${errorMsg || 'Unknown error'})`;
 }
