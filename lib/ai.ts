@@ -12,42 +12,69 @@ export const SYSTEM_PROMPTS = {
     EMPATHETIC: "Be understanding and supportive. Focus on emotional well-being and steady progress."
 };
 
-export async function generateChallenge(userPrefs: UserPrefs, goal: Goal, recentChallenges: Challenge[] = []): Promise<Partial<Challenge>> {
+export async function generateChallenge(userPrefs: UserPrefs, goal: Goal, recentChallenges: Challenge[] = [], focusArea?: string): Promise<Partial<Challenge>> {
     const historyText = recentChallenges.length > 0
         ? recentChallenges.map(c => `- ${c.title} (Difficulty: ${c.difficulty})`).join('\n')
         : 'No recent history.';
 
+    const focusAreaInstructions = focusArea
+        ? `Focus Area: The user specifically wants to work on "${focusArea}". Design the challenge around this focus.`
+        : '';
+
     const prompt = `
-    Generate a challenge for a user with the goal: "${goal.title}" (${goal.description}).
-    Current State: ${goal.currentState}
-    Desired State: ${goal.desiredState}
-    
-    User Preferences:
-    - Difficulty: ${userPrefs.preferredDifficulty}/10
-    - Focus Areas: ${userPrefs.focusAreas.join(', ')}
-    - Avoid: ${userPrefs.avoidAreas.join(', ')}
-    - Reality Shift: ${userPrefs.realityShiftEnabled ? 'ON' : 'OFF'}
+You are an expert personal development coach creating a SPECIFIC, ACTIONABLE challenge.
 
-    Recent Completed Challenges:
-    ${historyText}
+GOAL CONTEXT:
+- Title: "${goal.title}"
+- Description: ${goal.description || 'Not provided'}
+- Current State: ${goal.currentState || 'Starting point'}
+- Desired State: ${goal.desiredState || 'Goal achieved'}
 
-    Instructions:
-    - Do NOT repeat recent challenges.
-    - If Reality Shift is ON, slightly increase difficulty from preference.
-    - Otherwise, keep it consistent with preference.
-    
-    Return a JSON object with:
-    - title
-    - description
-    - instructions
-    - difficulty (number 1-10)
-    - isRealityShift (boolean)
-    - estimatedDuration (minutes)
-  `;
+USER PREFERENCES:
+- Preferred Difficulty: ${userPrefs.preferredDifficulty}/10
+- Focus Areas: ${userPrefs.focusAreas.length > 0 ? userPrefs.focusAreas.join(', ') : 'General improvement'}
+- Areas to Avoid: ${userPrefs.avoidAreas.length > 0 ? userPrefs.avoidAreas.join(', ') : 'None specified'}
+- Reality Shift Mode: ${userPrefs.realityShiftEnabled ? 'ON (push boundaries)' : 'OFF (steady progress)'}
+
+${focusAreaInstructions}
+
+RECENT COMPLETED CHALLENGES (avoid repeating these):
+${historyText}
+
+CRITICAL INSTRUCTIONS:
+1. Create a SPECIFIC, ACTIONABLE challenge - NOT a vague description of the goal
+2. The challenge should be completable in ONE day or session
+3. Include concrete steps, numbers, or measurable outcomes
+4. Make it progressively build toward the goal (not just reword the goal)
+5. If Reality Shift is ON, make it slightly uncomfortable but achievable
+
+CHALLENGE TYPES TO CONSIDER:
+- Physical action (do X for Y minutes)
+- Reflection exercise (journal about X, analyze Y)
+- Skill practice (practice Z technique 3 times)
+- Social challenge (reach out to 1 person, share X)
+- Habit building (implement small routine change)
+- Research task (learn about X, find 3 resources on Y)
+
+BAD EXAMPLE (too vague): "Work on improving your fitness"
+GOOD EXAMPLE: "Complete a 20-minute walk in your neighborhood before 9am. Notice 3 things you've never seen before."
+
+Return a JSON object with:
+- title: Short, action-oriented title (max 60 chars)
+- description: 2-3 sentences explaining the challenge and why it matters
+- instructions: Step-by-step guide to complete the challenge (use numbered list)
+- difficulty: Number 1-10 matching user preference (adjust if Reality Shift ON)
+- isRealityShift: Boolean - true if this pushes beyond comfort zone
+- estimatedDuration: Number in minutes (realistic estimate)
+- successCriteria: Clear definition of what "done" looks like
+`;
 
     const completion = await openai.chat.completions.create({
-        messages: [{ role: 'system', content: 'You are a challenge generator. Output JSON only.' }, { role: 'user', content: prompt }],
-        model: 'gpt-4o', // or gpt-3.5-turbo
+        messages: [
+            { role: 'system', content: 'You are a challenge generator specialized in creating actionable, specific personal development challenges. You NEVER create vague challenges that just restate goals. Output JSON only.' },
+            { role: 'user', content: prompt }
+        ],
+        model: 'gpt-4o',
         response_format: { type: 'json_object' },
     });
 
@@ -59,11 +86,110 @@ export async function generateChallenge(userPrefs: UserPrefs, goal: Goal, recent
     return {
         title: data.title,
         description: data.description,
-        // instructions: data.instructions, // Challenge interface might need this if implied by template
+        personalizationNotes: data.instructions || data.successCriteria,
         difficulty: data.difficulty,
         isRealityShift: data.isRealityShift,
-        // Map other fields as needed
     } as Partial<Challenge>;
+}
+
+/**
+ * Generate multiple distinct challenges at once
+ */
+export async function generateMultipleChallenges(
+    count: number,
+    userPrefs: UserPrefs,
+    goal: Goal,
+    recentChallenges: Challenge[] = [],
+    focusArea?: string
+): Promise<Partial<Challenge>[]> {
+    const clampedCount = Math.min(Math.max(count, 1), 5);
+
+    const historyText = recentChallenges.length > 0
+        ? recentChallenges.map(c => `- ${c.title} (Difficulty: ${c.difficulty})`).join('\n')
+        : 'No recent history.';
+
+    const focusAreaInstructions = focusArea
+        ? `Focus Area: The user specifically wants to work on "${focusArea}". Design challenges around this focus.`
+        : '';
+
+    const prompt = `
+You are an expert personal development coach creating ${clampedCount} DISTINCT, SPECIFIC, ACTIONABLE challenges.
+
+GOAL CONTEXT:
+- Title: "${goal.title}"
+- Description: ${goal.description || 'Not provided'}
+- Current State: ${goal.currentState || 'Starting point'}
+- Desired State: ${goal.desiredState || 'Goal achieved'}
+
+USER PREFERENCES:
+- Preferred Difficulty: ${userPrefs.preferredDifficulty}/10
+- Focus Areas: ${userPrefs.focusAreas.length > 0 ? userPrefs.focusAreas.join(', ') : 'General improvement'}
+- Areas to Avoid: ${userPrefs.avoidAreas.length > 0 ? userPrefs.avoidAreas.join(', ') : 'None specified'}
+- Reality Shift Mode: ${userPrefs.realityShiftEnabled ? 'ON (push boundaries)' : 'OFF (steady progress)'}
+
+${focusAreaInstructions}
+
+RECENT COMPLETED CHALLENGES (avoid repeating these):
+${historyText}
+
+CRITICAL INSTRUCTIONS:
+1. Create ${clampedCount} DIFFERENT challenges - each must be unique in approach
+2. Each challenge should be SPECIFIC and ACTIONABLE (not vague goal rewording)
+3. Each challenge should be completable in ONE day or session
+4. Include concrete steps, numbers, or measurable outcomes
+5. Vary the challenge TYPES across the set
+6. Progress difficulty slightly across challenges (easiest first)
+7. If Reality Shift is ON, make at least one challenge that pushes comfort zone
+
+CHALLENGE TYPES TO VARY ACROSS:
+- Physical action (do X for Y minutes)
+- Reflection exercise (journal about X, analyze Y)
+- Skill practice (practice Z technique 3 times)
+- Social challenge (reach out to 1 person, share X)
+- Habit building (implement small routine change)
+- Research task (learn about X, find 3 resources on Y)
+
+BAD EXAMPLE (too vague): "Work on improving your fitness"
+GOOD EXAMPLE: "Complete a 20-minute walk in your neighborhood before 9am. Notice 3 things you've never seen before."
+
+Return a JSON object with:
+{
+  "challenges": [
+    {
+      "title": "Short, action-oriented title (max 60 chars)",
+      "description": "2-3 sentences explaining the challenge and why it matters",
+      "instructions": "Step-by-step guide to complete the challenge",
+      "difficulty": 5,
+      "isRealityShift": false,
+      "estimatedDuration": 30,
+      "successCriteria": "Clear definition of what done looks like"
+    }
+  ]
+}
+`;
+
+    const completion = await openai.chat.completions.create({
+        messages: [
+            { role: 'system', content: 'You are a challenge generator specialized in creating actionable, specific personal development challenges. You NEVER create vague challenges that just restate goals. You create DIVERSE challenges that vary in type and approach. Output JSON only.' },
+            { role: 'user', content: prompt }
+        ],
+        model: 'gpt-4o',
+        response_format: { type: 'json_object' },
+    });
+
+    const content = completion.choices[0].message.content;
+    if (!content) throw new Error('No content received from AI');
+
+    const data = JSON.parse(content);
+    const challenges = data.challenges || [data]; // Handle both array and single object
+
+    return challenges.map((c: any) => ({
+        title: c.title,
+        description: c.description,
+        personalizationNotes: c.instructions || c.successCriteria,
+        difficulty: c.difficulty,
+        isRealityShift: c.isRealityShift,
+    } as Partial<Challenge>));
 }
 
 export async function transcribeAudio(audioFile: Blob | File): Promise<string> {

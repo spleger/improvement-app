@@ -20,6 +20,7 @@ const config = {
     testPathIgnorePatterns: [
         '<rootDir>/node_modules/',
         '<rootDir>/.next/',
+        '<rootDir>/.auto-claude/',
     ],
     collectCoverageFrom: [
         'lib/**/*.ts',

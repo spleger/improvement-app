@@ -28,93 +28,93 @@ type RecordingState = 'idle' | 'recording' | 'processing' | 'confirming';
 export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLoggerProps) {
     const [state, setState] = useState<RecordingState>('idle');
     const [transcript, setTranscript] = useState('');
-    const [interimTranscript, setInterimTranscript] = useState('');
     const [interpretedLogs, setInterpretedLogs] = useState<InterpretedLog[]>([]);
     const [error, setError] = useState('');
     const [saving, setSaving] = useState(false);
     const [editedNotes, setEditedNotes] = useState<{ [key: string]: string }>({});
 
-    const recognitionRef = useRef<any>(null);
-    const transcriptRef = useRef('');
-    const stateRef = useRef<RecordingState>('idle');
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
+    const streamRef = useRef<MediaStream | null>(null);
 
+    // Cleanup on unmount
     useEffect(() => {
-        transcriptRef.current = transcript;
-        stateRef.current = state;
-    }, [transcript, state]);
-
-    useEffect(() => {
-        // Initialize speech recognition
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (SpeechRecognition) {
-            const recognition = new SpeechRecognition();
-            recognition.continuous = true;
-            recognition.interimResults = true;
-            recognition.lang = 'en-US';
-
-            recognition.onresult = (event: any) => {
-                let finalTranscript = '';
-                let interimTranscript = '';
-
-                for (let i = 0; i < event.results.length; i++) {
-                    const result = event.results[i];
-                    if (result.isFinal) {
-                        finalTranscript += result[0].transcript + ' ';
-                    } else {
-                        interimTranscript += result[0].transcript;
-                    }
-                }
-
-                setTranscript(finalTranscript);
-                setInterimTranscript(interimTranscript);
-            };
-
-            recognition.onerror = (event: any) => {
-                console.error('Speech recognition error:', event.error);
-                if (event.error !== 'aborted') {
-                    setError('Speech recognition error. Please try again.');
-                }
-            };
-
-            recognition.onend = () => {
-                if (stateRef.current === 'recording') {
-                    // Auto-process when stopped
-                    processTranscript();
-                }
-            };
-
-            recognitionRef.current = recognition;
-        }
-
         return () => {
-            if (recognitionRef.current) {
-                recognitionRef.current.abort();
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
             }
         };
     }, []);
 
-    const startRecording = () => {
+    const startRecording = async () => {
         setError('');
         setTranscript('');
-        setState('recording');
 
-        if (recognitionRef.current) {
-            recognitionRef.current.start();
-        } else {
-            setError('Speech recognition not supported in this browser');
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            streamRef.current = stream;
+
+            const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+            mediaRecorderRef.current = mediaRecorder;
+            audioChunksRef.current = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunksRef.current.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = async () => {
+                // Stop tracks
+                stream.getTracks().forEach(track => track.stop());
+
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+
+                // Transcribe via server
+                setState('processing');
+                try {
+                    const formData = new FormData();
+                    formData.append('file', audioBlob, 'recording.webm');
+
+                    const response = await fetch('/api/transcribe', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+                    const text = data.text || data.data?.text || '';
+
+                    if (text.trim()) {
+                        setTranscript(text);
+                        // Now interpret the transcript
+                        await interpretTranscript(text);
+                    } else {
+                        setError('No speech detected. Please try again.');
+                        setState('idle');
+                    }
+                } catch (err) {
+                    console.error('Transcription failed:', err);
+                    setError('Transcription failed. Please try again.');
+                    setState('idle');
+                }
+            };
+
+            mediaRecorder.start();
+            setState('recording');
+        } catch (err) {
+            console.error('Microphone access denied:', err);
+            setError('Could not access microphone');
+            setState('idle');
         }
     };
 
     const stopRecording = () => {
-        if (recognitionRef.current) {
-            recognitionRef.current.stop();
+        if (mediaRecorderRef.current && state === 'recording') {
+            mediaRecorderRef.current.stop();
         }
-        setState('processing');
-        // processTranscript will be called in onend
     };
 
-    const processTranscript = async () => {
-        const text = transcriptRef.current;
+    const interpretTranscript = async (text: string) => {
         if (!text.trim()) {
             setError('No speech detected. Please try again.');
             setState('idle');
@@ -237,10 +237,13 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                             </div>
                             <h2>Listening...</h2>
 
-                            <div className="transcript-preview">
-                                {transcript}
-                                <span className="interim-text" style={{ opacity: 0.7 }}>{interimTranscript}</span>
-                                {!transcript && !interimTranscript && 'Start speaking...'}
+                            <div className="transcript-preview" style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'var(--color-text-secondary)'
+                            }}>
+                                <span className="breathing-text">Listening... Tap stop when done</span>
                             </div>
 
                             <button className="stop-btn" onClick={stopRecording}>

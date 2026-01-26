@@ -9,7 +9,7 @@ jest.mock('@/lib/auth', () => ({
 }));
 
 jest.mock('@/lib/ai', () => ({
-    generateChallenge: jest.fn(),
+    generateMultipleChallenges: jest.fn(),
 }));
 
 jest.mock('@/lib/db', () => ({
@@ -20,25 +20,26 @@ jest.mock('@/lib/db', () => ({
 }));
 
 import { getCurrentUser } from '@/lib/auth';
-import { generateChallenge } from '@/lib/ai';
+import { generateMultipleChallenges } from '@/lib/ai';
 import * as db from '@/lib/db';
 
 describe('POST /api/challenges/generate', () => {
     const mockUser = { userId: 'user-123' };
-    const mockGoal = { id: 'goal-1', userId: 'user-123', title: 'Lose Weight' };
+    const mockGoal = { id: 'goal-1', userId: 'user-123', title: 'Lose Weight', startedAt: new Date() };
 
     beforeEach(() => {
         jest.clearAllMocks();
         (getCurrentUser as jest.Mock).mockResolvedValue(mockUser);
         (db.getGoalsByUserId as jest.Mock).mockResolvedValue([mockGoal]);
-        (db.createChallenge as jest.Mock).mockImplementation((data) => Promise.resolve({ ...data, id: 'challenge-1' }));
+        (db.createChallenge as jest.Mock).mockImplementation((data) => Promise.resolve({ ...data, id: `challenge-${Date.now()}` }));
         (db.getRecentCompletedChallenges as jest.Mock).mockResolvedValue([]);
-        (generateChallenge as jest.Mock).mockResolvedValue({
+        (generateMultipleChallenges as jest.Mock).mockResolvedValue([{
             title: 'Walk 5k',
             description: 'Go for a walk',
+            personalizationNotes: '1. Put on shoes\n2. Walk outside',
             difficulty: 3,
             isRealityShift: false
-        });
+        }]);
     });
 
     it('returns 401 if not authenticated', async () => {
@@ -85,7 +86,7 @@ describe('POST /api/challenges/generate', () => {
 
         expect(res.status).toBe(200);
         expect(db.getRecentCompletedChallenges).toHaveBeenCalledWith('user-123', 5);
-        expect(generateChallenge).toHaveBeenCalledWith(expect.anything(), expect.anything(), mockHistory);
+        expect(generateMultipleChallenges).toHaveBeenCalledWith(1, expect.anything(), expect.anything(), mockHistory, undefined);
     });
 
     it('successfully creates a challenge', async () => {
@@ -96,7 +97,7 @@ describe('POST /api/challenges/generate', () => {
 
         expect(res.status).toBe(200);
         expect(data.success).toBe(true);
-        expect(generateChallenge).toHaveBeenCalledWith(expect.anything(), mockGoal, []);
+        expect(generateMultipleChallenges).toHaveBeenCalledWith(1, expect.anything(), mockGoal, [], undefined);
         expect(db.createChallenge).toHaveBeenCalledWith(expect.objectContaining({
             userId: 'user-123',
             goalId: 'goal-1',
@@ -104,8 +105,28 @@ describe('POST /api/challenges/generate', () => {
         }));
     });
 
+    it('generates multiple challenges when count is specified', async () => {
+        (generateMultipleChallenges as jest.Mock).mockResolvedValue([
+            { title: 'Challenge 1', description: 'First', difficulty: 3, isRealityShift: false },
+            { title: 'Challenge 2', description: 'Second', difficulty: 4, isRealityShift: false },
+            { title: 'Challenge 3', description: 'Third', difficulty: 5, isRealityShift: true }
+        ]);
+
+        const req = createMockRequest({ goalId: 'goal-1', count: 3, focusArea: 'morning routine' });
+
+        const res = await POST(req);
+        const data = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(data.success).toBe(true);
+        expect(data.data.challenges).toHaveLength(3);
+        expect(data.data.context.totalGenerated).toBe(3);
+        expect(generateMultipleChallenges).toHaveBeenCalledWith(3, expect.anything(), mockGoal, [], 'morning routine');
+        expect(db.createChallenge).toHaveBeenCalledTimes(3);
+    });
+
     it('handles AI generation failure', async () => {
-        (generateChallenge as jest.Mock).mockRejectedValue(new Error('AI overloaded'));
+        (generateMultipleChallenges as jest.Mock).mockRejectedValue(new Error('AI overloaded'));
 
         const req = createMockRequest({ goalId: 'goal-1' });
 
@@ -116,3 +137,4 @@ describe('POST /api/challenges/generate', () => {
         expect(data.error).toBe('AI overloaded');
     });
 });
+

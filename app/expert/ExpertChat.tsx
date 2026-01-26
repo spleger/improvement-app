@@ -1117,8 +1117,20 @@ export default function ExpertChat() {
                 }
 
                 .mic-btn.recording {
-                    color: #ef4444;
-                    animation: pulse 1s infinite;
+                    color: white;
+                    background: #ef4444;
+                    animation: breathe 1.5s ease-in-out infinite;
+                }
+                
+                @keyframes breathe {
+                    0%, 100% { 
+                        transform: scale(1);
+                        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+                    }
+                    50% { 
+                        transform: scale(1.08);
+                        box-shadow: 0 0 0 12px rgba(239, 68, 68, 0);
+                    }
                 }
 
                 .mic-btn.transcribing {

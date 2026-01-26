@@ -1088,8 +1088,20 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
                 }
 
                 .mic-btn.recording {
-                    color: #ef4444;
-                    animation: pulse 1s infinite;
+                    color: white;
+                    background: #ef4444;
+                    animation: breatheMic 1.5s ease-in-out infinite;
+                }
+                
+                @keyframes breatheMic {
+                    0%, 100% { 
+                        transform: scale(1);
+                        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+                    }
+                    50% { 
+                        transform: scale(1.08);
+                        box-shadow: 0 0 0 12px rgba(239, 68, 68, 0);
+                    }
                 }
 
                 .mic-btn.transcribing {

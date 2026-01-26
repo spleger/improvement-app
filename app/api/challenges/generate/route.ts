@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
-import { generateChallenge } from '@/lib/ai';
+import { generateMultipleChallenges } from '@/lib/ai';
 import { UserPrefs } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
@@ -13,27 +13,24 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { goalId } = body;
+        const { goalId, count = 1, focusArea } = body;
 
         if (!goalId) {
             return NextResponse.json({ success: false, error: 'Goal ID is required' }, { status: 400 });
         }
 
+        // Clamp count to valid range
+        const clampedCount = Math.min(Math.max(Number(count) || 1, 1), 5);
+
         // 1. Fetch Goal and verify ownership
-        // We need to fetch the goal to get its details for the prompt
-        // Using db.getGoalById might not exist or might not check ownership closely enough, 
-        // let's use prisma directly if needed, or assume db.getGoalsByUserId includes it.
-        // For now, let's fetch all user goals and find the matching one to ensure security.
         const goals = await db.getGoalsByUserId(user.userId);
-        const goal = goals.find(g => g.id === goalId);
+        const goal = goals.find((g: any) => g.id === goalId);
 
         if (!goal) {
             return NextResponse.json({ success: false, error: 'Goal not found' }, { status: 404 });
         }
 
         // 2. Fetch User Context (Preferences)
-        // db.ts needs a way to get preferences. 
-        // If not available, we use defaults.
         let userPrefs: UserPrefs = {
             preferredDifficulty: 5,
             focusAreas: [],
@@ -42,51 +39,58 @@ export async function POST(request: NextRequest) {
             aiPersonality: 'empathetic'
         };
 
-        // Try to fetch preferences if the method exists, otherwise use defaults
-        // Assuming there might be a db method or we interact with Prisma directly in API for now if db helper is missing
-        // Checking db.ts content from previous turns, it seems big but might not have getPreferences.
-        // Let's assume we can rely on defaults or fetch if simple. 
-        // For MVP, we'll proceed with valid defaults but try to check if we can extend db.ts later.
-
-        // For MVP, we'll proceed with valid defaults but try to check if we can extend db.ts later.
-
         // 3. Fetch Recent History
         const recentChallenges = await db.getRecentCompletedChallenges(user.userId, 5);
 
-        // 4. Generate Challenge via AI
-        const challengeData = await generateChallenge(userPrefs, goal as any, recentChallenges as any);
+        // 4. Generate Multiple Challenges via AI
+        const challengeDataList = await generateMultipleChallenges(
+            clampedCount,
+            userPrefs,
+            goal as any,
+            recentChallenges as any,
+            focusArea?.trim() || undefined
+        );
 
-        // 4. Save to DB
-        // We need a method to create a challenge. db.createChallenge might exist.
-        // Let's create the challenge object to save.
+        // 5. Save all challenges to DB
         const now = new Date();
-        // Default to tomorrow for scheduled date if not specified
-        const scheduledDate = new Date(now);
-        scheduledDate.setDate(scheduledDate.getDate() + 1);
+        const createdChallenges = [];
 
-        const newChallenge = await db.createChallenge({
-            goalId: goal.id,
-            userId: user.userId,
-            title: challengeData.title || 'New Challenge',
-            description: challengeData.description || 'No description provided',
-            difficulty: challengeData.difficulty || 5,
-            isRealityShift: challengeData.isRealityShift || false,
-            scheduledDate: scheduledDate
-        });
+        for (let i = 0; i < challengeDataList.length; i++) {
+            const challengeData = challengeDataList[i];
+
+            // Schedule challenges on consecutive days
+            const scheduledDate = new Date(now);
+            scheduledDate.setDate(scheduledDate.getDate() + 1 + i);
+
+            const newChallenge = await db.createChallenge({
+                goalId: goal.id,
+                userId: user.userId,
+                title: challengeData.title || `Challenge ${i + 1}`,
+                description: challengeData.description || 'No description provided',
+                personalizationNotes: challengeData.personalizationNotes || undefined,
+                difficulty: challengeData.difficulty || 5,
+                isRealityShift: challengeData.isRealityShift || false,
+                scheduledDate: scheduledDate
+            });
+
+            createdChallenges.push(newChallenge);
+        }
 
         return NextResponse.json({
             success: true,
             data: {
-                challenges: [newChallenge],
+                challenges: createdChallenges,
                 context: {
                     day: Math.floor((Date.now() - new Date(goal.startedAt).getTime()) / (1000 * 60 * 60 * 24)) + 1,
-                    adaptedDifficulty: challengeData.difficulty || 5
+                    adaptedDifficulty: challengeDataList[0]?.difficulty || 5,
+                    totalGenerated: createdChallenges.length
                 }
             }
         });
 
     } catch (error: any) {
-        console.error('Error generating challenge:', error);
+        console.error('Error generating challenges:', error);
         return NextResponse.json({ success: false, error: error.message || 'Internal server error' }, { status: 500 });
     }
 }
+
