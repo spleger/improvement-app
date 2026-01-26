@@ -46,6 +46,7 @@ export default function ExpertChat() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [isStreaming, setIsStreaming] = useState(false);
 
     // Coach State
     const [coaches, setCoaches] = useState<Coach[]>(DEFAULT_COACHES);
@@ -224,8 +225,11 @@ export default function ExpertChat() {
     }, [selectedCoach]);
 
     useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
+        // Only auto-scroll when not streaming (user controls scroll during streaming)
+        if (!isStreaming) {
+            scrollToBottom();
+        }
+    }, [messages, isStreaming]);
 
     const sendMessage = async (content: string) => {
         if (!content.trim()) return;
@@ -241,8 +245,18 @@ export default function ExpertChat() {
         setInput('');
         setIsLoading(true);
 
+        // Create placeholder assistant message for streaming
+        const assistantMessageId = (Date.now() + 1).toString();
+        const assistantMessage: Message = {
+            id: assistantMessageId,
+            role: 'assistant',
+            content: '',
+            timestamp: new Date()
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+
         try {
-            const response = await fetch('/api/expert/chat', {
+            const response = await fetch('/api/expert/chat/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -252,35 +266,73 @@ export default function ExpertChat() {
                 })
             });
 
-            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
-            if (data.success && data.data.reply) {
-                const assistantMessage: Message = {
-                    id: (Date.now() + 1).toString(),
-                    role: 'assistant',
-                    content: data.data.reply,
-                    timestamp: new Date()
-                };
-                setMessages(prev => [...prev, assistantMessage]);
-            } else {
-                const fallbackMessage: Message = {
-                    id: (Date.now() + 1).toString(),
-                    role: 'assistant',
-                    content: "I understand you're working on your transformation. Could you tell me more?",
-                    timestamp: new Date()
-                };
-                setMessages(prev => [...prev, fallbackMessage]);
+            const reader = response.body?.getReader();
+            if (!reader) {
+                throw new Error('No response body');
+            }
+
+            setIsLoading(false);
+            setIsStreaming(true);
+
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+
+                // Process SSE events from buffer
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6);
+
+                        if (data === '[DONE]') {
+                            // Streaming complete
+                            continue;
+                        }
+
+                        try {
+                            const parsed = JSON.parse(data);
+                            if (parsed.text) {
+                                // Update assistant message with new text chunk
+                                setMessages(prev => prev.map(msg =>
+                                    msg.id === assistantMessageId
+                                        ? { ...msg, content: msg.content + parsed.text }
+                                        : msg
+                                ));
+                            } else if (parsed.error) {
+                                // Handle stream error
+                                setMessages(prev => prev.map(msg =>
+                                    msg.id === assistantMessageId
+                                        ? { ...msg, content: "I'm having trouble connecting. Please try again." }
+                                        : msg
+                                ));
+                            }
+                        } catch {
+                            // Ignore parse errors for malformed chunks
+                        }
+                    }
+                }
             }
         } catch (error) {
-            const errorMessage: Message = {
-                id: (Date.now() + 1).toString(),
-                role: 'assistant',
-                content: "I'm having trouble connecting. Please try again.",
-                timestamp: new Date()
-            };
-            setMessages(prev => [...prev, errorMessage]);
+            // Update the assistant message with error
+            setMessages(prev => prev.map(msg =>
+                msg.id === assistantMessageId
+                    ? { ...msg, content: "I'm having trouble connecting. Please try again." }
+                    : msg
+            ));
         } finally {
             setIsLoading(false);
+            setIsStreaming(false);
             inputRef.current?.focus();
         }
     };
