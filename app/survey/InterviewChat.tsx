@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Mic, Volume2, VolumeX, User, MessageCircle } from 'lucide-react';
 
 interface Message {
@@ -22,17 +22,77 @@ const INTERVIEW_STAGES: { id: InterviewStage; label: string; icon: string }[] = 
     { id: 'open', label: 'Open', icon: '💬' },
 ];
 
+// Stage transition thresholds (number of user messages before potentially moving to next stage)
+const STAGE_THRESHOLDS: Record<InterviewStage, number> = {
+    mood: 2,       // 1-2 questions
+    goals: 3,      // 2-3 questions
+    challenges: 2, // 1-2 questions
+    habits: 2,     // 1-2 questions
+    general: 2,    // 1-2 questions
+    open: Infinity // Unlimited
+};
+
+// Stage order for progression
+const STAGE_ORDER: InterviewStage[] = ['mood', 'goals', 'challenges', 'habits', 'general', 'open'];
+
+// User context interface matching the getUserContext pattern from expert chat
+interface UserContext {
+    activeGoal?: {
+        title: string;
+        domain?: { name: string };
+        currentState?: string;
+        desiredState?: string;
+    } | null;
+    todayChallenge?: {
+        title: string;
+        difficulty: number;
+        status: string;
+    } | null;
+    completedChallengesCount?: number;
+    streak?: number;
+    avgMood?: number | null;
+    dayInJourney?: number;
+    recentChallenges?: Array<{ title: string; status: string }>;
+    preferences?: { displayName?: string };
+    habitStats?: {
+        totalHabits: number;
+        completedToday: number;
+        weeklyCompletionRate: number;
+        habits: Array<{ id: string; name: string; streak: number }>;
+    } | null;
+    recentSurveys?: Array<{
+        surveyDate: string;
+        energyLevel: number;
+        motivationLevel: number;
+        overallMood: number;
+    }>;
+}
+
 interface InterviewChatProps {
     initialStage?: InterviewStage;
     onStageChange?: (stage: InterviewStage) => void;
+    onComplete?: () => void;
 }
 
-export default function InterviewChat({ initialStage = 'mood', onStageChange }: InterviewChatProps) {
+export default function InterviewChat({ initialStage = 'mood', onStageChange, onComplete }: InterviewChatProps) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isStreaming, setIsStreaming] = useState(false);
     const [currentStage, setCurrentStage] = useState<InterviewStage>(initialStage);
+
+    // Interview state management
+    const [userContext, setUserContext] = useState<UserContext | null>(null);
+    const [stageExchangeCount, setStageExchangeCount] = useState<Record<InterviewStage, number>>({
+        mood: 0,
+        goals: 0,
+        challenges: 0,
+        habits: 0,
+        general: 0,
+        open: 0
+    });
+    const [isInterviewComplete, setIsInterviewComplete] = useState(false);
+    const [contextLoading, setContextLoading] = useState(true);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -47,6 +107,119 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange }: 
     const [isMuted, setIsMuted] = useState(false);
     const [isPlayingAudio, setIsPlayingAudio] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    // Fetch user context on mount for personalized questions
+    useEffect(() => {
+        const fetchUserContext = async () => {
+            setContextLoading(true);
+            try {
+                // Fetch user's goals, challenges, habits, surveys for context
+                const [goalsRes, surveysRes, habitsRes] = await Promise.all([
+                    fetch('/api/goals').catch(() => null),
+                    fetch('/api/surveys?limit=7').catch(() => null),
+                    fetch('/api/habits/stats?days=7').catch(() => null)
+                ]);
+
+                const context: UserContext = {};
+
+                if (goalsRes?.ok) {
+                    const goalsData = await goalsRes.json();
+                    if (goalsData.success && goalsData.data.goals?.length > 0) {
+                        // Get active goal (most recent)
+                        const activeGoal = goalsData.data.goals.find((g: any) => g.status === 'active')
+                            || goalsData.data.goals[0];
+                        context.activeGoal = {
+                            title: activeGoal.title,
+                            domain: activeGoal.domain,
+                            currentState: activeGoal.currentState,
+                            desiredState: activeGoal.desiredState
+                        };
+                        context.dayInJourney = activeGoal.startedAt
+                            ? Math.ceil((Date.now() - new Date(activeGoal.startedAt).getTime()) / (1000 * 60 * 60 * 24))
+                            : 1;
+                    }
+                }
+
+                if (surveysRes?.ok) {
+                    const surveysData = await surveysRes.json();
+                    if (surveysData.success && surveysData.data?.surveys?.length > 0) {
+                        context.recentSurveys = surveysData.data.surveys.slice(0, 3);
+                        // Calculate average mood
+                        const avgMood = surveysData.data.surveys.reduce((sum: number, s: any) =>
+                            sum + s.overallMood, 0) / surveysData.data.surveys.length;
+                        context.avgMood = Math.round(avgMood * 10) / 10;
+                    }
+                }
+
+                if (habitsRes?.ok) {
+                    const habitsData = await habitsRes.json();
+                    if (habitsData.success && habitsData.data) {
+                        context.habitStats = habitsData.data;
+                    }
+                }
+
+                setUserContext(context);
+            } catch {
+                // Context fetch failed - proceed with generic questions
+                setUserContext({});
+            } finally {
+                setContextLoading(false);
+            }
+        };
+
+        fetchUserContext();
+    }, []);
+
+    // Determine the next stage based on current stage and context availability
+    const getNextStage = useCallback((current: InterviewStage): InterviewStage | null => {
+        const currentIndex = STAGE_ORDER.indexOf(current);
+        if (currentIndex === -1 || currentIndex >= STAGE_ORDER.length - 1) {
+            return null; // Already at last stage (open) or invalid
+        }
+
+        let nextIndex = currentIndex + 1;
+        let nextStage = STAGE_ORDER[nextIndex];
+
+        // Skip stages if relevant context is missing
+        while (nextIndex < STAGE_ORDER.length - 1) {
+            nextStage = STAGE_ORDER[nextIndex];
+
+            // Check if we should skip this stage based on context
+            if (nextStage === 'goals' && !userContext?.activeGoal) {
+                nextIndex++;
+                continue;
+            }
+            if (nextStage === 'challenges' && !userContext?.todayChallenge && (!userContext?.recentChallenges || userContext.recentChallenges.length === 0)) {
+                nextIndex++;
+                continue;
+            }
+            if (nextStage === 'habits' && (!userContext?.habitStats || userContext.habitStats.totalHabits === 0)) {
+                nextIndex++;
+                continue;
+            }
+            break;
+        }
+
+        return STAGE_ORDER[nextIndex];
+    }, [userContext]);
+
+    // Check if we should transition to the next stage
+    const shouldTransitionStage = useCallback((stage: InterviewStage, count: number): boolean => {
+        const threshold = STAGE_THRESHOLDS[stage];
+        return count >= threshold && stage !== 'open';
+    }, []);
+
+    // Advance to the next stage
+    const advanceToNextStage = useCallback(() => {
+        const nextStage = getNextStage(currentStage);
+        if (nextStage) {
+            setCurrentStage(nextStage);
+            if (nextStage === 'open') {
+                setIsInterviewComplete(true);
+                onComplete?.();
+            }
+        }
+    }, [currentStage, getNextStage, onComplete]);
 
     // Load TTS mute preference from localStorage
     useEffect(() => {
@@ -159,8 +332,11 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange }: 
         }
     }, [messages, isStreaming]);
 
-    // Start interview with initial greeting when component mounts
+    // Start interview with initial greeting when context is loaded
     useEffect(() => {
+        // Wait for context to be loaded before starting
+        if (contextLoading) return;
+
         const startInterview = async () => {
             setIsLoading(true);
 
@@ -181,7 +357,8 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange }: 
                     body: JSON.stringify({
                         message: '__START_INTERVIEW__',
                         stage: currentStage,
-                        history: []
+                        history: [],
+                        context: userContext // Pass user context for personalized greeting
                     })
                 });
 
@@ -263,7 +440,7 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange }: 
 
         startInterview();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [contextLoading]);
 
     const sendMessage = async (content: string) => {
         if (!content.trim()) return;
@@ -278,6 +455,17 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange }: 
         setMessages(prev => [...prev, userMessage]);
         setInput('');
         setIsLoading(true);
+
+        // Track exchange count for current stage
+        const newExchangeCount = stageExchangeCount[currentStage] + 1;
+        setStageExchangeCount(prev => ({
+            ...prev,
+            [currentStage]: newExchangeCount
+        }));
+
+        // Determine if we should signal transition to AI
+        const shouldTransition = shouldTransitionStage(currentStage, newExchangeCount);
+        const nextStage = shouldTransition ? getNextStage(currentStage) : null;
 
         // Create placeholder assistant message for streaming
         const assistantMessageId = (Date.now() + 1).toString();
@@ -296,7 +484,10 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange }: 
                 body: JSON.stringify({
                     message: content,
                     stage: currentStage,
-                    history: messages.slice(-10)
+                    nextStage: nextStage, // Signal potential transition to API
+                    exchangeCount: newExchangeCount,
+                    history: messages.slice(-10),
+                    context: userContext // Pass user context for personalized responses
                 })
             });
 
@@ -345,7 +536,18 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange }: 
                                 ));
                             } else if (parsed.stage) {
                                 // Update stage if AI signals transition
-                                setCurrentStage(parsed.stage);
+                                const newStage = parsed.stage as InterviewStage;
+                                setCurrentStage(newStage);
+                                // Reset exchange count for the new stage
+                                setStageExchangeCount(prev => ({
+                                    ...prev,
+                                    [newStage]: 0
+                                }));
+                                // Mark interview complete when reaching open stage
+                                if (newStage === 'open') {
+                                    setIsInterviewComplete(true);
+                                    onComplete?.();
+                                }
                             } else if (parsed.error) {
                                 setMessages(prev => prev.map(msg =>
                                     msg.id === assistantMessageId
@@ -363,6 +565,11 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange }: 
             // Play TTS audio after streaming completes
             if (accumulatedText) {
                 playTTSAudio(accumulatedText);
+            }
+
+            // Auto-advance stage if threshold reached and AI didn't signal transition
+            if (shouldTransition && nextStage && currentStage !== 'open') {
+                advanceToNextStage();
             }
         } catch {
             setMessages(prev => prev.map(msg =>
@@ -465,7 +672,12 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange }: 
                 </div>
                 <div className="header-controls">
                     <span className="current-stage-label">
-                        {INTERVIEW_STAGES[currentStageIndex]?.label || 'Interview'}
+                        {isInterviewComplete ? 'Open Conversation' : (INTERVIEW_STAGES[currentStageIndex]?.label || 'Interview')}
+                        {stageExchangeCount[currentStage] > 0 && currentStage !== 'open' && (
+                            <span className="exchange-count">
+                                ({stageExchangeCount[currentStage]}/{STAGE_THRESHOLDS[currentStage]})
+                            </span>
+                        )}
                     </span>
                     <button
                         type="button"
@@ -480,6 +692,14 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange }: 
 
             {/* Messages Area */}
             <div className="chat-messages custom-scrollbar">
+                {/* Context loading indicator */}
+                {contextLoading && (
+                    <div className="context-loading">
+                        <div className="context-loading-spinner"></div>
+                        <span>Preparing your personalized interview...</span>
+                    </div>
+                )}
+
                 {messages.map(message => (
                     <div key={message.id} className={`message ${message.role}`}>
                         {message.role === 'assistant' && (
@@ -628,6 +848,45 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange }: 
                     font-size: 0.875rem;
                     font-weight: 600;
                     color: #8b5cf6;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+
+                .exchange-count {
+                    font-size: 0.75rem;
+                    font-weight: 400;
+                    color: var(--color-text-muted);
+                }
+
+                .context-loading {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 40px 20px;
+                    gap: 12px;
+                    color: var(--color-text-muted);
+                    font-size: 0.9rem;
+                    animation: fadeIn 0.3s ease;
+                }
+
+                .context-loading-spinner {
+                    width: 32px;
+                    height: 32px;
+                    border: 3px solid var(--color-border);
+                    border-top-color: #8b5cf6;
+                    border-radius: 50%;
+                    animation: spin 1s linear infinite;
+                }
+
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
                 }
 
                 .audio-toggle-btn {
