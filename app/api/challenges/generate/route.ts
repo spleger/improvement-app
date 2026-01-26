@@ -76,7 +76,13 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            data: newChallenge
+            data: {
+                challenges: [newChallenge],
+                context: {
+                    day: Math.floor((Date.now() - new Date(goal.startedAt).getTime()) / (1000 * 60 * 60 * 24)) + 1,
+                    adaptedDifficulty: challengeData.difficulty || 5
+                }
+            }
         });
 
     } catch (error: any) {
