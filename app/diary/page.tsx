@@ -184,27 +184,175 @@ export default function DiaryPage() {
 
                 {/* Sidebar Stats */}
                 <div className="space-y-md">
-                    <div className="card p-md bg-gradient-to-br from-primary/10 to-transparent border-primary/20">
-                        <h3 className="text-lg font-bold mb-sm flex items-center gap-sm">
+                    {/* Insights Header Card */}
+                    <div className="card-glass boxed-accent-top">
+                        <div className="flex items-center gap-sm mb-md" style={{ color: 'var(--color-accent)' }}>
                             <BarChart2 size={20} />
-                            Insights
-                        </h3>
-                        <p className="text-sm text-muted mb-md">
-                            Your voice diary helps track your emotional journey. AI insights coming soon!
+                            <h3 className="text-lg font-bold">Insights</h3>
+                        </div>
+                        <p className="text-sm mb-lg" style={{ color: 'var(--color-text-secondary)' }}>
+                            Track your reflection journey and emotional patterns.
                         </p>
-                        <div className="flex items-center gap-md">
-                            <div className="text-center">
-                                <div className="text-2xl font-bold">{entries.length}</div>
-                                <div className="text-xs text-muted uppercase tracking-wider">Entries</div>
+
+                        {/* Stats Grid */}
+                        <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                            {/* Total Entries */}
+                            <div
+                                className="stat-card boxed-interactive"
+                                style={{
+                                    background: 'var(--color-surface-2)',
+                                    cursor: 'default'
+                                }}
+                            >
+                                <div className="stat-value" style={{ color: 'var(--color-accent)', fontSize: '1.75rem' }}>
+                                    {entries.length}
+                                </div>
+                                <div className="stat-label">Entries</div>
                             </div>
-                            <div className="w-px h-8 bg-border"></div>
-                            <div className="text-center">
-                                <div className="text-2xl font-bold">
+
+                            {/* Total Minutes */}
+                            <div
+                                className="stat-card boxed-interactive"
+                                style={{
+                                    background: 'var(--color-surface-2)',
+                                    cursor: 'default'
+                                }}
+                            >
+                                <div className="stat-value" style={{ color: 'var(--color-accent)', fontSize: '1.75rem' }}>
                                     {Math.round(entries.reduce((acc, curr) => acc + (curr.audioDurationSeconds || 0), 0) / 60)}
                                 </div>
-                                <div className="text-xs text-muted uppercase tracking-wider">Minutes</div>
+                                <div className="stat-label">Minutes</div>
+                            </div>
+
+                            {/* Average Duration */}
+                            <div
+                                className="stat-card boxed-interactive"
+                                style={{
+                                    background: 'var(--color-surface-2)',
+                                    cursor: 'default'
+                                }}
+                            >
+                                <div className="stat-value" style={{ color: 'var(--color-text-primary)', fontSize: '1.75rem' }}>
+                                    {entries.length > 0
+                                        ? Math.round(entries.reduce((acc, curr) => acc + (curr.audioDurationSeconds || 0), 0) / entries.length / 60 * 10) / 10
+                                        : 0}
+                                </div>
+                                <div className="stat-label">Avg Min</div>
+                            </div>
+
+                            {/* This Week */}
+                            <div
+                                className="stat-card boxed-interactive"
+                                style={{
+                                    background: 'var(--color-surface-2)',
+                                    cursor: 'default'
+                                }}
+                            >
+                                <div className="stat-value" style={{ color: 'var(--color-text-primary)', fontSize: '1.75rem' }}>
+                                    {entries.filter(e => {
+                                        const entryDate = new Date(e.createdAt);
+                                        const weekAgo = new Date();
+                                        weekAgo.setDate(weekAgo.getDate() - 7);
+                                        return entryDate >= weekAgo;
+                                    }).length}
+                                </div>
+                                <div className="stat-label">This Week</div>
                             </div>
                         </div>
+
+                        {/* Mood/Sentiment Summary */}
+                        {entries.length > 0 && (() => {
+                            const sentiments: string[] = [];
+                            entries.forEach(entry => {
+                                try {
+                                    const insights = JSON.parse(entry.aiInsights || '{}');
+                                    if (insights.sentiment) sentiments.push(insights.sentiment);
+                                } catch (e) { /* ignore */ }
+                            });
+
+                            if (sentiments.length === 0) return null;
+
+                            const sentimentCounts = sentiments.reduce((acc, s) => {
+                                acc[s] = (acc[s] || 0) + 1;
+                                return acc;
+                            }, {} as Record<string, number>);
+
+                            const topSentiments = Object.entries(sentimentCounts)
+                                .sort((a, b) => b[1] - a[1])
+                                .slice(0, 3);
+
+                            if (topSentiments.length === 0) return null;
+
+                            return (
+                                <div className="mt-lg pt-md" style={{ borderTop: '1px solid var(--color-border)' }}>
+                                    <div className="text-xs uppercase tracking-wider mb-sm" style={{ color: 'var(--color-text-muted)' }}>
+                                        Top Sentiments
+                                    </div>
+                                    <div className="flex flex-wrap gap-sm">
+                                        {topSentiments.map(([sentiment, count]) => (
+                                            <span
+                                                key={sentiment}
+                                                className="text-xs px-2 py-1 rounded-full"
+                                                style={{
+                                                    background: 'rgba(13, 148, 136, 0.1)',
+                                                    color: 'var(--color-accent)',
+                                                    border: '1px solid rgba(13, 148, 136, 0.2)'
+                                                }}
+                                            >
+                                                {sentiment} ({count})
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
+                        {/* Common Themes */}
+                        {entries.length > 0 && (() => {
+                            const themes: string[] = [];
+                            entries.forEach(entry => {
+                                try {
+                                    const insights = JSON.parse(entry.aiInsights || '{}');
+                                    if (insights.themes) themes.push(...insights.themes);
+                                } catch (e) { /* ignore */ }
+                            });
+
+                            if (themes.length === 0) return null;
+
+                            const themeCounts = themes.reduce((acc, t) => {
+                                acc[t] = (acc[t] || 0) + 1;
+                                return acc;
+                            }, {} as Record<string, number>);
+
+                            const topThemes = Object.entries(themeCounts)
+                                .sort((a, b) => b[1] - a[1])
+                                .slice(0, 5);
+
+                            if (topThemes.length === 0) return null;
+
+                            return (
+                                <div className="mt-md pt-md" style={{ borderTop: '1px solid var(--color-border)' }}>
+                                    <div className="text-xs uppercase tracking-wider mb-sm" style={{ color: 'var(--color-text-muted)' }}>
+                                        Common Themes
+                                    </div>
+                                    <div className="flex flex-wrap gap-sm">
+                                        {topThemes.map(([theme, count]) => (
+                                            <span
+                                                key={theme}
+                                                className="text-xs px-2 py-1 rounded-full"
+                                                style={{
+                                                    background: 'var(--color-surface-2)',
+                                                    color: 'var(--color-text-secondary)',
+                                                    border: '1px solid var(--color-border)'
+                                                }}
+                                            >
+                                                #{theme} ({count})
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })()}
                     </div>
                 </div>
             </div>
