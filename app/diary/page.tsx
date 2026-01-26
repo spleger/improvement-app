@@ -102,46 +102,51 @@ export default function DiaryPage() {
                         ) : (
                             <div className="space-y-md">
                                 {entries.map(entry => (
-                                    <div key={entry.id} className="card p-md hover:shadow-md transition-all border-l-4 border-l-primary">
-                                        <div className="flex justify-between items-start mb-sm">
-                                            <div className="flex items-center gap-sm text-sm text-muted">
-                                                <Calendar size={14} />
+                                    <div key={entry.id} className="card-glass boxed-accent-top">
+                                        {/* Entry Header - Date & Duration grouped */}
+                                        <div className="flex justify-between items-center mb-md pb-sm" style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                            <div className="flex items-center gap-sm text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                                                <Calendar size={14} style={{ color: 'var(--color-accent)' }} />
                                                 <span>{formatDate(entry.createdAt)}</span>
                                             </div>
                                             {entry.audioDurationSeconds > 0 && (
-                                                <div className="badge badge-neutral flex items-center gap-xs text-xs">
+                                                <div className="flex items-center gap-xs text-xs px-2 py-1 rounded-full" style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-secondary)' }}>
                                                     <Clock size={12} />
-                                                    {Math.floor(entry.audioDurationSeconds / 60)}:{(entry.audioDurationSeconds % 60).toString().padStart(2, '0')}
+                                                    <span>{Math.floor(entry.audioDurationSeconds / 60)}:{(entry.audioDurationSeconds % 60).toString().padStart(2, '0')}</span>
                                                 </div>
                                             )}
                                         </div>
-                                        {/* Entry Title */}
-                                        {(() => {
-                                            try {
-                                                const insights = JSON.parse(entry.aiInsights || '{}');
-                                                if (insights.title) {
-                                                    return (
-                                                        <h3 className="text-lg font-bold mb-sm text-primary">
-                                                            {insights.title}
-                                                        </h3>
-                                                    );
-                                                }
-                                            } catch (e) { }
-                                            return null;
-                                        })()}
-                                        <p className="text-base leading-relaxed whitespace-pre-wrap mb-md">
-                                            {entry.transcript}
-                                        </p>
 
-                                        {/* AI Analysis Section */}
+                                        {/* Entry Content - Title & Transcript */}
+                                        <div className="mb-md">
+                                            {/* Entry Title */}
+                                            {(() => {
+                                                try {
+                                                    const insights = JSON.parse(entry.aiInsights || '{}');
+                                                    if (insights.title) {
+                                                        return (
+                                                            <h3 className="text-lg font-bold mb-sm" style={{ color: 'var(--color-accent)' }}>
+                                                                {insights.title}
+                                                            </h3>
+                                                        );
+                                                    }
+                                                } catch (e) { }
+                                                return null;
+                                            })()}
+                                            <p className="text-base leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--color-text-primary)' }}>
+                                                {entry.transcript}
+                                            </p>
+                                        </div>
+
+                                        {/* AI Analysis Section - Visually grouped */}
                                         {(entry.aiSummary || entry.aiInsights) && (
-                                            <div className="bg-surface-hover rounded-lg p-md mt-md text-sm">
-                                                <div className="flex items-center gap-xs font-bold text-primary mb-xs">
+                                            <div className="boxed-inset mt-md">
+                                                <div className="flex items-center gap-xs font-bold mb-sm" style={{ color: 'var(--color-accent)' }}>
                                                     <span>🧠 AI Analysis</span>
                                                 </div>
 
                                                 {entry.aiSummary && (
-                                                    <p className="mb-sm text-muted italic">"{entry.aiSummary}"</p>
+                                                    <p className="mb-sm italic text-sm" style={{ color: 'var(--color-text-secondary)' }}>"{entry.aiSummary}"</p>
                                                 )}
 
                                                 {entry.aiInsights && (() => {
@@ -150,17 +155,17 @@ export default function DiaryPage() {
                                                         return (
                                                             <div className="flex flex-wrap gap-sm mt-sm">
                                                                 {insights.sentiment && (
-                                                                    <span className="badge badge-neutral">
+                                                                    <span className="text-xs px-2 py-1 rounded-full" style={{ background: 'var(--color-surface)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}>
                                                                         Sentiment: {insights.sentiment}
                                                                     </span>
                                                                 )}
                                                                 {insights.distortions?.map((d: string, i: number) => (
-                                                                    <span key={i} className="badge badge-error bg-red-100 text-red-700 border-red-200">
+                                                                    <span key={i} className="text-xs px-2 py-1 rounded-full" style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-error)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
                                                                         ⚠️ {d}
                                                                     </span>
                                                                 ))}
                                                                 {insights.themes?.map((t: string, i: number) => (
-                                                                    <span key={i} className="badge badge-primary bg-primary/10 text-primary border-primary/20">
+                                                                    <span key={i} className="text-xs px-2 py-1 rounded-full" style={{ background: 'rgba(13, 148, 136, 0.1)', color: 'var(--color-accent)', border: '1px solid rgba(13, 148, 136, 0.2)' }}>
                                                                         #{t}
                                                                     </span>
                                                                 ))}
