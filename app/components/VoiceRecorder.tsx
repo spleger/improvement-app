@@ -279,24 +279,24 @@ export default function VoiceRecorder({ onSave }: VoiceRecorderProps) {
     };
 
     return (
-        <div className="voice-recorder">
+        <div className="voice-recorder card-glass boxed-accent-top">
             {/* Error Message */}
             {error && (
-                <div className="card mb-lg" style={{ borderLeft: '4px solid var(--color-error)' }}>
-                    <p style={{ color: 'var(--color-error)' }}>{error}</p>
+                <div className="mb-lg p-md" style={{ borderLeft: '4px solid var(--color-error)', background: 'rgba(239, 68, 68, 0.1)', borderRadius: 'var(--radius-md)' }}>
+                    <p style={{ color: 'var(--color-error)', margin: 0 }}>{error}</p>
                 </div>
             )}
 
             {/* Transcription Warning */}
             {transcriptionError && state === 'recording' && (
-                <div className="card mb-md p-sm bg-yellow-50 border-l-4 border-yellow-400 text-yellow-700 text-sm">
+                <div className="mb-md p-sm text-sm" style={{ borderLeft: '4px solid var(--color-warning)', background: 'rgba(245, 158, 11, 0.1)', borderRadius: 'var(--radius-md)', color: 'var(--color-warning)' }}>
                     ⚠️ {transcriptionError}
                 </div>
             )}
 
             {/* Idle State */}
             {state === 'idle' && (
-                <div className="card text-center py-xl">
+                <div className="text-center py-xl">
                     <button
                         onClick={startRecording}
                         className="record-button"
@@ -327,7 +327,7 @@ export default function VoiceRecorder({ onSave }: VoiceRecorderProps) {
 
             {/* Recording State */}
             {(state === 'recording' || state === 'paused') && (
-                <div className="card text-center p-lg">
+                <div className="text-center">
                     <div style={{
                         width: '80px', height: '80px', borderRadius: '50%',
                         background: state === 'recording' ? '#ef4444' : '#fbbf24',
@@ -341,7 +341,7 @@ export default function VoiceRecorder({ onSave }: VoiceRecorderProps) {
                     <div className="heading-2 mb-md font-mono">{formatDuration(duration)}</div>
 
                     {/* Live Transcript */}
-                    <div className="card card-surface mb-lg text-left" style={{ minHeight: '100px', maxHeight: '200px', overflowY: 'auto' }}>
+                    <div className="mb-lg text-left" style={{ minHeight: '100px', maxHeight: '200px', overflowY: 'auto', background: 'var(--color-surface-2)', borderRadius: 'var(--radius-md)', padding: 'var(--spacing-md)', border: '1px solid var(--color-border)' }}>
                         <p style={{ margin: 0 }}>
                             {transcript}
                             <span className="text-muted italic">{interimTranscript}</span>
@@ -371,7 +371,7 @@ export default function VoiceRecorder({ onSave }: VoiceRecorderProps) {
 
             {/* Stopped / Review State */}
             {state === 'stopped' && (
-                <div className="card p-lg">
+                <div>
                     <h3 className="heading-4 mb-md text-center">Review Recording</h3>
 
                     {audioUrl && (
@@ -404,7 +404,7 @@ export default function VoiceRecorder({ onSave }: VoiceRecorderProps) {
 
             {/* Finished State */}
             {state === 'saved' && (
-                <div className="card text-center p-xl">
+                <div className="text-center py-xl">
                     <div className="text-5xl mb-md">✅</div>
                     <h3 className="heading-4 mb-md">Entry Saved!</h3>
                     <button onClick={startNew} className="btn btn-primary">
