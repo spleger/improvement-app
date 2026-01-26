@@ -91,8 +91,32 @@ export default function DiaryPage() {
                         </h2>
 
                         {isLoading ? (
-                            <div className="flex justify-center p-xl">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                            <div className="space-y-md">
+                                {[1, 2, 3].map(i => (
+                                    <div key={i} className="card-glass loading-breathe boxed-accent-top">
+                                        {/* Header Skeleton */}
+                                        <div className="flex justify-between items-center mb-md pb-sm" style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                            <div className="skeleton-breathe" style={{ height: '16px', width: '180px', borderRadius: 'var(--radius-sm)' }} />
+                                            <div className="skeleton-breathe" style={{ height: '20px', width: '50px', borderRadius: 'var(--radius-full)' }} />
+                                        </div>
+                                        {/* Content Skeleton */}
+                                        <div className="mb-md">
+                                            <div className="skeleton-breathe" style={{ height: '20px', width: '60%', borderRadius: 'var(--radius-sm)', marginBottom: 'var(--spacing-sm)' }} />
+                                            <div className="skeleton-breathe" style={{ height: '14px', width: '100%', borderRadius: 'var(--radius-sm)', marginBottom: 'var(--spacing-xs)' }} />
+                                            <div className="skeleton-breathe" style={{ height: '14px', width: '90%', borderRadius: 'var(--radius-sm)', marginBottom: 'var(--spacing-xs)' }} />
+                                            <div className="skeleton-breathe" style={{ height: '14px', width: '75%', borderRadius: 'var(--radius-sm)' }} />
+                                        </div>
+                                        {/* AI Analysis Skeleton */}
+                                        <div className="boxed-inset loading-breathe">
+                                            <div className="skeleton-breathe" style={{ height: '16px', width: '100px', borderRadius: 'var(--radius-sm)', marginBottom: 'var(--spacing-sm)' }} />
+                                            <div className="skeleton-breathe" style={{ height: '14px', width: '80%', borderRadius: 'var(--radius-sm)', marginBottom: 'var(--spacing-sm)' }} />
+                                            <div className="flex gap-sm">
+                                                <div className="skeleton-breathe" style={{ height: '22px', width: '80px', borderRadius: 'var(--radius-full)' }} />
+                                                <div className="skeleton-breathe" style={{ height: '22px', width: '60px', borderRadius: 'var(--radius-full)' }} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         ) : entries.length === 0 ? (
                             <div className="card p-xl text-center text-muted">

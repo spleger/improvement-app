@@ -174,7 +174,26 @@ export default function HabitsPage() {
             {/* Habits List */}
             <div className="habits-list">
                 {loading ? (
-                    <div className="loading-state">Loading habits...</div>
+                    <div className="habits-list">
+                        {[1, 2, 3, 4].map(i => (
+                            <div key={i} className="habit-card loading-breathe">
+                                <div className="habit-main">
+                                    {/* Toggle Skeleton */}
+                                    <div className="skeleton-breathe" style={{ width: '28px', height: '28px', borderRadius: 'var(--radius-full)' }} />
+                                    {/* Info Skeleton */}
+                                    <div className="habit-info" style={{ cursor: 'default' }}>
+                                        <div className="habit-name-row">
+                                            <div className="skeleton-breathe" style={{ width: '24px', height: '24px', borderRadius: 'var(--radius-sm)' }} />
+                                            <div className="skeleton-breathe" style={{ height: '18px', width: '120px', borderRadius: 'var(--radius-sm)' }} />
+                                        </div>
+                                        <div className="skeleton-breathe" style={{ height: '12px', width: '80px', borderRadius: 'var(--radius-sm)', marginTop: 'var(--spacing-xs)' }} />
+                                    </div>
+                                    {/* Expand Skeleton */}
+                                    <div className="skeleton-breathe" style={{ width: '20px', height: '20px', borderRadius: 'var(--radius-sm)' }} />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 ) : habits.length === 0 ? (
                     <div className="empty-state">
                         <div className="empty-icon">✅</div>
