@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import Anthropic from '@anthropic-ai/sdk';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
-
-const ANTHROPIC_API_KEY_RAW = process.env.ANTHROPIC_API_KEY;
-// Sanitize: strip quotes and whitespace
-const ANTHROPIC_API_KEY = ANTHROPIC_API_KEY_RAW?.replace(/^["']|["']$/g, '').trim();
 
 async function getUserContext(userId: string) {
     try {
@@ -249,9 +246,6 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Use sanitized key
-        const apiKey = ANTHROPIC_API_KEY;
-
         const body = await request.json();
         const { message, history, coachId } = body;
 
@@ -348,30 +342,24 @@ export async function POST(request: NextRequest) {
             };
             conversationMessages.push(userMsgObj);
 
-            // Call Claude API
-            const response = await fetch('https://api.anthropic.com/v1/messages', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-api-key': apiKey || '',
-                    'anthropic-version': '2023-06-01'
-                },
-                body: JSON.stringify({
-                    model: 'claude-3-haiku-20240307',
-                    max_tokens: 1000,
-                    system: systemPrompt,
-                    messages
-                })
+            // Initialize Anthropic client
+            const apiKey = process.env.ANTHROPIC_API_KEY?.replace(/^["']|["']$/g, '').trim();
+            if (!apiKey) {
+                throw new Error('Server configuration error: Missing Anthropic Key');
+            }
+            const anthropic = new Anthropic({ apiKey });
+
+            // Call Claude API using Anthropic SDK
+            const response = await anthropic.messages.create({
+                model: 'claude-3-haiku-20240307',
+                max_tokens: 1000,
+                system: systemPrompt,
+                messages: messages as Anthropic.MessageParam[]
             });
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Claude API error [Expert Chat]:', response.status, errorText);
-                throw new Error(`Claude API error: ${response.status}`);
-            }
-
-            const data = await response.json();
-            const reply = data.content[0]?.text || getFallbackResponse(message, context);
+            // Extract text from response
+            const textContent = response.content.find(block => block.type === 'text');
+            const reply = textContent?.type === 'text' ? textContent.text : getFallbackResponse(message, context);
 
             // Append assistant message
             const assistantMsgObj = {
@@ -394,7 +382,8 @@ export async function POST(request: NextRequest) {
         } catch (apiError) {
             console.error('Claude API call failed:', apiError);
             const errorMsg = apiError instanceof Error ? apiError.message : String(apiError);
-            const keyInfo = ANTHROPIC_API_KEY ? `Key present (len: ${ANTHROPIC_API_KEY.length}, start: ${ANTHROPIC_API_KEY.slice(0, 5)})` : 'Key is MISSING in Vercel env';
+            const apiKey = process.env.ANTHROPIC_API_KEY?.replace(/^["']|["']$/g, '').trim();
+            const keyInfo = apiKey ? `Key present (len: ${apiKey.length}, start: ${apiKey.slice(0, 5)})` : 'Key is MISSING in Vercel env';
 
             const reply = getFallbackResponse(message, context, `${errorMsg} | ${keyInfo}`);
 
