@@ -36,7 +36,6 @@ const TypewriterText = ({
 
         let currentIndex = 0;
         const text = content;
-        let animationFrame: number;
         let timeoutId: ReturnType<typeof setTimeout>;
 
         // Speed: faster for longer messages, with a minimum delay
@@ -69,7 +68,6 @@ const TypewriterText = ({
 
         return () => {
             clearTimeout(timeoutId);
-            if (animationFrame) cancelAnimationFrame(animationFrame);
         };
     }, [content, isComplete, onComplete, onType]);
 
