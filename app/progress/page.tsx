@@ -5,6 +5,15 @@ import { redirect } from 'next/navigation';
 import BottomNavigation from '../components/BottomNavigation';
 import PageHeader from '../components/PageHeader';
 
+// Goal color palette for visual distinction
+const GOAL_COLORS = [
+    { bg: 'var(--gradient-primary)', border: 'var(--color-accent)' },
+    { bg: 'linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)', border: '#8b5cf6' },
+    { bg: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)', border: '#f59e0b' },
+    { bg: 'linear-gradient(135deg, #ec4899 0%, #f472b6 100%)', border: '#ec4899' },
+    { bg: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)', border: '#10b981' },
+];
+
 export default async function ProgressPage() {
     const user = await getCurrentUser();
     if (!user) {
@@ -18,17 +27,48 @@ export default async function ProgressPage() {
 
     const activeGoal = await db.getActiveGoalByUserId(user.userId);
 
+    // Fetch all goals for multi-goal support
+    const allGoals = await db.getGoalsByUserId(user.userId);
+
+    // Create a map of goalId to color index for consistent coloring
+    const goalColorMap = new Map<string | null, number>();
+    allGoals.forEach((goal, index) => {
+        goalColorMap.set(goal.id, index % GOAL_COLORS.length);
+    });
+    // Add null goalId for challenges without a goal
+    goalColorMap.set(null, -1);
+
     const completedChallenges = challenges.filter(c => c.status === 'completed');
     const skippedChallenges = challenges.filter(c => c.status === 'skipped');
 
-    // Calculate stats
+    // Calculate stats per goal
+    const goalStats = new Map<string | null, { completed: number; skipped: number; total: number; title: string }>();
+    challenges.forEach(c => {
+        const key = c.goalId || null;
+        if (!goalStats.has(key)) {
+            goalStats.set(key, { completed: 0, skipped: 0, total: 0, title: c.goalTitle || 'No Goal' });
+        }
+        const stats = goalStats.get(key)!;
+        stats.total++;
+        if (c.status === 'completed') stats.completed++;
+        if (c.status === 'skipped') stats.skipped++;
+    });
+
+    // Calculate overall stats
     const streak = await db.calculateStreak(user.userId);
     const completedCount = completedChallenges.length;
     const skippedCount = skippedChallenges.length;
     const totalCount = challenges.length;
 
-    // Build calendar data for last 30 days with proper weekday alignment
-    const calendarData: { date: string; dayOfMonth: number; status: 'completed' | 'skipped' | 'pending' | 'none'; isEmpty?: boolean }[] = [];
+    // Build calendar data for last 30 days with proper weekday alignment and goal info
+    const calendarData: {
+        date: string;
+        dayOfMonth: number;
+        status: 'completed' | 'skipped' | 'pending' | 'none';
+        isEmpty?: boolean;
+        goalId?: string | null;
+        goalTitle?: string | null;
+    }[] = [];
 
     // Start date (30 days ago)
     const startDate = new Date();
@@ -62,7 +102,9 @@ export default async function ProgressPage() {
             date: dateStr,
             dayOfMonth: date.getDate(),
             status: (dayChallenge?.status as any) || 'none',
-            isEmpty: false
+            isEmpty: false,
+            goalId: dayChallenge?.goalId || null,
+            goalTitle: dayChallenge?.goalTitle || null
         });
     }
 
@@ -149,51 +191,81 @@ export default async function ProgressPage() {
                             </div>
                         ))}
                         {/* Calendar cells */}
-                        {calendarData.map((day, i) => (
-                            <div
-                                key={i}
-                                style={{
-                                    aspectRatio: '1',
-                                    borderRadius: '6px',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '0.75rem',
-                                    gap: '2px',
-                                    visibility: day.isEmpty ? 'hidden' : 'visible',
-                                    background: day.status === 'completed'
-                                        ? 'var(--gradient-success)'
-                                        : day.status === 'skipped'
-                                            ? 'var(--color-error)'
-                                            : day.status === 'pending'
-                                                ? 'var(--color-warning)'
-                                                : 'var(--color-surface)',
-                                    color: ['completed', 'skipped'].includes(day.status) ? 'white' : 'var(--color-text-muted)',
-                                    border: day.date === new Date().toISOString().split('T')[0]
-                                        ? '2px solid var(--color-accent)'
-                                        : 'none'
-                                }}
-                                title={day.date ? `${day.date}: ${day.status}` : ''}
-                            >
-                                {/* Date label */}
-                                <span style={{
-                                    fontSize: '0.7rem',
-                                    fontWeight: 600,
-                                    lineHeight: 1
-                                }}>
-                                    {day.dayOfMonth || ''}
-                                </span>
-                                {/* Status icon */}
-                                <span style={{ fontSize: '0.65rem', lineHeight: 1 }}>
-                                    {day.status === 'completed' && '✓'}
-                                    {day.status === 'skipped' && '✗'}
-                                    {day.status === 'pending' && '○'}
-                                </span>
-                            </div>
-                        ))}
+                        {calendarData.map((day, i) => {
+                            const goalColorIndex = day.goalId ? goalColorMap.get(day.goalId) ?? 0 : -1;
+                            const goalColor = goalColorIndex >= 0 ? GOAL_COLORS[goalColorIndex] : null;
+
+                            // Determine background based on status and goal
+                            const getBackground = () => {
+                                if (day.status === 'completed' && goalColor) {
+                                    return goalColor.bg;
+                                }
+                                if (day.status === 'completed') {
+                                    return 'var(--gradient-success)';
+                                }
+                                if (day.status === 'skipped') {
+                                    return 'var(--color-error)';
+                                }
+                                if (day.status === 'pending') {
+                                    return 'var(--color-warning)';
+                                }
+                                return 'var(--color-surface)';
+                            };
+
+                            return (
+                                <div
+                                    key={i}
+                                    style={{
+                                        aspectRatio: '1',
+                                        borderRadius: '6px',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '0.75rem',
+                                        gap: '2px',
+                                        visibility: day.isEmpty ? 'hidden' : 'visible',
+                                        background: getBackground(),
+                                        color: ['completed', 'skipped'].includes(day.status) ? 'white' : 'var(--color-text-muted)',
+                                        border: day.date === new Date().toISOString().split('T')[0]
+                                            ? '2px solid var(--color-accent)'
+                                            : 'none',
+                                        position: 'relative'
+                                    }}
+                                    title={day.date ? `${day.date}: ${day.status}${day.goalTitle ? ` (${day.goalTitle})` : ''}` : ''}
+                                >
+                                    {/* Goal indicator dot */}
+                                    {day.goalId && day.status !== 'none' && goalColor && (
+                                        <span style={{
+                                            position: 'absolute',
+                                            top: '2px',
+                                            right: '2px',
+                                            width: '5px',
+                                            height: '5px',
+                                            borderRadius: '50%',
+                                            background: 'rgba(255,255,255,0.8)',
+                                            border: `1px solid ${goalColor.border}`
+                                        }} />
+                                    )}
+                                    {/* Date label */}
+                                    <span style={{
+                                        fontSize: '0.7rem',
+                                        fontWeight: 600,
+                                        lineHeight: 1
+                                    }}>
+                                        {day.dayOfMonth || ''}
+                                    </span>
+                                    {/* Status icon */}
+                                    <span style={{ fontSize: '0.65rem', lineHeight: 1 }}>
+                                        {day.status === 'completed' && '✓'}
+                                        {day.status === 'skipped' && '✗'}
+                                        {day.status === 'pending' && '○'}
+                                    </span>
+                                </div>
+                            );
+                        })}
                     </div>
-                    {/* Legend */}
+                    {/* Status Legend */}
                     <div className="flex flex-wrap justify-center gap-md mt-md text-tiny">
                         <span className="flex items-center gap-sm">
                             <span style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--gradient-success)' }} />
@@ -216,8 +288,95 @@ export default async function ProgressPage() {
                             Today
                         </span>
                     </div>
+
+                    {/* Goal Colors Legend (only if multiple goals) */}
+                    {allGoals.length > 1 && (
+                        <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
+                            <div className="text-tiny text-muted text-center mb-sm">Goal Colors</div>
+                            <div className="flex flex-wrap justify-center gap-md text-tiny">
+                                {allGoals.map((goal, index) => {
+                                    const colorIndex = index % GOAL_COLORS.length;
+                                    const color = GOAL_COLORS[colorIndex];
+                                    return (
+                                        <span key={goal.id} className="flex items-center gap-sm">
+                                            <span style={{
+                                                width: 12,
+                                                height: 12,
+                                                borderRadius: 3,
+                                                background: color.bg
+                                            }} />
+                                            <span style={{ maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {goal.title}
+                                            </span>
+                                        </span>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </section>
+
+            {/* Goal-Specific Progress (only if multiple goals with data) */}
+            {goalStats.size > 1 && (
+                <section className="mb-lg">
+                    <h2 className="heading-4 mb-md">Progress by Goal</h2>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {Array.from(goalStats.entries()).map(([goalId, stats]) => {
+                            const colorIndex = goalId ? goalColorMap.get(goalId) ?? 0 : -1;
+                            const color = colorIndex >= 0 ? GOAL_COLORS[colorIndex] : null;
+                            const completionRate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+
+                            return (
+                                <div
+                                    key={goalId || 'no-goal'}
+                                    className="card"
+                                    style={{
+                                        padding: '12px 16px',
+                                        borderLeft: color ? `4px solid ${color.border}` : '4px solid var(--color-text-muted)'
+                                    }}
+                                >
+                                    <div className="flex justify-between items-center mb-sm">
+                                        <span className="text-sm font-medium" style={{ maxWidth: '60%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            {stats.title}
+                                        </span>
+                                        <span className="text-sm" style={{ color: 'var(--color-accent)', fontWeight: 600 }}>
+                                            {completionRate}% complete
+                                        </span>
+                                    </div>
+                                    <div style={{
+                                        display: 'flex',
+                                        gap: '4px',
+                                        height: '6px',
+                                        borderRadius: '3px',
+                                        overflow: 'hidden',
+                                        background: 'var(--color-surface)'
+                                    }}>
+                                        {stats.completed > 0 && (
+                                            <div style={{
+                                                width: `${(stats.completed / stats.total) * 100}%`,
+                                                background: color ? color.bg : 'var(--gradient-success)',
+                                                borderRadius: '3px 0 0 3px'
+                                            }} />
+                                        )}
+                                        {stats.skipped > 0 && (
+                                            <div style={{
+                                                width: `${(stats.skipped / stats.total) * 100}%`,
+                                                background: 'var(--color-error)'
+                                            }} />
+                                        )}
+                                    </div>
+                                    <div className="flex gap-md mt-sm text-tiny text-muted">
+                                        <span>✓ {stats.completed}</span>
+                                        <span>✗ {stats.skipped}</span>
+                                        <span>Total: {stats.total}</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </section>
+            )}
 
             {/* Mood Chart (Simplified) */}
             {chartData.length > 0 && (
