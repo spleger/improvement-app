@@ -1260,28 +1260,60 @@ button {
    =================================== */
 
 .page-header-styled {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
-  padding: var(--spacing-xl) 0;
+  padding: var(--spacing-xl) var(--spacing-md);
   margin-bottom: var(--spacing-lg);
+  animation: fadeIn var(--transition-normal) ease-out;
 }
 
 .page-header-icon {
-  font-size: 2rem;
+  font-size: 2.5rem;
+  line-height: 1;
   margin-bottom: var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .page-header-title {
   font-size: 1.75rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-text-primary);
+  margin: 0;
   margin-bottom: var(--spacing-xs);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 .page-header-subtitle {
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   color: var(--color-text-secondary);
-  max-width: 280px;
+  max-width: 320px;
   margin: 0 auto;
+  line-height: 1.5;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 480px) {
+  .page-header-styled {
+    padding: var(--spacing-lg) var(--spacing-sm);
+  }
+
+  .page-header-icon {
+    font-size: 2rem;
+  }
+
+  .page-header-title {
+    font-size: 1.5rem;
+  }
+
+  .page-header-subtitle {
+    font-size: 0.85rem;
+    max-width: 280px;
+  }
 }
 
 /* ===================================
