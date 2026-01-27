@@ -78,8 +78,8 @@ export default function TopNavigation() {
 
                 {/* App title/home link - center */}
                 <Link href="/" className="nav-top-title">
-                    <span className="nav-top-logo">🎯</span>
-                    <span className="nav-top-app-name">Transform</span>
+                    <span className="nav-top-logo">🐿️</span>
+                    <span className="nav-top-quote">Grow Daily</span>
                 </Link>
 
                 {/* Quick actions + Challenge badge - right */}
@@ -184,7 +184,7 @@ export default function TopNavigation() {
                     font-size: 1.25rem;
                 }
 
-                .nav-top-app-name {
+                .nav-top-quote {
                     font-size: 1.125rem;
                     font-weight: 600;
                     color: var(--color-text-primary);
@@ -192,6 +192,10 @@ export default function TopNavigation() {
                     -webkit-background-clip: text;
                     -webkit-text-fill-color: transparent;
                     background-clip: text;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    max-width: 150px;
                 }
 
                 .nav-top-right {
@@ -308,8 +312,9 @@ export default function TopNavigation() {
                         padding-top: calc(var(--spacing-xs) + env(safe-area-inset-top));
                     }
 
-                    .nav-top-app-name {
-                        font-size: 1rem;
+                    .nav-top-quote {
+                        font-size: 0.9rem;
+                        max-width: 120px;
                     }
 
                     .nav-top-profile {

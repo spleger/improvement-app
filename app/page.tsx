@@ -108,6 +108,55 @@ export default async function DashboardPage() {
                 </div>
             )}
 
+            {/* Challenge Summary Section */}
+            <div className="card-glass mb-lg" style={{
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+            }}>
+                <div className="flex items-center gap-md mb-sm">
+                    <span style={{ fontSize: '1.5rem' }}>📋</span>
+                    <span className="heading-5">Challenge Summary</span>
+                </div>
+                <div className="flex gap-md" style={{ flexWrap: 'wrap' }}>
+                    <div className="flex flex-col items-center" style={{
+                        flex: 1,
+                        minWidth: '80px',
+                        padding: '0.75rem',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        borderRadius: '12px'
+                    }}>
+                        <span className="heading-3" style={{ color: 'var(--color-primary)' }}>
+                            {stats.todayTotal}
+                        </span>
+                        <span className="text-small text-muted">Today</span>
+                    </div>
+                    <div className="flex flex-col items-center" style={{
+                        flex: 1,
+                        minWidth: '80px',
+                        padding: '0.75rem',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        borderRadius: '12px'
+                    }}>
+                        <span className="heading-3" style={{ color: '#f59e0b' }}>
+                            {pendingChallenges.length}
+                        </span>
+                        <span className="text-small text-muted">Pending</span>
+                    </div>
+                    <div className="flex flex-col items-center" style={{
+                        flex: 1,
+                        minWidth: '80px',
+                        padding: '0.75rem',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        borderRadius: '12px'
+                    }}>
+                        <span className="heading-3" style={{ color: '#22c55e' }}>
+                            {stats.completedChallenges}
+                        </span>
+                        <span className="text-small text-muted">Completed</span>
+                    </div>
+                </div>
+            </div>
+
             {/* Active Goals with Nested Challenges */}
             <section className="mb-lg">
                 <div className="flex justify-between items-center mb-md">
@@ -187,23 +236,51 @@ export default async function DashboardPage() {
 
                                     {/* Nested Challenges for this Goal */}
                                     {goalChallenges.length > 0 && (
-                                        <div className="flex flex-col gap-sm" style={{
-                                            marginLeft: '1.5rem',
+                                        <div style={{
+                                            marginLeft: '1rem',
                                             marginTop: '0.75rem',
                                             paddingLeft: '1rem',
-                                            borderLeft: '2px solid rgba(255, 255, 255, 0.1)'
+                                            borderLeft: '3px solid var(--color-accent)',
+                                            position: 'relative'
                                         }}>
-                                            {/* Pending Challenges */}
-                                            {pendingGoalChallenges.map(challenge => (
-                                                <ChallengeCard key={challenge.id} challenge={challenge} />
-                                            ))}
+                                            {/* Challenge count label */}
+                                            <div style={{
+                                                fontSize: '0.7rem',
+                                                color: 'var(--color-text-muted)',
+                                                textTransform: 'uppercase',
+                                                letterSpacing: '0.05em',
+                                                marginBottom: '0.5rem',
+                                                paddingLeft: '0.25rem'
+                                            }}>
+                                                {goalChallenges.length} Challenge{goalChallenges.length !== 1 ? 's' : ''} Today
+                                            </div>
 
-                                            {/* Completed Challenges Summary */}
+                                            {/* Pending Challenges */}
+                                            <div className="flex flex-col gap-sm">
+                                                {pendingGoalChallenges.map(challenge => (
+                                                    <ChallengeCard key={challenge.id} challenge={challenge} />
+                                                ))}
+                                            </div>
+
+                                            {/* Completed Challenges - Show individual cards */}
                                             {completedGoalChallenges.length > 0 && (
-                                                <div className="card card-surface" style={{ padding: '0.75rem 1rem' }}>
-                                                    <div className="flex items-center gap-sm text-success">
-                                                        <span>✅</span>
-                                                        <span className="text-small">{completedGoalChallenges.length} completed today</span>
+                                                <div style={{ marginTop: pendingGoalChallenges.length > 0 ? '0.75rem' : '0' }}>
+                                                    {pendingGoalChallenges.length > 0 && (
+                                                        <div style={{
+                                                            fontSize: '0.7rem',
+                                                            color: 'var(--color-success)',
+                                                            textTransform: 'uppercase',
+                                                            letterSpacing: '0.05em',
+                                                            marginBottom: '0.5rem',
+                                                            paddingLeft: '0.25rem'
+                                                        }}>
+                                                            ✓ Completed
+                                                        </div>
+                                                    )}
+                                                    <div className="flex flex-col gap-sm">
+                                                        {completedGoalChallenges.map(challenge => (
+                                                            <ChallengeCard key={challenge.id} challenge={challenge} />
+                                                        ))}
                                                     </div>
                                                 </div>
                                             )}
@@ -316,38 +393,93 @@ function ChallengeCard({ challenge }: { challenge: any }) {
     const isCompleted = challenge.status === 'completed';
     const isRealityShift = challenge.isRealityShift;
 
+    // Difficulty color coding: green ≤3, amber ≤6, red >6
     const getDifficultyColor = (d: number) => {
-        if (d <= 3) return '#22c55e';
-        if (d <= 6) return '#f59e0b';
-        return '#ef4444';
+        if (d <= 3) return '#22c55e'; // Green - easy
+        if (d <= 6) return '#f59e0b'; // Amber - medium
+        return '#ef4444'; // Red - hard
     };
+
+    const getDifficultyLabel = (d: number) => {
+        if (d <= 3) return 'Easy';
+        if (d <= 6) return 'Medium';
+        return 'Hard';
+    };
+
+    const difficultyColor = getDifficultyColor(challenge.difficulty);
 
     return (
         <Link
             href={`/challenges/${challenge.id}`}
             className={`challenge-card ${isRealityShift ? 'reality-shift' : ''} ${isCompleted ? 'completed' : ''}`}
-            style={{ textDecoration: 'none', display: 'block' }}
+            style={{
+                textDecoration: 'none',
+                display: 'block',
+                background: 'var(--color-surface)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: 'var(--radius-lg)',
+                padding: 'var(--spacing-md)',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                position: 'relative',
+                overflow: 'hidden'
+            }}
         >
+            {/* Top accent bar based on difficulty */}
+            <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '3px',
+                background: isRealityShift
+                    ? 'linear-gradient(135deg, #f12711 0%, #f5af19 100%)'
+                    : isCompleted
+                        ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)'
+                        : `linear-gradient(135deg, ${difficultyColor} 0%, ${difficultyColor}dd 100%)`
+            }} />
+
             <div className="flex items-start gap-md">
+                {/* Difficulty indicator badge */}
                 <div style={{
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '12px',
-                    background: getDifficultyColor(challenge.difficulty),
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '10px',
+                    background: `linear-gradient(135deg, ${difficultyColor} 0%, ${difficultyColor}cc 100%)`,
                     display: 'flex',
+                    flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: 'white',
                     fontWeight: 'bold',
-                    fontSize: '1.25rem'
+                    fontSize: '1.125rem',
+                    flexShrink: 0,
+                    boxShadow: `0 2px 8px ${difficultyColor}40`
                 }}>
-                    {challenge.difficulty}
+                    <span>{challenge.difficulty}</span>
                 </div>
-                <div style={{ flex: 1 }}>
-                    <div className="flex items-center gap-sm mb-xs">
-                        <span className="heading-5">{challenge.title}</span>
+
+                {/* Challenge content */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="flex items-center gap-sm" style={{ marginBottom: '4px', flexWrap: 'wrap' }}>
+                        <span style={{
+                            fontWeight: 600,
+                            fontSize: '0.95rem',
+                            color: isCompleted ? 'var(--color-success)' : 'var(--color-text-primary)'
+                        }}>
+                            {isCompleted && '✓ '}{challenge.title}
+                        </span>
                         {isRealityShift && (
-                            <span style={{ fontSize: '0.75rem', color: '#f12711' }}>⚡</span>
+                            <span style={{
+                                fontSize: '0.7rem',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                background: 'linear-gradient(135deg, #f12711, #f5af19)',
+                                color: 'white',
+                                fontWeight: 600
+                            }}>
+                                ⚡ REALITY SHIFT
+                            </span>
                         )}
                     </div>
                     <p className="text-small text-muted" style={{
@@ -355,12 +487,33 @@ function ChallengeCard({ challenge }: { challenge: any }) {
                         textOverflow: 'ellipsis',
                         display: '-webkit-box',
                         WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical'
+                        WebkitBoxOrient: 'vertical',
+                        lineHeight: 1.4,
+                        margin: 0
                     }}>
                         {challenge.description}
                     </p>
+                    {/* Difficulty label */}
+                    <div style={{
+                        marginTop: '6px',
+                        fontSize: '0.7rem',
+                        color: difficultyColor,
+                        fontWeight: 500,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em'
+                    }}>
+                        {getDifficultyLabel(challenge.difficulty)} • Difficulty {challenge.difficulty}/10
+                    </div>
                 </div>
-                <span style={{ fontSize: '1.5rem' }}>→</span>
+
+                {/* Navigation arrow */}
+                <span style={{
+                    fontSize: '1.25rem',
+                    color: 'var(--color-text-muted)',
+                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center'
+                }}>→</span>
             </div>
         </Link>
     );
