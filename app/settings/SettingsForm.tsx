@@ -150,8 +150,16 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                 {/* Preferred Difficulty */}
                 <div className="form-group">
                     <label className="form-label">Default Difficulty Level</label>
-                    <div className="slider-container">
-                        <div className="flex items-center gap-md">
+                    <div
+                        className="slider-container"
+                        style={{
+                            padding: 'var(--spacing-lg) var(--spacing-md)',
+                            background: 'var(--color-surface)',
+                            borderRadius: 'var(--radius-md)',
+                            marginTop: 'var(--spacing-sm)'
+                        }}
+                    >
+                        <div className="flex items-center gap-lg">
                             <input
                                 type="range"
                                 min="1"
@@ -159,13 +167,25 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                                 value={prefs.preferredDifficulty}
                                 onChange={e => updatePref('preferredDifficulty', parseInt(e.target.value))}
                                 className="slider"
-                                style={{ flex: 1 }}
+                                style={{
+                                    flex: 1,
+                                    height: '12px',
+                                    cursor: 'pointer'
+                                }}
                             />
-                            <span className="heading-5" style={{ width: '40px', textAlign: 'center' }}>
+                            <span
+                                className="heading-4"
+                                style={{
+                                    width: '48px',
+                                    textAlign: 'center',
+                                    fontWeight: 600,
+                                    color: 'var(--color-accent)'
+                                }}
+                            >
                                 {prefs.preferredDifficulty}
                             </span>
                         </div>
-                        <p className="text-tiny text-muted" style={{ marginTop: 'var(--spacing-sm)' }}>
+                        <p className="text-tiny text-muted" style={{ marginTop: 'var(--spacing-md)' }}>
                             {prefs.preferredDifficulty! <= 3 ? 'Gentle start - building momentum' :
                                 prefs.preferredDifficulty! <= 6 ? 'Moderate - balanced challenge' :
                                     prefs.preferredDifficulty! <= 8 ? 'Intense - pushing boundaries' :

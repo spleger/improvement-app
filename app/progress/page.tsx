@@ -67,6 +67,7 @@ export default async function ProgressPage() {
         isEmpty?: boolean;
         goalId?: string | null;
         goalTitle?: string | null;
+        monthLabel?: string | null;
     }[] = [];
 
     // Start date (30 days ago)
@@ -83,9 +84,13 @@ export default async function ProgressPage() {
             date: '',
             dayOfMonth: 0,
             status: 'none',
-            isEmpty: true
+            isEmpty: true,
+            monthLabel: null
         });
     }
+
+    // Track previous month to detect month changes
+    let prevMonth: number | null = null;
 
     // Add the 30 days of data
     for (let i = 29; i >= 0; i--) {
@@ -97,13 +102,22 @@ export default async function ProgressPage() {
             new Date(c.scheduledDate).toISOString().split('T')[0] === dateStr
         );
 
+        // Check if month changed - show label on first day of month or first cell of new month
+        const currentMonth = date.getMonth();
+        const showMonthLabel = prevMonth === null || currentMonth !== prevMonth;
+        const monthLabel = showMonthLabel
+            ? date.toLocaleDateString('en-US', { month: 'short' })
+            : null;
+        prevMonth = currentMonth;
+
         calendarData.push({
             date: dateStr,
             dayOfMonth: date.getDate(),
             status: (dayChallenge?.status as any) || 'none',
             isEmpty: false,
             goalId: dayChallenge?.goalId || null,
-            goalTitle: dayChallenge?.goalTitle || null
+            goalTitle: dayChallenge?.goalTitle || null,
+            monthLabel
         });
     }
 
@@ -236,6 +250,22 @@ export default async function ProgressPage() {
                                     }}
                                     title={day.date ? `${day.date}: ${day.status}${day.goalTitle ? ` (${day.goalTitle})` : ''}` : ''}
                                 >
+                                    {/* Month indicator label */}
+                                    {day.monthLabel && (
+                                        <span style={{
+                                            position: 'absolute',
+                                            top: '1px',
+                                            left: '2px',
+                                            fontSize: '0.5rem',
+                                            fontWeight: 600,
+                                            lineHeight: 1,
+                                            color: ['completed', 'skipped'].includes(day.status) ? 'rgba(255,255,255,0.9)' : 'var(--color-accent)',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.02em'
+                                        }}>
+                                            {day.monthLabel}
+                                        </span>
+                                    )}
                                     {/* Goal indicator dot */}
                                     {day.goalId && day.status !== 'none' && goalColor && (
                                         <span style={{
@@ -253,7 +283,8 @@ export default async function ProgressPage() {
                                     <span style={{
                                         fontSize: '0.7rem',
                                         fontWeight: 600,
-                                        lineHeight: 1
+                                        lineHeight: 1,
+                                        marginTop: day.monthLabel ? '6px' : '0'
                                     }}>
                                         {day.dayOfMonth || ''}
                                     </span>
@@ -427,7 +458,7 @@ export default async function ProgressPage() {
                         📝 Daily Check-in
                     </Link>
                     <Link href="/" className="btn btn-secondary" style={{ flex: 1 }}>
-                        🏠 Dashboard
+                        🏠 Home
                     </Link>
                 </div>
             </section>
