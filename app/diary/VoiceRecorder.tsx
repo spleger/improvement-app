@@ -26,9 +26,16 @@ export default function VoiceRecorder() {
     const chunksRef = useRef<Blob[]>([]);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
+    // Use ref to track recording state for speech recognition restart logic
+    const isRecordingRef = useRef(false);
 
+    // Keep ref in sync with state
     useEffect(() => {
-        // Initialize Speech Recognition
+        isRecordingRef.current = state === 'recording';
+    }, [state]);
+
+    // Initialize Speech Recognition once on mount
+    useEffect(() => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
             const recognition = new SpeechRecognition();
@@ -56,19 +63,19 @@ export default function VoiceRecorder() {
             };
 
             recognition.onerror = (event: any) => {
-                console.error('Speech recognition error:', event.error);
                 if (event.error === 'not-allowed') {
                     setError('Microphone access denied. Please allow microphone permissions.');
                 }
+                // Other errors like 'no-speech' are normal and don't need user notification
             };
 
             recognition.onend = () => {
-                // Restart if still recording
-                if (state === 'recording' && recognitionRef.current) {
+                // Restart if still recording (use ref to get current state)
+                if (isRecordingRef.current && recognitionRef.current) {
                     try {
                         recognitionRef.current.start();
                     } catch (e) {
-                        // Already started
+                        // Already started or other error - ignore
                     }
                 }
             };
@@ -87,7 +94,7 @@ export default function VoiceRecorder() {
                 } catch (e) { }
             }
         };
-    }, [state]);
+    }, []);
 
     const formatDuration = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -135,7 +142,7 @@ export default function VoiceRecorder() {
                 try {
                     recognitionRef.current.start();
                 } catch (e) {
-                    console.log('Recognition already started');
+                    // Already started - ignore
                 }
             }
 
@@ -148,7 +155,6 @@ export default function VoiceRecorder() {
             }, 1000);
 
         } catch (err) {
-            console.error('Error accessing microphone:', err);
             setError('Could not access microphone. Please allow microphone permissions.');
         }
     };
@@ -226,8 +232,8 @@ export default function VoiceRecorder() {
 
             setState('saved');
         } catch (err) {
-            console.error('Error saving:', err);
-            setState('saved'); // Still show as saved for demo
+            setError('Failed to save entry. Please try again.');
+            setState('stopped'); // Return to review state so user can retry
         }
     };
 
