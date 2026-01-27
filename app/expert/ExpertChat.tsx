@@ -55,7 +55,7 @@ export default function ExpertChat() {
     const [showCreateModal, setShowCreateModal] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const inputRef = useRef<HTMLTextAreaElement>(null);
 
     // Voice Recording State
     const [isRecording, setIsRecording] = useState(false);
@@ -79,6 +79,14 @@ export default function ExpertChat() {
             localStorage.setItem('selectedCoachId', selectedCoach.id);
         }
     }, [selectedCoach]);
+
+    // Auto-resize textarea
+    useEffect(() => {
+        if (inputRef.current) {
+            inputRef.current.style.height = '52px'; // Reset height to calculate correct scrollHeight
+            inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`;
+        }
+    }, [input]);
 
     // Load TTS mute preference from localStorage
     useEffect(() => {
@@ -711,14 +719,20 @@ export default function ExpertChat() {
                 >
                     {isTranscribing ? <Loader2 size={20} className="spin-icon" /> : <Mic size={20} />}
                 </button>
-                <input
+                <textarea
                     ref={inputRef}
-                    type="text"
                     value={input}
                     onChange={e => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSubmit(e);
+                        }
+                    }}
                     placeholder={isTranscribing ? 'Transcribing...' : `Message ${selectedCoach.name}...`}
-                    className="chat-input"
+                    className="chat-input custom-scrollbar"
                     disabled={isLoading || isTranscribing}
+                    rows={1}
                 />
                 <button
                     type="submit"
@@ -1063,6 +1077,11 @@ export default function ExpertChat() {
                     color: var(--color-text);
                     outline: none;
                     transition: border-color 0.2s;
+                    resize: none;
+                    height: 52px;
+                    min-height: 52px;
+                    max-height: 120px;
+                    line-height: 1.5;
                 }
 
                 .chat-input:focus {
