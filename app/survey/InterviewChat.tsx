@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Mic, Volume2, VolumeX, User, MessageCircle } from 'lucide-react';
+import { Send, Mic, Volume2, VolumeX, User, MessageCircle, Loader2 } from 'lucide-react';
 
 interface Message {
     id: string;
@@ -617,7 +617,7 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
                     setIsTranscribing(true);
                     try {
                         const formData = new FormData();
-                        formData.append('audio', audioBlob, 'recording.webm');
+                        formData.append('file', audioBlob, 'recording.webm');
 
                         const response = await fetch('/api/transcribe', {
                             method: 'POST',
@@ -625,8 +625,10 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
                         });
 
                         const data = await response.json();
-                        if (data.success && data.data.text) {
-                            setInput(prev => prev + (prev ? ' ' : '') + data.data.text);
+                        const text = data.text || data.data?.text || '';
+
+                        if (text) {
+                            setInput(prev => prev + (prev ? ' ' : '') + text);
                             inputRef.current?.focus();
                         }
                     } catch {
