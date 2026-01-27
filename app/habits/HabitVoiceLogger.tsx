@@ -26,7 +26,7 @@ declare global {
 // Transcription timeout in milliseconds (30 seconds)
 const TRANSCRIPTION_TIMEOUT = 30000;
 
-type RecordingState = 'idle' | 'recording' | 'transcribing' | 'interpreting' | 'confirming';
+type RecordingState = 'idle' | 'recording' | 'transcribing' | 'previewing' | 'interpreting' | 'confirming';
 
 export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLoggerProps) {
     const [state, setState] = useState<RecordingState>('idle');
@@ -144,8 +144,8 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                 return;
             }
 
-            // Now interpret the transcript
-            await interpretTranscript(text);
+            // Show transcript preview before AI interpretation
+            setState('previewing');
         } catch (err: any) {
             clearTimeout(timeoutId);
 
@@ -162,6 +162,12 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
     const retryTranscription = async () => {
         if (audioBlobRef.current) {
             await transcribeAudio(audioBlobRef.current);
+        }
+    };
+
+    const proceedToInterpret = async () => {
+        if (transcript.trim()) {
+            await interpretTranscript(transcript);
         }
     };
 
@@ -324,6 +330,35 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                             </div>
                             <h2>Transcribing...</h2>
                             <p>Converting speech to text</p>
+                        </>
+                    )}
+
+                    {/* PREVIEWING State - Shows transcript before AI interpretation */}
+                    {state === 'previewing' && (
+                        <>
+                            <div className="voice-icon idle">
+                                <Check size={48} />
+                            </div>
+                            <h2>Transcript Ready</h2>
+                            <p>Review what was transcribed before AI interpretation</p>
+
+                            <div className="transcript-preview">
+                                <span className="transcript-label">You said:</span>
+                                <p className="transcript-text">"{transcript}"</p>
+                            </div>
+
+                            {error && <div className="error">{error}</div>}
+
+                            <div className="preview-actions">
+                                <button className="retry-btn" onClick={reset}>
+                                    <RotateCcw size={18} />
+                                    Re-record
+                                </button>
+                                <button className="confirm-btn" onClick={proceedToInterpret}>
+                                    <Check size={18} />
+                                    Continue
+                                </button>
+                            </div>
                         </>
                     )}
 
@@ -649,7 +684,8 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                         font-size: 0.9rem;
                     }
 
-                    .confirm-actions {
+                    .confirm-actions,
+                    .preview-actions {
                         display: flex;
                         gap: 12px;
                         margin-top: 20px;
