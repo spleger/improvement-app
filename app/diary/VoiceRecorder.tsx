@@ -1,8 +1,12 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { RotateCcw } from 'lucide-react';
 
 type RecordingState = 'idle' | 'recording' | 'paused' | 'stopped' | 'processing' | 'saved';
+
+// Transcription timeout in milliseconds (30 seconds)
+const TRANSCRIPTION_TIMEOUT = 30000;
 
 // Extend Window interface for Speech Recognition
 declare global {
@@ -21,11 +25,14 @@ export default function VoiceRecorder() {
     const [error, setError] = useState<string | null>(null);
     const [moodScore, setMoodScore] = useState(5);
 
+    const [canRetryTranscription, setCanRetryTranscription] = useState(false);
+
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const recognitionRef = useRef<any>(null);
     const chunksRef = useRef<Blob[]>([]);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
+    const audioBlobRef = useRef<Blob | null>(null);
     // Use ref to track recording state for speech recognition restart logic
     const isRecordingRef = useRef(false);
 
@@ -128,10 +135,23 @@ export default function VoiceRecorder() {
                 }
             };
 
-            mediaRecorder.onstop = () => {
+            mediaRecorder.onstop = async () => {
                 const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+                audioBlobRef.current = blob; // Store for retry capability
                 const url = URL.createObjectURL(blob);
                 setAudioUrl(url);
+
+                // Check if Web Speech API captured any transcript
+                // Use a small delay to ensure final results are processed
+                setTimeout(() => {
+                    setTranscript(currentTranscript => {
+                        if (!currentTranscript.trim()) {
+                            // No speech detected by Web Speech API - fallback to Whisper
+                            transcribeWithWhisper(blob);
+                        }
+                        return currentTranscript;
+                    });
+                }, 500);
             };
 
             // Start audio recording
@@ -205,6 +225,67 @@ export default function VoiceRecorder() {
         }
     };
 
+    const transcribeWithWhisper = async (audioBlob: Blob) => {
+        setState('processing');
+        setError(null);
+        setCanRetryTranscription(false);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), TRANSCRIPTION_TIMEOUT);
+
+        try {
+            const formData = new FormData();
+            formData.append('file', audioBlob, 'recording.webm');
+
+            const response = await fetch('/api/transcribe', {
+                method: 'POST',
+                body: formData,
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            const data = await response.json();
+
+            // Check for API error response (standardized format: { success: boolean, data/error })
+            if (!response.ok || data.success === false) {
+                throw new Error(data.error || `Server error: ${response.status}`);
+            }
+
+            // Extract transcript from standardized API response format
+            // API returns: { success: true, data: { text: '...', message?: '...' } }
+            const text = data.data?.text ?? '';
+            const message = data.data?.message;
+
+            // Set transcript (may be empty if no speech detected)
+            setTranscript(text);
+
+            // Handle 'no speech detected' case - show message but still allow manual entry
+            if (!text && message) {
+                setError(message);
+                setCanRetryTranscription(true);
+            }
+
+            setState('stopped');
+        } catch (err: any) {
+            clearTimeout(timeoutId);
+
+            if (err.name === 'AbortError') {
+                setError('Transcription timed out. Please retry.');
+            } else {
+                setError(err.message || 'Transcription failed. Please retry or edit manually.');
+            }
+            setCanRetryTranscription(true);
+            setState('stopped');
+        }
+    };
+
+    const retryTranscription = async () => {
+        if (audioBlobRef.current) {
+            await transcribeWithWhisper(audioBlobRef.current);
+        }
+    };
+
     const discardRecording = () => {
         if (audioUrl) URL.revokeObjectURL(audioUrl);
         setAudioUrl(null);
@@ -213,6 +294,9 @@ export default function VoiceRecorder() {
         setDuration(0);
         setState('idle');
         chunksRef.current = [];
+        audioBlobRef.current = null;
+        setError(null);
+        setCanRetryTranscription(false);
     };
 
     const saveRecording = async () => {
@@ -247,6 +331,16 @@ export default function VoiceRecorder() {
             {error && (
                 <div className="card mb-lg" style={{ borderLeft: '4px solid var(--color-error)' }}>
                     <p style={{ color: 'var(--color-error)' }}>{error}</p>
+                    {canRetryTranscription && state === 'stopped' && (
+                        <button
+                            onClick={retryTranscription}
+                            className="btn btn-secondary mt-sm"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        >
+                            <RotateCcw size={16} />
+                            Retry Transcription
+                        </button>
+                    )}
                 </div>
             )}
 
@@ -417,7 +511,8 @@ export default function VoiceRecorder() {
                     <div style={{ fontSize: '3rem', marginBottom: '1rem', animation: 'spin 1s linear infinite' }}>
                         ⏳
                     </div>
-                    <h3 className="heading-4 mb-sm">Saving...</h3>
+                    <h3 className="heading-4 mb-sm">Processing...</h3>
+                    <p className="text-muted text-small">Transcribing your audio</p>
                 </div>
             )}
 
