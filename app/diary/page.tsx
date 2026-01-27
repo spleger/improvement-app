@@ -90,9 +90,16 @@ export default function DiaryPage() {
                         </h2>
 
                         {isLoading ? (
-                            <div className="space-y-md">
+                            <div className="space-y-lg">
                                 {[1, 2, 3].map(i => (
-                                    <div key={i} className="card-glass loading-breathe boxed-accent-top">
+                                    <div
+                                        key={i}
+                                        className="card-glass loading-breathe boxed-accent-top"
+                                        style={{
+                                            boxShadow: 'var(--shadow-md)',
+                                            border: '1px solid var(--color-border)'
+                                        }}
+                                    >
                                         {/* Header Skeleton */}
                                         <div className="flex justify-between items-center mb-md pb-sm" style={{ borderBottom: '1px solid var(--color-border)' }}>
                                             <div className="skeleton-breathe" style={{ height: '16px', width: '180px', borderRadius: 'var(--radius-sm)' }} />
@@ -118,14 +125,37 @@ export default function DiaryPage() {
                                 ))}
                             </div>
                         ) : entries.length === 0 ? (
-                            <div className="card p-xl text-center text-muted">
-                                <Mic size={48} className="mx-auto mb-md opacity-20" />
-                                <p>No entries yet. Start your first recording above!</p>
+                            <div
+                                className="card-glass boxed-accent-top text-center"
+                                style={{
+                                    boxShadow: 'var(--shadow-md)',
+                                    border: '1px solid var(--color-border)',
+                                    padding: 'var(--spacing-xl)'
+                                }}
+                            >
+                                <Mic size={48} className="mx-auto mb-md" style={{ opacity: 0.3, color: 'var(--color-text-muted)' }} />
+                                <p style={{ color: 'var(--color-text-secondary)' }}>No entries yet. Start your first recording above!</p>
                             </div>
                         ) : (
-                            <div className="space-y-md">
+                            <div className="space-y-lg">
                                 {entries.map(entry => (
-                                    <div key={entry.id} className="card-glass boxed-accent-top">
+                                    <div
+                                        key={entry.id}
+                                        className="card-glass boxed-accent-top"
+                                        style={{
+                                            boxShadow: 'var(--shadow-md)',
+                                            border: '1px solid var(--color-border)',
+                                            transition: 'box-shadow var(--transition-normal), transform var(--transition-normal)'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
+                                            e.currentTarget.style.transform = 'translateY(-2px)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+                                            e.currentTarget.style.transform = 'translateY(0)';
+                                        }}
+                                    >
                                         {/* Entry Header - Date & Duration grouped */}
                                         <div className="flex justify-between items-center mb-md pb-sm" style={{ borderBottom: '1px solid var(--color-border)' }}>
                                             <div className="flex items-center gap-sm text-sm" style={{ color: 'var(--color-text-secondary)' }}>
