@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown, Plus, Trash2, MoreHorizontal, Mic, Volume2, VolumeX } from 'lucide-react';
+import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown, Plus, Trash2, MoreHorizontal, Mic, Volume2, VolumeX, Loader2 } from 'lucide-react';
 import { getIcon } from '@/lib/icons';
 import ChallengeProposal from './widgets/ChallengeProposal';
 import MoodLogWidget from './widgets/MoodLogWidget';
@@ -505,7 +505,7 @@ export default function ExpertChat() {
                     setIsTranscribing(true);
                     try {
                         const formData = new FormData();
-                        formData.append('audio', audioBlob, 'recording.webm');
+                        formData.append('file', audioBlob, 'recording.webm');
 
                         const response = await fetch('/api/transcribe', {
                             method: 'POST',
@@ -513,8 +513,10 @@ export default function ExpertChat() {
                         });
 
                         const data = await response.json();
-                        if (data.success && data.data.text) {
-                            setInput(prev => prev + (prev ? ' ' : '') + data.data.text);
+                        // Handle response - API returns { text: string }
+                        const transcribedText = data.text || data.data?.text || '';
+                        if (transcribedText) {
+                            setInput(prev => prev + (prev ? ' ' : '') + transcribedText);
                             inputRef.current?.focus();
                         }
                     } catch (error) {
@@ -705,9 +707,9 @@ export default function ExpertChat() {
                     onClick={handleVoiceInput}
                     className={`mic-btn ${isRecording ? 'recording' : ''} ${isTranscribing ? 'transcribing' : ''}`}
                     disabled={isLoading || isTranscribing}
-                    title={isRecording ? 'Stop recording' : 'Voice input'}
+                    title={isRecording ? 'Stop recording' : isTranscribing ? 'Transcribing...' : 'Voice input'}
                 >
-                    <Mic size={20} />
+                    {isTranscribing ? <Loader2 size={20} className="spin-icon" /> : <Mic size={20} />}
                 </button>
                 <input
                     ref={inputRef}
@@ -1134,8 +1136,18 @@ export default function ExpertChat() {
                 }
 
                 .mic-btn.transcribing {
-                    color: var(--color-accent);
-                    opacity: 0.6;
+                    color: white;
+                    background: var(--color-primary, #8b5cf6);
+                    opacity: 1;
+                }
+                
+                .spin-icon {
+                    animation: spin 1s linear infinite;
+                }
+                
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
                 }
 
                 .mic-btn:disabled {
