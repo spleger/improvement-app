@@ -108,6 +108,55 @@ export default async function DashboardPage() {
                 </div>
             )}
 
+            {/* Challenge Summary Section */}
+            <div className="card-glass mb-lg" style={{
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+            }}>
+                <div className="flex items-center gap-md mb-sm">
+                    <span style={{ fontSize: '1.5rem' }}>📋</span>
+                    <span className="heading-5">Challenge Summary</span>
+                </div>
+                <div className="flex gap-md" style={{ flexWrap: 'wrap' }}>
+                    <div className="flex flex-col items-center" style={{
+                        flex: 1,
+                        minWidth: '80px',
+                        padding: '0.75rem',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        borderRadius: '12px'
+                    }}>
+                        <span className="heading-3" style={{ color: 'var(--color-primary)' }}>
+                            {stats.todayTotal}
+                        </span>
+                        <span className="text-small text-muted">Today</span>
+                    </div>
+                    <div className="flex flex-col items-center" style={{
+                        flex: 1,
+                        minWidth: '80px',
+                        padding: '0.75rem',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        borderRadius: '12px'
+                    }}>
+                        <span className="heading-3" style={{ color: '#f59e0b' }}>
+                            {pendingChallenges.length}
+                        </span>
+                        <span className="text-small text-muted">Pending</span>
+                    </div>
+                    <div className="flex flex-col items-center" style={{
+                        flex: 1,
+                        minWidth: '80px',
+                        padding: '0.75rem',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        borderRadius: '12px'
+                    }}>
+                        <span className="heading-3" style={{ color: '#22c55e' }}>
+                            {stats.completedChallenges}
+                        </span>
+                        <span className="text-small text-muted">Completed</span>
+                    </div>
+                </div>
+            </div>
+
             {/* Active Goals with Nested Challenges */}
             <section className="mb-lg">
                 <div className="flex justify-between items-center mb-md">
