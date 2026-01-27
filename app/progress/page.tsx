@@ -458,7 +458,7 @@ export default async function ProgressPage() {
                         📝 Daily Check-in
                     </Link>
                     <Link href="/" className="btn btn-secondary" style={{ flex: 1 }}>
-                        🏠 Dashboard
+                        🏠 Home
                     </Link>
                 </div>
             </section>
