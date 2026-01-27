@@ -469,7 +469,7 @@ export default function ExpertChat() {
     };
 
     const handleCreateCoach = (newCoach: any) => {
-        setCoaches(prev => [...prev, {
+        const createdCoach: Coach = {
             id: newCoach.id,
             name: newCoach.name,
             icon: newCoach.icon,
@@ -477,7 +477,10 @@ export default function ExpertChat() {
             description: 'Custom AI Coach',
             type: 'custom',
             systemPrompt: newCoach.systemPrompt
-        }]);
+        };
+        setCoaches(prev => [...prev, createdCoach]);
+        // Auto-select the newly created coach
+        setSelectedCoach(createdCoach);
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -754,17 +757,18 @@ export default function ExpertChat() {
                 .expert-chat {
                     display: flex;
                     flex-direction: column;
-                    height: calc(100vh - 160px);
                     min-height: 400px;
-                    max-height: 600px;
                     background: var(--color-surface);
                     border-radius: 24px;
                     border: 1px solid var(--color-border);
                     overflow: hidden;
                     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-                    position: relative;
-                    margin: 0 auto;
-                    width: 100%;
+                    position: fixed;
+                    top: max(16px, env(safe-area-inset-top));
+                    left: 16px;
+                    right: 16px;
+                    bottom: calc(80px + env(safe-area-inset-bottom));
+                    z-index: 10;
                 }
 
                 .chat-header {
@@ -877,13 +881,13 @@ export default function ExpertChat() {
                     top: calc(100% + 8px);
                     left: 16px;
                     right: 16px;
-                    background: var(--color-surface);
+                    background: #ffffff;
                     border: 1px solid var(--color-border);
                     border-radius: 16px;
                     padding: 12px;
                     z-index: 100;
-                    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2);
-                    max-height: 400px;
+                    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.25);
+                    max-height: 60vh;
                     overflow-y: auto;
                     animation: slideDown 0.2s ease-out;
                 }
@@ -904,10 +908,18 @@ export default function ExpertChat() {
                 }
 
                 .dropdown-grid {
-                    display: grid;
-                    grid-template-columns: repeat(3, 1fr);
+                    display: flex;
+                    flex-wrap: wrap;
                     gap: 12px;
                     margin-bottom: 16px;
+                    max-height: 200px;
+                    overflow-y: auto;
+                }
+
+                .dropdown-grid > * {
+                    flex: 0 0 calc(33.333% - 8px);
+                    min-width: 80px;
+                    max-width: calc(33.333% - 8px);
                 }
 
                 .chat-messages {
@@ -1031,9 +1043,20 @@ export default function ExpertChat() {
 
                 .quick-actions {
                     display: flex;
-                    flex-wrap: wrap;
+                    flex-wrap: nowrap;
                     gap: 8px;
                     padding: 0 20px 16px;
+                    overflow-x: auto;
+                    overflow-y: hidden;
+                    -webkit-overflow-scrolling: touch;
+                    scroll-snap-type: x mandatory;
+                    scrollbar-width: none;
+                    -ms-overflow-style: none;
+                    flex-shrink: 0;
+                }
+
+                .quick-actions::-webkit-scrollbar {
+                    display: none;
                 }
 
                 .quick-action-btn {
@@ -1045,6 +1068,9 @@ export default function ExpertChat() {
                     color: var(--color-text);
                     cursor: pointer;
                     transition: all 0.2s;
+                    white-space: nowrap;
+                    flex-shrink: 0;
+                    scroll-snap-align: start;
                 }
 
                 .quick-action-btn:hover:not(:disabled) {
@@ -1060,11 +1086,13 @@ export default function ExpertChat() {
 
                 .chat-input-form {
                     display: flex;
+                    align-items: flex-end;
                     gap: 12px;
                     padding: 16px 20px;
+                    padding-right: 24px;
                     border-top: 1px solid var(--color-border);
-                    background: rgba(var(--color-surface-rgb), 0.85);
-                    backdrop-filter: blur(12px);
+                    background: var(--color-surface);
+                    flex-shrink: 0;
                 }
 
                 .chat-input {
@@ -1189,12 +1217,26 @@ export default function ExpertChat() {
                 }
 
                 @media (max-width: 640px) {
-                    .coach-dropdown {
-                        grid-template-columns: repeat(2, 1fr);
+                    .expert-chat {
+                        left: 8px;
+                        right: 8px;
+                        border-radius: 16px;
+                        top: max(8px, env(safe-area-inset-top));
+                        bottom: calc(70px + env(safe-area-inset-bottom));
                     }
-                    
+
+                    .dropdown-grid > * {
+                        flex: 0 0 calc(50% - 6px);
+                        max-width: calc(50% - 6px);
+                    }
+
                     .message-bubble {
                         max-width: 85%;
+                    }
+
+                    .chat-input-form {
+                        padding: 12px 16px;
+                        padding-right: 20px;
                     }
                 }
             `}</style>

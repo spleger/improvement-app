@@ -110,6 +110,8 @@ model Challenge {
   templateId          String?
   title               String
   description         String
+  instructions        String?
+  successCriteria     String?
   personalizationNotes String?
   difficulty          Int
   isRealityShift      Boolean   @default(false)

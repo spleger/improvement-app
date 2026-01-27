@@ -2,7 +2,6 @@ import Link from 'next/link';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import BottomNavigation from '../components/BottomNavigation';
 import PageHeader from '../components/PageHeader';
 
 // Goal color palette for visual distinction
@@ -327,61 +326,61 @@ export default async function ProgressPage() {
                     <hr className="section-separator-gradient" />
 
                     <section style={{ marginBottom: 'var(--spacing-2xl)' }}>
-                    <h2 className="heading-4 mb-md">Progress by Goal</h2>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {Array.from(goalStats.entries()).map(([goalId, stats]) => {
-                            const colorIndex = goalId ? goalColorMap.get(goalId) ?? 0 : -1;
-                            const color = colorIndex >= 0 ? GOAL_COLORS[colorIndex] : null;
-                            const completionRate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+                        <h2 className="heading-4 mb-md">Progress by Goal</h2>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {Array.from(goalStats.entries()).map(([goalId, stats]) => {
+                                const colorIndex = goalId ? goalColorMap.get(goalId) ?? 0 : -1;
+                                const color = colorIndex >= 0 ? GOAL_COLORS[colorIndex] : null;
+                                const completionRate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
 
-                            return (
-                                <div
-                                    key={goalId || 'no-goal'}
-                                    className="card"
-                                    style={{
-                                        padding: '12px 16px',
-                                        borderLeft: color ? `4px solid ${color.border}` : '4px solid var(--color-text-muted)'
-                                    }}
-                                >
-                                    <div className="flex justify-between items-center mb-sm">
-                                        <span className="text-sm font-medium" style={{ maxWidth: '60%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                            {stats.title}
-                                        </span>
-                                        <span className="text-sm" style={{ color: 'var(--color-accent)', fontWeight: 600 }}>
-                                            {completionRate}% complete
-                                        </span>
+                                return (
+                                    <div
+                                        key={goalId || 'no-goal'}
+                                        className="card"
+                                        style={{
+                                            padding: '12px 16px',
+                                            borderLeft: color ? `4px solid ${color.border}` : '4px solid var(--color-text-muted)'
+                                        }}
+                                    >
+                                        <div className="flex justify-between items-center mb-sm">
+                                            <span className="text-sm font-medium" style={{ maxWidth: '60%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {stats.title}
+                                            </span>
+                                            <span className="text-sm" style={{ color: 'var(--color-accent)', fontWeight: 600 }}>
+                                                {completionRate}% complete
+                                            </span>
+                                        </div>
+                                        <div style={{
+                                            display: 'flex',
+                                            gap: '4px',
+                                            height: '6px',
+                                            borderRadius: '3px',
+                                            overflow: 'hidden',
+                                            background: 'var(--color-surface)'
+                                        }}>
+                                            {stats.completed > 0 && (
+                                                <div style={{
+                                                    width: `${(stats.completed / stats.total) * 100}%`,
+                                                    background: color ? color.bg : 'var(--gradient-success)',
+                                                    borderRadius: '3px 0 0 3px'
+                                                }} />
+                                            )}
+                                            {stats.skipped > 0 && (
+                                                <div style={{
+                                                    width: `${(stats.skipped / stats.total) * 100}%`,
+                                                    background: 'var(--color-error)'
+                                                }} />
+                                            )}
+                                        </div>
+                                        <div className="flex gap-md mt-sm text-tiny text-muted">
+                                            <span>✓ {stats.completed}</span>
+                                            <span>✗ {stats.skipped}</span>
+                                            <span>Total: {stats.total}</span>
+                                        </div>
                                     </div>
-                                    <div style={{
-                                        display: 'flex',
-                                        gap: '4px',
-                                        height: '6px',
-                                        borderRadius: '3px',
-                                        overflow: 'hidden',
-                                        background: 'var(--color-surface)'
-                                    }}>
-                                        {stats.completed > 0 && (
-                                            <div style={{
-                                                width: `${(stats.completed / stats.total) * 100}%`,
-                                                background: color ? color.bg : 'var(--gradient-success)',
-                                                borderRadius: '3px 0 0 3px'
-                                            }} />
-                                        )}
-                                        {stats.skipped > 0 && (
-                                            <div style={{
-                                                width: `${(stats.skipped / stats.total) * 100}%`,
-                                                background: 'var(--color-error)'
-                                            }} />
-                                        )}
-                                    </div>
-                                    <div className="flex gap-md mt-sm text-tiny text-muted">
-                                        <span>✓ {stats.completed}</span>
-                                        <span>✗ {stats.skipped}</span>
-                                        <span>Total: {stats.total}</span>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                                );
+                            })}
+                        </div>
                     </section>
                 </>
             )}
@@ -393,27 +392,27 @@ export default async function ProgressPage() {
                     <hr className="section-separator-gradient" />
 
                     <section style={{ marginBottom: 'var(--spacing-2xl)' }}>
-                    <h2 className="heading-4 mb-md">Mood & Energy Trends</h2>
-                    <div className="card">
-                        <div style={{ height: '150px', display: 'flex', alignItems: 'flex-end', gap: '4px' }}>
-                            {chartData.slice(-14).map((point, i) => (
-                                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                    <div
-                                        style={{
-                                            height: `${point.mood * 10}% `,
-                                            background: 'var(--gradient-primary)',
-                                            borderRadius: '2px 2px 0 0',
-                                            minHeight: '4px'
-                                        }}
-                                        title={`Mood: ${point.mood} `}
-                                    />
-                                </div>
-                            ))}
+                        <h2 className="heading-4 mb-md">Mood & Energy Trends</h2>
+                        <div className="card">
+                            <div style={{ height: '150px', display: 'flex', alignItems: 'flex-end', gap: '4px' }}>
+                                {chartData.slice(-14).map((point, i) => (
+                                    <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                        <div
+                                            style={{
+                                                height: `${point.mood * 10}% `,
+                                                background: 'var(--gradient-primary)',
+                                                borderRadius: '2px 2px 0 0',
+                                                minHeight: '4px'
+                                            }}
+                                            title={`Mood: ${point.mood} `}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="text-tiny text-muted text-center mt-sm">
+                                Last {Math.min(14, chartData.length)} days • Mood levels (1-10)
+                            </div>
                         </div>
-                        <div className="text-tiny text-muted text-center mt-sm">
-                            Last {Math.min(14, chartData.length)} days • Mood levels (1-10)
-                        </div>
-                    </div>
                     </section>
                 </>
             )}
@@ -434,7 +433,6 @@ export default async function ProgressPage() {
             </section>
 
             {/* Bottom Navigation */}
-            <BottomNavigation />
         </div>
     );
 }

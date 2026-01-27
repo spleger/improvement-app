@@ -58,7 +58,6 @@ function getGreeting() {
 
 import ThemeToggle from './ThemeToggle';
 import GoalCelebrationWrapper from './components/GoalCelebrationWrapper';
-import BottomNavigation from './components/BottomNavigation';
 import GoalActions from './components/GoalActions';
 
 // ... (keep existing imports)
@@ -308,9 +307,6 @@ export default async function DashboardPage() {
                     </Link>
                 </section>
             )}
-
-            {/* Bottom Navigation */}
-            <BottomNavigation />
         </div>
     );
 }

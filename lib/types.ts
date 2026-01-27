@@ -58,6 +58,8 @@ export interface Challenge {
     templateId: string | null;
     title: string;
     description: string;
+    instructions?: string | null;
+    successCriteria?: string | null;
     personalizationNotes: string | null;
     difficulty: number;
     isRealityShift: boolean;

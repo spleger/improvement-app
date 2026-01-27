@@ -53,6 +53,9 @@
   - Summary at top: "X completed today"
   - Below summary: Individual box for each outstanding (non-completed) challenge
   - Each challenge should be clickable/viewable
+- [ ] **Completed challenges count missing** — Should show how many challenges were completed (e.g., "3 completed today")
+- [ ] **New challenges don't appear after creation** — After generating challenges, they don't show up under the goal even after multiple reloads; should auto-refresh and display immediately
+- [ ] **Challenge Library missing from homepage** — The "Browse Challenges" section has disappeared; restore it below goals and above stats
 
 ### Navigation
 
@@ -113,6 +116,9 @@
 
 - [ ] **Recording area lacks boxing** — Currently text on background
 - [ ] **Entry design spacing off** — Needs better visual grouping
+- [ ] **Too many entries showing** — Only show last 3 recent entries; insights should appear below entries without excessive scrolling
+- [ ] **Long text not truncated** — Transcript and AI analysis should be compressed with "Read more" to expand; avoid showing full text by default
+- [ ] **Text border styling** — Borders should be rounded and have more padding so text doesn't touch the edge
 
 ### Profile Page
 

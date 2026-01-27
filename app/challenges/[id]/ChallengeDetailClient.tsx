@@ -3,12 +3,52 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+interface ChallengeInfo {
+    title: string;
+    description: string;
+    difficulty: number;
+    personalizationNotes?: string;
+    domain?: string;
+}
+
 interface Props {
     challengeId: string;
     isCompleted: boolean;
+    challenge: ChallengeInfo;
 }
 
-export default function ChallengeDetailClient({ challengeId, isCompleted }: Props) {
+// Generate dynamic tips based on challenge content
+function getDynamicTips(challenge: ChallengeInfo): string[] {
+    const tips: string[] = [];
+
+    // Difficulty-based tips
+    if (challenge.difficulty <= 3) {
+        tips.push('This is a gentle challenge - perfect for building momentum');
+        tips.push('Focus on completing it rather than perfecting it');
+    } else if (challenge.difficulty <= 6) {
+        tips.push('Set aside focused time without distractions');
+        tips.push('Break it down into smaller steps if needed');
+    } else {
+        tips.push('This is a challenging one - prepare mentally first');
+        tips.push('Consider tackling this when your energy is highest');
+        tips.push('It\'s okay to take breaks - just don\'t give up');
+    }
+
+    // Add personalization notes as a tip if available
+    if (challenge.personalizationNotes) {
+        const firstNote = challenge.personalizationNotes.split('\n')[0];
+        if (firstNote && firstNote.length > 10) {
+            tips.push(firstNote.replace(/^\d+\.\s*/, '').trim());
+        }
+    }
+
+    // Universal tips
+    tips.push('Record a voice diary after to capture your experience');
+
+    return tips.slice(0, 4); // Limit to 4 tips
+}
+
+export default function ChallengeDetailClient({ challengeId, isCompleted, challenge }: Props) {
     const router = useRouter();
     const [showCompletionModal, setShowCompletionModal] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -17,6 +57,8 @@ export default function ChallengeDetailClient({ challengeId, isCompleted }: Prop
         satisfaction: 5,
         notes: ''
     });
+
+    const dynamicTips = getDynamicTips(challenge);
 
     const handleComplete = async () => {
         setIsSubmitting(true);
@@ -99,14 +141,15 @@ export default function ChallengeDetailClient({ challengeId, isCompleted }: Prop
                 </button>
             </div>
 
-            {/* Tips Section */}
+            {/* Tips Section - Now Dynamic */}
             <div className="card card-surface">
                 <h3 className="heading-4 mb-md">💡 Tips for Success</h3>
                 <ul style={{ paddingLeft: '1.5rem' }}>
-                    <li className="text-secondary mb-sm">Find a quiet moment without distractions</li>
-                    <li className="text-secondary mb-sm">Set a timer if needed to stay focused</li>
-                    <li className="text-secondary mb-sm">Remember: progress over perfection</li>
-                    <li className="text-secondary">Record a voice diary after to capture your experience</li>
+                    {dynamicTips.map((tip, index) => (
+                        <li key={index} className={`text-secondary ${index < dynamicTips.length - 1 ? 'mb-sm' : ''}`}>
+                            {tip}
+                        </li>
+                    ))}
                 </ul>
             </div>
 

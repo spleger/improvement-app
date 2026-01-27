@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import VoiceRecorder from '@/app/components/VoiceRecorder';
-import BottomNavigation from '@/app/components/BottomNavigation';
 import PageHeader from '@/app/components/PageHeader';
 import { Calendar, Mic, Clock, BarChart2 } from 'lucide-react';
 
@@ -381,7 +380,6 @@ export default function DiaryPage() {
                 </div>
             </div>
 
-            <BottomNavigation />
         </div>
     );
 }

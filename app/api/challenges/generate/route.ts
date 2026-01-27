@@ -67,6 +67,8 @@ export async function POST(request: NextRequest) {
                 userId: user.userId,
                 title: challengeData.title || `Challenge ${i + 1}`,
                 description: challengeData.description || 'No description provided',
+                instructions: challengeData.instructions || undefined,
+                successCriteria: challengeData.successCriteria || undefined,
                 personalizationNotes: challengeData.personalizationNotes || undefined,
                 difficulty: challengeData.difficulty || 5,
                 isRealityShift: challengeData.isRealityShift || false,

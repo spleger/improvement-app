@@ -66,31 +66,53 @@ export default function ChallengeBrowser({ domains }: { domains: Domain[] }) {
     const loadAIChallenges = async (domainId: number) => {
         setLoading(true);
         try {
-            // NOTE: We're calling 'generate' which uses the active goal's domain
-            // In a real app we'd pass the domainId to the generator
+            // First, fetch user's active goals to find one for this domain
+            const goalsResponse = await fetch('/api/goals');
+            const goalsData = await goalsResponse.json();
+
+            if (!goalsData.success || !goalsData.data?.goals?.length) {
+                alert('Please create a goal first before generating challenges.');
+                setLoading(false);
+                return;
+            }
+
+            // Find an active goal matching this domain, or use the first active goal
+            const activeGoals = goalsData.data.goals.filter((g: any) => g.status === 'active');
+            const domainGoal = activeGoals.find((g: any) => g.domainId === domainId);
+            const goalToUse = domainGoal || activeGoals[0];
+
+            if (!goalToUse) {
+                alert('No active goals found. Please create or activate a goal first.');
+                setLoading(false);
+                return;
+            }
+
+            // Now generate challenges with the goal ID
             const response = await fetch('/api/challenges/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ count: 3 })
+                body: JSON.stringify({ goalId: goalToUse.id, count: 3 })
             });
             const data = await response.json();
+
             if (data.success && data.data.challenges) {
-                // Determine if we should append or replace? For browse, usually append.
-                // But the generator might return Challenges, not Templates.
-                // Normalizing structure here:
+                // Map the generated challenges to the expected format
                 const validChallenges = data.data.challenges.map((c: any) => ({
-                    id: c.templateId || c.id,
+                    id: c.id,
                     title: c.title,
                     description: c.description,
                     difficulty: c.difficulty,
                     isRealityShift: c.isRealityShift,
-                    instructions: c.personalizationNotes, // Map notes to instructions for display
-                    successCriteria: 'See details' // Generated challenges might not have discrete criteria field
+                    instructions: c.personalizationNotes || c.description,
+                    successCriteria: c.personalizationNotes || 'Complete the challenge as described'
                 }));
                 setChallenges(prev => [...prev, ...validChallenges]);
+            } else {
+                alert(data.error || 'Failed to generate challenges');
             }
         } catch (error) {
             console.error('Error generating challenges:', error);
+            alert('Failed to generate challenges. Please try again.');
         } finally {
             setLoading(false);
         }

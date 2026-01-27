@@ -130,6 +130,12 @@ export default async function ChallengeDetailPage({ params }: PageProps) {
             <ChallengeDetailClient
                 challengeId={challenge.id}
                 isCompleted={isCompleted}
+                challenge={{
+                    title: challenge.title,
+                    description: challenge.description,
+                    difficulty: challenge.difficulty,
+                    personalizationNotes: challenge.personalizationNotes || challenge.instructions
+                }}
             />
         </div>
     );

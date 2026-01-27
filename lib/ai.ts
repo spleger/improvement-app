@@ -186,9 +186,11 @@ Return a JSON object with:
     return challenges.map((c: any) => ({
         title: c.title,
         description: c.description,
-        personalizationNotes: c.instructions || c.successCriteria,
-        difficulty: c.difficulty,
-        isRealityShift: c.isRealityShift,
+        instructions: c.instructions || "Follow the description", // fallback
+        successCriteria: c.successCriteria || "Complete the task", // fallback
+        personalizationNotes: c.personalizationNotes, // This field might be undefined if AI doesn't provide it
+        difficulty: c.difficulty || 5,
+        isRealityShift: c.isRealityShift || false
     } as Partial<Challenge>));
 }
 

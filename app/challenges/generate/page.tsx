@@ -25,6 +25,26 @@ function ChallengeGeneratorContent() {
     const [count, setCount] = useState(1);
     const [focusArea, setFocusArea] = useState('');
     const [contextInfo, setContextInfo] = useState<{ day: number; adaptedDifficulty: number } | null>(null);
+    const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
+
+    // Auto-redirect countdown after successful generation
+    useEffect(() => {
+        if (challenges.length > 0 && redirectCountdown === null) {
+            setRedirectCountdown(5);
+        }
+    }, [challenges.length]);
+
+    useEffect(() => {
+        if (redirectCountdown !== null && redirectCountdown > 0) {
+            const timer = setTimeout(() => {
+                setRedirectCountdown(redirectCountdown - 1);
+            }, 1000);
+            return () => clearTimeout(timer);
+        } else if (redirectCountdown === 0) {
+            router.push('/');
+            router.refresh();
+        }
+    }, [redirectCountdown, router]);
 
     const generateChallenges = async () => {
         setGenerating(true);
@@ -210,13 +230,13 @@ function ChallengeGeneratorContent() {
 
                     <div className="flex gap-md">
                         <button
-                            onClick={() => { setChallenges([]); setContextInfo(null); }}
+                            onClick={() => { setChallenges([]); setContextInfo(null); setRedirectCountdown(null); }}
                             className="btn btn-secondary"
                         >
                             Generate More
                         </button>
-                        <Link href="/" className="btn btn-primary" style={{ flex: 1 }}>
-                            Go to Dashboard
+                        <Link href="/" onClick={() => router.refresh()} className="btn btn-primary" style={{ flex: 1 }}>
+                            Go to Dashboard {redirectCountdown !== null && redirectCountdown > 0 ? `(${redirectCountdown}s)` : ''}
                         </Link>
                     </div>
                 </div>

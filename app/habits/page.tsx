@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { Plus, Mic, CheckCircle2, Circle, ChevronRight, Flame, Trash2, Target } from 'lucide-react';
-import BottomNavigation from '../components/BottomNavigation';
 import PageHeader from '../components/PageHeader';
 import CreateHabitModal from './CreateHabitModal';
 import HabitVoiceLogger from './HabitVoiceLogger';
@@ -326,7 +325,7 @@ export default function HabitsPage() {
                 />
             )}
 
-            <BottomNavigation />
+
 
             <style jsx>{`
                 .habits-page {
