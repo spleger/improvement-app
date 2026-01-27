@@ -119,18 +119,27 @@ export default function VoiceRecorder({ onSave }: VoiceRecorderProps) {
 
             clearTimeout(timeoutId);
 
-            if (!response.ok) {
-                throw new Error(`Server error: ${response.status}`);
-            }
-
             const data = await response.json();
-            const text = data.text || data.data?.text || '';
 
-            if (text) {
-                setTranscript(text);
-            } else {
-                setTranscript('');
+            // Check for API error response (standardized format: { success: boolean, data/error })
+            if (!response.ok || data.success === false) {
+                throw new Error(data.error || `Server error: ${response.status}`);
             }
+
+            // Extract transcript from standardized API response format
+            // API returns: { success: true, data: { text: '...', message?: '...' } }
+            const text = data.data?.text ?? '';
+            const message = data.data?.message;
+
+            // Set transcript (may be empty if no speech detected)
+            setTranscript(text);
+
+            // Handle 'no speech detected' case - show message but still allow manual entry
+            if (!text && message) {
+                setError(message);
+                setCanRetryTranscription(true);
+            }
+
             setState('review');
         } catch (err: any) {
             clearTimeout(timeoutId);
@@ -138,7 +147,7 @@ export default function VoiceRecorder({ onSave }: VoiceRecorderProps) {
             if (err.name === 'AbortError') {
                 setError('Transcription timed out. Please retry.');
             } else {
-                setError('Transcription failed. Please retry or edit manually.');
+                setError(err.message || 'Transcription failed. Please retry or edit manually.');
             }
             setCanRetryTranscription(true);
             setState('review');
