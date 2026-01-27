@@ -134,7 +134,7 @@ export default async function ChallengeDetailPage({ params }: PageProps) {
                     title: challenge.title,
                     description: challenge.description,
                     difficulty: challenge.difficulty,
-                    personalizationNotes: challenge.personalizationNotes || challenge.instructions
+                    personalizationNotes: challenge.personalizationNotes || challenge.instructions || undefined
                 }}
             />
         </div>

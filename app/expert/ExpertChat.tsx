@@ -56,6 +56,7 @@ export default function ExpertChat() {
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const chatContainerRef = useRef<HTMLDivElement>(null);
 
     // Voice Recording State
     const [isRecording, setIsRecording] = useState(false);
@@ -106,6 +107,44 @@ export default function ExpertChat() {
                 }
                 audioRef.current = null;
             }
+        };
+    }, []);
+
+    // Handle virtual keyboard appearance on mobile
+    useEffect(() => {
+        const handleViewportResize = () => {
+            if (!chatContainerRef.current) return;
+
+            // visualViewport provides the actual visible area excluding keyboard
+            const viewport = window.visualViewport;
+            if (!viewport) return;
+
+            // Calculate keyboard height (difference between window height and visual viewport)
+            const keyboardHeight = window.innerHeight - viewport.height;
+
+            // Apply CSS custom property for keyboard offset
+            if (keyboardHeight > 0) {
+                chatContainerRef.current.style.setProperty('--keyboard-offset', `${keyboardHeight}px`);
+            } else {
+                chatContainerRef.current.style.setProperty('--keyboard-offset', '0px');
+            }
+        };
+
+        const viewport = window.visualViewport;
+        if (viewport) {
+            viewport.addEventListener('resize', handleViewportResize);
+            viewport.addEventListener('scroll', handleViewportResize);
+        }
+
+        // Also listen for window resize as fallback
+        window.addEventListener('resize', handleViewportResize);
+
+        return () => {
+            if (viewport) {
+                viewport.removeEventListener('resize', handleViewportResize);
+                viewport.removeEventListener('scroll', handleViewportResize);
+            }
+            window.removeEventListener('resize', handleViewportResize);
         };
     }, []);
 
@@ -488,6 +527,14 @@ export default function ExpertChat() {
         sendMessage(input);
     };
 
+    // Handle input focus to ensure visibility when keyboard appears
+    const handleInputFocus = () => {
+        // Small delay to wait for keyboard animation
+        setTimeout(() => {
+            inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 300);
+    };
+
     // Voice Recording Functions
     const handleVoiceInput = async () => {
         if (isRecording) {
@@ -551,7 +598,7 @@ export default function ExpertChat() {
     const customCoaches = coaches.filter(c => c.type === 'custom');
 
     return (
-        <div className="expert-chat">
+        <div className="expert-chat" ref={chatContainerRef}>
             {/* Header with Coach Selector */}
             <div className="chat-header">
                 <div className="header-row">
@@ -732,6 +779,7 @@ export default function ExpertChat() {
                             handleSubmit(e);
                         }
                     }}
+                    onFocus={handleInputFocus}
                     placeholder={isTranscribing ? 'Transcribing...' : `Message ${selectedCoach.name}...`}
                     className="chat-input custom-scrollbar"
                     disabled={isLoading || isTranscribing}
@@ -755,6 +803,7 @@ export default function ExpertChat() {
 
             <style jsx>{`
                 .expert-chat {
+                    --keyboard-offset: 0px;
                     display: flex;
                     flex-direction: column;
                     min-height: 400px;
@@ -767,8 +816,12 @@ export default function ExpertChat() {
                     top: max(16px, env(safe-area-inset-top));
                     left: 16px;
                     right: 16px;
-                    bottom: calc(80px + env(safe-area-inset-bottom));
+                    height: calc(100vh - max(16px, env(safe-area-inset-top)) - 80px - env(safe-area-inset-bottom) - var(--keyboard-offset));
+                    height: calc(100dvh - max(16px, env(safe-area-inset-top)) - 80px - env(safe-area-inset-bottom) - var(--keyboard-offset));
                     z-index: 10;
+                    overscroll-behavior: none;
+                    will-change: height;
+                    transition: height 0.1s ease-out;
                 }
 
                 .chat-header {
@@ -881,7 +934,7 @@ export default function ExpertChat() {
                     top: calc(100% + 8px);
                     left: 16px;
                     right: 16px;
-                    background: #ffffff;
+                    background: var(--color-background);
                     border: 1px solid var(--color-border);
                     border-radius: 16px;
                     padding: 12px;
@@ -912,8 +965,6 @@ export default function ExpertChat() {
                     flex-wrap: wrap;
                     gap: 12px;
                     margin-bottom: 16px;
-                    max-height: 200px;
-                    overflow-y: auto;
                 }
 
                 .dropdown-grid > * {
@@ -925,12 +976,16 @@ export default function ExpertChat() {
                 .chat-messages {
                     flex: 1;
                     overflow-y: auto;
+                    overflow-x: hidden;
                     padding: 20px;
                     display: flex;
                     flex-direction: column;
                     gap: 16px;
                     background-image: radial-gradient(var(--color-surface-2) 1px, transparent 1px);
                     background-size: 20px 20px;
+                    overscroll-behavior: contain;
+                    -webkit-overflow-scrolling: touch;
+                    touch-action: pan-y;
                 }
 
                 .empty-state {
@@ -1043,16 +1098,21 @@ export default function ExpertChat() {
 
                 .quick-actions {
                     display: flex;
+                    flex-direction: row;
                     flex-wrap: nowrap;
-                    gap: 8px;
-                    padding: 0 20px 16px;
+                    align-items: center;
+                    gap: 10px;
+                    padding: 8px 20px 16px;
                     overflow-x: auto;
                     overflow-y: hidden;
                     -webkit-overflow-scrolling: touch;
-                    scroll-snap-type: x mandatory;
+                    scroll-snap-type: x proximity;
+                    scroll-padding: 0 20px;
                     scrollbar-width: none;
                     -ms-overflow-style: none;
                     flex-shrink: 0;
+                    max-height: 60px;
+                    touch-action: pan-x;
                 }
 
                 .quick-actions::-webkit-scrollbar {
@@ -1060,7 +1120,10 @@ export default function ExpertChat() {
                 }
 
                 .quick-action-btn {
-                    padding: 8px 14px;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 10px 16px;
                     background: var(--color-surface);
                     border: 1px solid var(--color-border);
                     border-radius: 20px;
@@ -1069,8 +1132,18 @@ export default function ExpertChat() {
                     cursor: pointer;
                     transition: all 0.2s;
                     white-space: nowrap;
-                    flex-shrink: 0;
-                    scroll-snap-align: start;
+                    flex: 0 0 auto;
+                    scroll-snap-align: center;
+                    min-width: fit-content;
+                    height: 40px;
+                }
+
+                .quick-action-btn:first-child {
+                    margin-left: 0;
+                }
+
+                .quick-action-btn:last-child {
+                    margin-right: 0;
                 }
 
                 .quick-action-btn:hover:not(:disabled) {
@@ -1087,12 +1160,15 @@ export default function ExpertChat() {
                 .chat-input-form {
                     display: flex;
                     align-items: flex-end;
-                    gap: 12px;
-                    padding: 16px 20px;
-                    padding-right: 24px;
+                    gap: 8px;
+                    padding: 16px;
+                    padding-bottom: max(16px, env(safe-area-inset-bottom));
                     border-top: 1px solid var(--color-border);
                     background: var(--color-surface);
                     flex-shrink: 0;
+                    overflow: visible;
+                    position: relative;
+                    z-index: 15;
                 }
 
                 .chat-input {
@@ -1123,6 +1199,7 @@ export default function ExpertChat() {
                 .send-btn {
                     width: 52px;
                     height: 52px;
+                    min-width: 52px;
                     background: var(--gradient-primary);
                     border: none;
                     border-radius: 16px;
@@ -1148,6 +1225,7 @@ export default function ExpertChat() {
                 .mic-btn {
                     width: 44px;
                     height: 44px;
+                    min-width: 44px;
                     background: transparent;
                     border: none;
                     border-radius: 12px;
@@ -1222,7 +1300,8 @@ export default function ExpertChat() {
                         right: 8px;
                         border-radius: 16px;
                         top: max(8px, env(safe-area-inset-top));
-                        bottom: calc(70px + env(safe-area-inset-bottom));
+                        height: calc(100vh - max(8px, env(safe-area-inset-top)) - 70px - env(safe-area-inset-bottom) - var(--keyboard-offset));
+                        height: calc(100dvh - max(8px, env(safe-area-inset-top)) - 70px - env(safe-area-inset-bottom) - var(--keyboard-offset));
                     }
 
                     .dropdown-grid > * {
@@ -1235,8 +1314,40 @@ export default function ExpertChat() {
                     }
 
                     .chat-input-form {
-                        padding: 12px 16px;
-                        padding-right: 20px;
+                        padding: 12px;
+                        padding-bottom: max(12px, env(safe-area-inset-bottom));
+                        gap: 6px;
+                    }
+
+                    .send-btn {
+                        width: 48px;
+                        height: 48px;
+                        min-width: 48px;
+                        border-radius: 14px;
+                    }
+
+                    .mic-btn {
+                        width: 40px;
+                        height: 40px;
+                        min-width: 40px;
+                    }
+
+                    .chat-input {
+                        padding: 12px 14px;
+                        height: 48px;
+                        min-height: 48px;
+                    }
+
+                    .quick-actions {
+                        padding: 8px 12px 12px;
+                        gap: 8px;
+                        scroll-padding: 0 12px;
+                    }
+
+                    .quick-action-btn {
+                        padding: 8px 14px;
+                        font-size: 0.8rem;
+                        height: 36px;
                     }
                 }
             `}</style>

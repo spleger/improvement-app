@@ -5,12 +5,19 @@ export default function ExpertPage() {
         <div
             className="expert-page"
             style={{
-                position: 'relative',
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
                 width: '100%',
                 height: '100vh',
+                // @ts-expect-error: CSS custom property for dvh fallback
                 height: '100dvh',
                 background: 'var(--color-background)',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                touchAction: 'none',
+                overscrollBehavior: 'none',
             }}
         >
             <ExpertChat />
