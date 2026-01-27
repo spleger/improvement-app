@@ -221,11 +221,8 @@ export default function DiaryPage() {
                         <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
                             {/* Total Entries */}
                             <div
-                                className="stat-card boxed-interactive"
-                                style={{
-                                    background: 'var(--color-surface-2)',
-                                    cursor: 'default'
-                                }}
+                                className="stat-card"
+                                style={{ background: 'var(--color-surface-2)' }}
                             >
                                 <div className="stat-value" style={{ color: 'var(--color-accent)', fontSize: '1.75rem' }}>
                                     {entries.length}
@@ -235,11 +232,8 @@ export default function DiaryPage() {
 
                             {/* Total Minutes */}
                             <div
-                                className="stat-card boxed-interactive"
-                                style={{
-                                    background: 'var(--color-surface-2)',
-                                    cursor: 'default'
-                                }}
+                                className="stat-card"
+                                style={{ background: 'var(--color-surface-2)' }}
                             >
                                 <div className="stat-value" style={{ color: 'var(--color-accent)', fontSize: '1.75rem' }}>
                                     {Math.round(entries.reduce((acc, curr) => acc + (curr.audioDurationSeconds || 0), 0) / 60)}
@@ -249,11 +243,8 @@ export default function DiaryPage() {
 
                             {/* Average Duration */}
                             <div
-                                className="stat-card boxed-interactive"
-                                style={{
-                                    background: 'var(--color-surface-2)',
-                                    cursor: 'default'
-                                }}
+                                className="stat-card"
+                                style={{ background: 'var(--color-surface-2)' }}
                             >
                                 <div className="stat-value" style={{ color: 'var(--color-text-primary)', fontSize: '1.75rem' }}>
                                     {entries.length > 0
@@ -265,11 +256,8 @@ export default function DiaryPage() {
 
                             {/* This Week */}
                             <div
-                                className="stat-card boxed-interactive"
-                                style={{
-                                    background: 'var(--color-surface-2)',
-                                    cursor: 'default'
-                                }}
+                                className="stat-card"
+                                style={{ background: 'var(--color-surface-2)' }}
                             >
                                 <div className="stat-value" style={{ color: 'var(--color-text-primary)', fontSize: '1.75rem' }}>
                                     {entries.filter(e => {
