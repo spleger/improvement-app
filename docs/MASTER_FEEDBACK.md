@@ -5,9 +5,39 @@
 
 ---
 
-## 🔴 Critical Bugs
+## Jan 28 Outstanding Issues
+
+### Dashboard
+
+- [ ] **Fix new challenges not showing up** — Old challenges appear, but newly created ones are not visible under the goal.
 
 ### Navigation
+
+- [ ] **Fix dropdown layout** — Icons/items are misplaced (side-by-side instead of stacked).
+- [ ] **Fix Check-in link** — Redirects to Progress page instead of Check-in page.
+- [ ] **Change Check-in icon** — Remove charts icon, use correct check-in icon.
+
+### Voice Features (Habits & Diary)
+
+- [ ] **Habit Log Positioning** — Should open *in front* of habits (modal/overlay), not below.
+- [ ] **Habit Log Style** — Make background semi-transparent (glassmorphism).
+- [ ] **Standardize Voice UI** — Pulsing center icon to finish.
+- [ ] **Add Controls** — Add "Stop" and "Pause" buttons at the bottom.
+- [ ] **Consistent Style** — Apply same UI/UX to Voice Diary.
+
+### Progress Page
+
+- [ ] **Fix Mood/Energy Graph** — Currently just lines at the bottom; needs to properly plot the graph.
+
+### Expert Chat
+
+- [ ] **Fix Bottom Gap** — Remove black bar; chat box must connect to bottom navigation.
+- [ ] **Fix Top Overlap** — Top nav cuts off the top of the chat box/dropdown.
+- [ ] **Coach Selector Grid** — Fix spacing/grid of coach items; ensure it uses full screen width.
+
+---
+
+## 🔴 Critical Bugsation
 
 - [x] **Navigation bar shifting bug** — Clicking "Progress" causes Habits to disappear and Diary to appear; clicking Diary reverses it inconsistently
 
