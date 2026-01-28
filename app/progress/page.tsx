@@ -425,23 +425,62 @@ export default async function ProgressPage() {
                     <section style={{ marginBottom: 'var(--spacing-2xl)' }}>
                         <h2 className="heading-4 mb-md">Mood & Energy Trends</h2>
                         <div className="card">
-                            <div style={{ height: '150px', display: 'flex', alignItems: 'flex-end', gap: '4px' }}>
+                            <div style={{ height: '150px', display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
                                 {chartData.slice(-14).map((point, i) => (
-                                    <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                    <div key={i} style={{ flex: 1, display: 'flex', alignItems: 'flex-end', gap: '2px', height: '100%' }}>
+                                        {/* Mood bar */}
                                         <div
                                             style={{
-                                                height: `${point.mood * 10}% `,
+                                                flex: 1,
+                                                height: `${point.mood * 10}%`,
                                                 background: 'var(--gradient-primary)',
                                                 borderRadius: '2px 2px 0 0',
                                                 minHeight: '4px'
                                             }}
-                                            title={`Mood: ${point.mood} `}
+                                            title={`Mood: ${point.mood}`}
+                                        />
+                                        {/* Energy bar */}
+                                        <div
+                                            style={{
+                                                flex: 1,
+                                                height: `${point.energy * 10}%`,
+                                                background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)',
+                                                borderRadius: '2px 2px 0 0',
+                                                minHeight: '4px'
+                                            }}
+                                            title={`Energy: ${point.energy}`}
+                                        />
+                                        {/* Motivation bar */}
+                                        <div
+                                            style={{
+                                                flex: 1,
+                                                height: `${point.motivation * 10}%`,
+                                                background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
+                                                borderRadius: '2px 2px 0 0',
+                                                minHeight: '4px'
+                                            }}
+                                            title={`Motivation: ${point.motivation}`}
                                         />
                                     </div>
                                 ))}
                             </div>
+                            {/* Legend */}
+                            <div className="flex flex-wrap justify-center gap-md mt-md text-tiny">
+                                <span className="flex items-center gap-sm">
+                                    <span style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--gradient-primary)' }} />
+                                    Mood
+                                </span>
+                                <span className="flex items-center gap-sm">
+                                    <span style={{ width: 12, height: 12, borderRadius: 3, background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)' }} />
+                                    Energy
+                                </span>
+                                <span className="flex items-center gap-sm">
+                                    <span style={{ width: 12, height: 12, borderRadius: 3, background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)' }} />
+                                    Motivation
+                                </span>
+                            </div>
                             <div className="text-tiny text-muted text-center mt-sm">
-                                Last {Math.min(14, chartData.length)} days • Mood levels (1-10)
+                                Last {Math.min(14, chartData.length)} days • Levels (1-10)
                             </div>
                         </div>
                     </section>
