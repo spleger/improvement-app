@@ -60,8 +60,11 @@ This plan organizes the feedback from `MASTER_FEEDBACK.md` into isolated "bucket
     * *Requirement*: "Habits Voice Lock processing hangs — No loading indicator, doesn't complete" (`MASTER_FEEDBACK.md` Line 25).
     * *Action*: Add timeout + error states to `HabitVoiceLogger.tsx`.
 3. **UI Polish**
-    * *Requirement*: "Habits Voice Lock positioning — Audio interface too low; should be more prominent/focal" (`MASTER_FEEDBACK.md` Line 179).
-    * *Action*: Update `HabitVoiceLogger` CSS to be a centered modal/overlay.
+    * *Requirement*: "Habits Voice Lock positioning — Audio interface too low... should be in front of habits" (Jan 28 Feedback).
+    * *Action*: Update `HabitVoiceLogger` CSS to be a centered modal/overlay with glassmorphism (semi-transparent).
+4. **Voice UI Standardization**
+    * *Requirement*: "Pulsing icon... stop and pause buttons" (Jan 28 Feedback).
+    * *Action*: Implement consistent UI for both Habits and Diary: Center pulsing icon, plus distinct Stop/Pause controls.
 
 ### Verification
 
@@ -96,6 +99,11 @@ This plan organizes the feedback from `MASTER_FEEDBACK.md` into isolated "bucket
 3. **Suggestions Interface**
     * *Requirement*: "Suggestion prompts stacked vertically... should be single line, swipeable" (`MASTER_FEEDBACK.md` Line 35).
     * *Action*: Implement horizontal scroll container for suggestion chips.
+4. **View Issues**
+    * *Requirement*: "Black bar at bottom... Top nav overlaps" (Jan 28 Feedback).
+    * *Action*: Ensure chat container height calculation includes full viewport minus safe areas, and fix z-index or padding to prevent top nav overlap.
+    * *Requirement*: "Coach selector dropdown... spaced properly" (Jan 28 Feedback).
+    * *Action*: Use a proper grid layout for the coach selector modal, ensuring full screen width usage.
 
 ### Verification
 
@@ -128,6 +136,14 @@ This plan organizes the feedback from `MASTER_FEEDBACK.md` into isolated "bucket
 3. **Branding**
     * *Requirement*: "Top bar branding — Replace 'Transform' text with squirrel logo image and a short motivational quote" (`MASTER_FEEDBACK.md` Line 49).
     * *Action*: Update `TopNavigation.tsx` or `app/page.tsx` header.
+4. **Tracking & Menus**
+    * *Requirement*: "Icons for the drop-down list are misplaced" (Jan 28 Feedback).
+    * *Action*: Fix flex/grid layout in `TopNavigation` dropdown.
+    * *Requirement*: "Check-in leads to progress page... wrong icon" (Jan 28 Feedback).
+    * *Requirement*: "Check-in leads to progress page... wrong icon" (Jan 28 Feedback).
+    * *Action*: Update href to `/check-in` (or proper route) and replace Chart icon with Check-in icon.
+    * *Requirement*: "New challenges don't appear after creation" (Jan 28 Feedback).
+    * *Action*: Fix state update/revalidation in `app/page.tsx` or `GoalCard` to ensure new challenges appear immediately under the goal. This replaces the old dashboard logic as per `MASTER_FEEDBACK.md` Line 52/57.
 
 ### Verification
 
@@ -161,6 +177,9 @@ This plan organizes the feedback from `MASTER_FEEDBACK.md` into isolated "bucket
 3. **Profile**
     * *Requirement*: "Challenge sliders too squished" (`MASTER_FEEDBACK.md` Line 86).
     * *Action*: Increase padding/width for slider containers.
+4. **Progress Graphs**
+    * *Requirement*: "Mood and energy trends... doesn't really graph anything" (Jan 28 Feedback).
+    * *Action*: Fix the Recharts data mapping for the mood/energy graph to properly plot lines.
 
 ### Verification
 
