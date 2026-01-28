@@ -242,6 +242,8 @@ export default function TopNavigation() {
                     box-shadow: var(--shadow-lg);
                     z-index: 110;
                     animation: slideDown 0.15s ease-out;
+                    display: flex;
+                    flex-direction: column;
                 }
 
                 @keyframes slideDown {
