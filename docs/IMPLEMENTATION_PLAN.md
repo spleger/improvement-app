@@ -1,187 +1,119 @@
-# Implementation Plan: Parallel Feature Execution
+# Implementation Plan: Jan 28 UI/UX Fixes
 
-This plan organizes the feedback from `MASTER_FEEDBACK.md` into isolated "buckets" that can be executed in parallel with minimal risk of merge conflicts.
+This plan addresses **only** the urgent feedback provided on Jan 28, 2026.
+Focus: Visual polish, navigation fixes, and voice feature standardization.
 
-> **Execution Strategy**: Each bucket works on a distinct set of files.
+> **Execution Strategy**: Buckets are isolated by feature/file to allow parallel work.
 
 ---
 
-## Bucket 1: Core Challenge Logic & Schema
+## Bucket 1: Dashboard & Navigation
 
-**Owner**: Backend/Core Agent
-**Files**: `prisma/schema.prisma`, `app/api/challenge/*`, `lib/challenge/*`
-**Status**: [ ] Pending
+**Files**: `app/page.tsx`, `components/TopNavigation.tsx`, `components/BottomNavigation.tsx`, `components/GoalCard.tsx`
 
 ### ⛔ What Not To Do
 
-* **Do Not Break Database Integrity**: Ensure `prisma generate` and `prisma db push` are run immediately after any schema change.
-* **Do Not Create Generic Content**: The "Challenge Generator quality bug" is critical. Do not allow the AI to generate single, trivial challenges that just rephrase the goal.
-* **Do Not Overwrite Completed Data**: When updating the schema, ensure `Challenge` and `ChallengeTemplate` existing data is preserved (though in dev this is less critical, the valid schema update path must be followed).
+* **Do Not Use Generic Colors**: Stick to the app's teal/glassmorphism aesthetic.
+* **Do Not Break Existing Links**: Ensure other dropdown items (Habits, Voice Diary) remain functional when fixing the layout.
 
-### Detailed Tasks
+### Tasks
 
-1. **Schema Update**
-    * *Requirement*: "Add separate fields: Description (what to do) and Success Criteria (how you know it's complete)" (`MASTER_FEEDBACK.md` Line 20).
-    * *Action*: Update `Challenge` and `ChallengeTemplate` models in `prisma/schema.prisma`.
-2. **Prompt Engineering**
-    * *Requirement*: "Challenge Generator quality bug — Does not create real challenges; only generates one trivial challenge" (`MASTER_FEEDBACK.md` Line 18).
-    * *Requirement*: "Tips for Success are generic — Always the same tips regardless of challenge content" (`MASTER_FEEDBACK.md` Line 19).
-    * *Action*: Refine `app/api/challenge/generate` prompts to return strict JSON with `description`, `successCriteria`, and dynamic `tips`.
-3. **API Logic Fixes**
-    * *Requirement*: "Challenge Library 'Generate more with AI' broken" (`MASTER_FEEDBACK.md` Line 17).
-    * *Action*: Debug and fix the generation endpoint invocation from the library.
+1. **Dashboard: Fix Challenge Visibility**
+    * *Issue*: "New challenges do not show up... Old ones seem to do."
+    * *Fix*: Investigate `app/page.tsx` or `GoalCard` state updates. Ensure that after the creation flow, the list invalidates/refreshes safely so the new item appears immediately under the goal.
+2. **Navigation: Dropdown Layout**
+    * *Issue*: "Icons for the drop-down list are misplaced... voice diary one is to the right of log habits."
+    * *Fix*: Apply proper flex-direction (column) or grid layout to the Dropdown container in `TopNavigation.tsx` so items stack correctly.
+3. **Navigation: Check-in Item**
+    * *Issue*: "Check-in leads to progress page... wrong icon."
+    * *Fix*:
+        * Change Link href to `/check-in` (or the correct route for "Daily Check-in").
+        * Replace the Chart icon with a Check/Clipboard icon.
 
 ### Verification
 
-* Run `prisma generate` and `prisma db push`.
-* Generate 5 manual challenges via API/UI and verify distinct `description` vs `successCriteria`.
+* Create a new challenge -> Verify it appears instantly.
+* Open Top Dropdown -> Verify 3 items stacked vertically.
+* Click "Check-in" -> Verify redirection to Check-in page.
 
 ---
 
-## Bucket 2: Voice Features & Architecture
+## Bucket 2: Voice UI Standardization (Habits & Diary)
 
-**Owner**: Voice/Media Agent
-**Files**: `components/VoiceRecorder.tsx`, `app/habits/HabitVoiceLogger.tsx`, `app/api/transcribe/*`
-**Status**: [ ] Pending
+**Files**: `app/habits/HabitVoiceLogger.tsx`, `app/diary/VoiceRecorder.tsx`, `components/VoiceRecorder.tsx`
 
 ### ⛔ What Not To Do
 
-* **Do Not shift layout inappropriately**: The habit logger should be a modal/overlay, not inline pushing content down (per `MASTER_FEEDBACK.md` Line 112/179).
-* **Do Not Leave "Hanging" States**: Never leave the user without a loading indicator or feedback (Line 25).
-* **Do Not Use Third-Party Voice UI Libraries**: Stick to the current custom implementation style unless replacing the core recorder logic with a standardized hook.
+* **Do Not Layout Inline**: The logger must be a **Modal/Overlay** (Line 112/179 feedback), not an inline block that pushes content down.
+* **Do Not Use Native Alerts**: Use custom UI for confirmation if needed.
 
-### Detailed Tasks
+### Tasks
 
-1. **Transcription Fixes**
-    * *Requirement*: "Voice Diary transcription empty — Logic runs in background but transcript text box stays empty" (`MASTER_FEEDBACK.md` Line 26).
-    * *Requirement*: "Habits Voice Lock transcription broken — Displays 'lots of recording', acts buggy" (`MASTER_FEEDBACK.md` Line 24).
-    * *Action*: Debug `VoiceRecorder.tsx` state management and `api/transcribe` response handling.
-2. **Process Stability**
-    * *Requirement*: "Habits Voice Lock processing hangs — No loading indicator, doesn't complete" (`MASTER_FEEDBACK.md` Line 25).
-    * *Action*: Add timeout + error states to `HabitVoiceLogger.tsx`.
-3. **UI Polish**
-    * *Requirement*: "Habits Voice Lock positioning — Audio interface too low... should be in front of habits" (Jan 28 Feedback).
-    * *Action*: Update `HabitVoiceLogger` CSS to be a centered modal/overlay with glassmorphism (semi-transparent).
-4. **Voice UI Standardization**
-    * *Requirement*: "Pulsing icon... stop and pause buttons" (Jan 28 Feedback).
-    * *Action*: Implement consistent UI for both Habits and Diary: Center pulsing icon, plus distinct Stop/Pause controls.
+1. **Habit Log Positioning & Style**
+    * *Issue*: "Opens up below all of the habits... should be in front... make it a little bit see-through."
+    * *Fix*:
+        * Change `HabitVoiceLogger` container to `position: fixed; inset: 0; z-index: 50`.
+        * Apply glassmorphism background (`backdrop-filter: blur`, semi-transparent bg).
+2. **Standardized Voice Controls**
+    * *Issue*: "Pulsing icon... click to finish... but also option to stop and pause."
+    * *Fix*:
+        * **Center Element**: Large pulsing microphone icon (Tap to Finish/Stop).
+        * **Bottom Controls**: Warning/Secondary buttons for "Pause" and "Cancel/Stop".
+        * Apply this exact layout to both `Habits` and `Voice Diary` for consistency.
 
 ### Verification
 
-* Record a 10s clip. Ensure `transcript` state populates.
-* Simulate a network failure/delay to test loading states.
+* Open Habit Log -> Verify it overlays everything (glass effect).
+* Record -> Pulse animation active.
+* Check controls -> Pause/Stop are accessible.
 
 ---
 
-## Bucket 3: Expert Chat
+## Bucket 3: Expert Chat Improvements
 
-**Owner**: Expert Feature Agent
 **Files**: `app/expert/ExpertChat.tsx`, `app/expert/page.tsx`
-**Status**: [ ] Pending
 
 ### ⛔ What Not To Do
 
-* **Do Not Remove Current Styling**: The feedback notes "Expert chat overall design is very nice" (Line 227). Keep the core aesthetic, just fix the layout bugs.
-* **Do Not Introduce Tailwind**: Use specific SCSS/CSS modules or standard CSS.
-* **Do Not Allow Full Page Scroll**: The "Window not locked to screen" (Line 33) is a critical UX fail. The *chat* should scroll, not the *page*.
+* **Do Not Scroll the Whole Page**: The page body should be locked. Only the *chat messages* list should scroll.
+* **Do Not Hide Inputs**: Ensure the keyboard doesn't cover the input field.
 
-### Detailed Tasks
+### Tasks
 
-1. **Layout & UX**
-    * *Requirement*: "Chat doesn't fill window — Gap at bottom" (`MASTER_FEEDBACK.md` Line 31).
-    * *Requirement*: "Input pushes content up" (`MASTER_FEEDBACK.md` Line 32).
-    * *Requirement*: "Window not locked to screen — Can move the entire window around" (`MASTER_FEEDBACK.md` Line 33).
-    * *Action*: Fix CSS height (use `dvh`?), add `overflow: hidden` to body/container, scrollable chat area.
-2. **Styling**
-    * *Requirement*: "Send button cut off" (`MASTER_FEEDBACK.md` Line 34).
-    * *Requirement*: "Coach selector dropdown too transparent" (`MASTER_FEEDBACK.md` Line 36).
-    * *Action*: Adjust padding/margins and background opacity constants.
-3. **Suggestions Interface**
-    * *Requirement*: "Suggestion prompts stacked vertically... should be single line, swipeable" (`MASTER_FEEDBACK.md` Line 35).
-    * *Action*: Implement horizontal scroll container for suggestion chips.
-4. **View Issues**
-    * *Requirement*: "Black bar at bottom... Top nav overlaps" (Jan 28 Feedback).
-    * *Action*: Ensure chat container height calculation includes full viewport minus safe areas, and fix z-index or padding to prevent top nav overlap.
-    * *Requirement*: "Coach selector dropdown... spaced properly" (Jan 28 Feedback).
-    * *Action*: Use a proper grid layout for the coach selector modal, ensuring full screen width usage.
+1. **Viewport & Layout**
+    * *Issue*: "Black bar at bottom... Top nav overlaps."
+    * *Fix*:
+        * Calculate height dynamically (e.g., `100dvh` - nav height).
+        * Fix `z-index` so Top Nav doesn't visually cut off the chat container, or add `padding-top` to the chat container.
+2. **Coach Selector Modal**
+    * *Issue*: "Items... needs to be spaced properly. Consistent... in a grid... using full width."
+    * *Fix*:
+        * Refactor the Coach Dropdown/Modal to use CSS Grid (`grid-template-columns: repeat(auto-fill, minmax(..., 1fr))`).
+        * Ensure the modal container width is `100%` or `90vw`.
 
 ### Verification
 
-* Open Chat on mobile simulation. Verify keyboard doesn't break layout.
-* Scroll through 10+ coach icons (Req Line 37).
+* Resize window -> Chat connects perfectly to bottom/top navs.
+* Open Coach Select -> Verify grid layout occupies full width.
 
 ---
 
-## Bucket 4: Homepage & Navigation
+## Bucket 4: Progress Page Graphs
 
-**Owner**: Frontend Lead Agent
-**Files**: `app/page.tsx`, `components/TopNavigation.tsx`, `components/BottomNavigation.tsx`
-**Status**: [ ] Pending
+**Files**: `app/progress/page.tsx` (and potentially `components/Charts.tsx` if separated)
 
 ### ⛔ What Not To Do
 
-* **Do Not Use Generic Colors**: Avoid plain defaults. Use the existing "teal accents" and gradient styles (`MASTER_FEEDBACK.md` Line 205).
-* **Do Not Ignore "Completed" Features**: The feedback mentions "Home Screen Goal/Challenge Display - Nested under parent goals" is completed (Line 218). Ensure we *enhance* this (with individual challenge boxes) rather than replacing it with a list that ignores hierarchy.
-* **Do Not Introduce Tailwind**: Use `index.css` or component-specific styles.
+* **Do Not Remove "Last 30 Days" Grid**: Only fix the Mood/Energy graph requested.
 
-### Detailed Tasks
+### Tasks
 
-1. **Navigation Logic**
-    * *Requirement*: "Navigation bar shifting bug — Clicking 'Progress' causes Habits to disappear" (`MASTER_FEEDBACK.md` Line 12).
-    * *Requirement*: "Restructure bottom navigation — New layout: Home | Tracking | Progress | Expert" (`MASTER_FEEDBACK.md` Line 63).
-    * *Action*: Rewrite `BottomNavigation.tsx` items array and active state logic.
-2. **Home Dashboard**
-    * *Requirement*: "Challenges not visible under goals... Need: Summary at top... Individual box for each outstanding challenge" (`MASTER_FEEDBACK.md` Line 52).
-    * *Action*: Refactor `app/page.tsx` goal rendering to map `todayChallenges` per goal explicitly.
-3. **Branding**
-    * *Requirement*: "Top bar branding — Replace 'Transform' text with squirrel logo image and a short motivational quote" (`MASTER_FEEDBACK.md` Line 49).
-    * *Action*: Update `TopNavigation.tsx` or `app/page.tsx` header.
-4. **Tracking & Menus**
-    * *Requirement*: "Icons for the drop-down list are misplaced" (Jan 28 Feedback).
-    * *Action*: Fix flex/grid layout in `TopNavigation` dropdown.
-    * *Requirement*: "Check-in leads to progress page... wrong icon" (Jan 28 Feedback).
-    * *Requirement*: "Check-in leads to progress page... wrong icon" (Jan 28 Feedback).
-    * *Action*: Update href to `/check-in` (or proper route) and replace Chart icon with Check-in icon.
-    * *Requirement*: "New challenges don't appear after creation" (Jan 28 Feedback).
-    * *Action*: Fix state update/revalidation in `app/page.tsx` or `GoalCard` to ensure new challenges appear immediately under the goal. This replaces the old dashboard logic as per `MASTER_FEEDBACK.md` Line 52/57.
+1. **Mood & Energy Graph**
+    * *Issue*: "Doesn't really graph anything, it's just like three different lines at the very bottom."
+    * *Fix*:
+        * Check the data scale (0-10 vs 0-100). If data is 0-10 but domain is 100, lines will be flat at bottom.
+        * Verify `Recharts` mapping (X-axis: Date, Y-axis: Value).
 
 ### Verification
 
-* Click every nav item in random order 10 times. Ensure no items disappear.
-* Verify "Tracking" menu opens and contains: Log Habits, Voice Diary, Check-in.
-
----
-
-## Bucket 5: Progress, Diary, & Profile Pages
-
-**Owner**: Frontend Secondary Agent
-**Files**: `app/progress/page.tsx`, `app/diary/page.tsx`, `app/profile/page.tsx`
-**Status**: [ ] Pending
-
-### ⛔ What Not To Do
-
-* **Do Not Break Profile Layout**: Feedback says "Profile page layout, stats... Positive Feedback" (Line 225). Keep the structure, just fix the sliders.
-* **Do Not Confuse Navigation Naming**: Fix the "Dashboard" vs "Home" inconsistency (Line 106).
-* **Do Not Use Browser Defaults**: Specifically for confirmation modals (Line 133) - though this is a "Design Polish" item, it applies here if touching delete/settings buttons.
-
-### Detailed Tasks
-
-1. **Progress Page**
-    * *Requirement*: "Calendar direction confusing — Bottom-right to top-left feels unnatural" (`MASTER_FEEDBACK.md` Line 75).
-    * *Action*: Fix flex-direction/grid order in calendar component.
-    * *Requirement*: "No date connection — Can't tell when progress started" (`MASTER_FEEDBACK.md` Line 76).
-2. **Diary UI**
-    * *Requirement*: "Insights numbers broken — Numbers below insights don't do anything" (`MASTER_FEEDBACK.md` Line 41).
-    * *Action*: Wire up or hide broken stats.
-    * *Requirement*: "Entries need boxing" (`MASTER_FEEDBACK.md` Line 82).
-3. **Profile**
-    * *Requirement*: "Challenge sliders too squished" (`MASTER_FEEDBACK.md` Line 86).
-    * *Action*: Increase padding/width for slider containers.
-4. **Progress Graphs**
-    * *Requirement*: "Mood and energy trends... doesn't really graph anything" (Jan 28 Feedback).
-    * *Action*: Fix the Recharts data mapping for the mood/energy graph to properly plot lines.
-
-### Verification
-
-* Visually inspect Progress calendar for standard LTR/Top-Down reading order.
-* Verify "Insights" matches actual data.
+* Check Progress page -> Graph should show visible fluctuation line.
