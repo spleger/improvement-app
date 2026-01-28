@@ -103,8 +103,8 @@ export default function ChallengeBrowser({ domains }: { domains: Domain[] }) {
                     description: c.description,
                     difficulty: c.difficulty,
                     isRealityShift: c.isRealityShift,
-                    instructions: c.personalizationNotes || c.description,
-                    successCriteria: c.personalizationNotes || 'Complete the challenge as described'
+                    instructions: c.instructions || c.description,
+                    successCriteria: c.successCriteria || 'Complete the challenge as described'
                 }));
                 setChallenges(prev => [...prev, ...validChallenges]);
             } else {

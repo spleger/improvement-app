@@ -27,6 +27,16 @@ export default async function ChallengeDetailPage({ params }: PageProps) {
         }
     }
 
+    // Parse tips if available
+    let parsedTips: string[] = [];
+    if (challenge.tips) {
+        try {
+            parsedTips = JSON.parse(challenge.tips);
+        } catch (e) {
+            // Ignore parsing errors
+        }
+    }
+
     return (
         <div className="page animate-fade-in">
             {/* Back button */}
@@ -134,7 +144,8 @@ export default async function ChallengeDetailPage({ params }: PageProps) {
                     title: challenge.title,
                     description: challenge.description,
                     difficulty: challenge.difficulty,
-                    personalizationNotes: challenge.personalizationNotes || challenge.instructions || undefined
+                    personalizationNotes: challenge.personalizationNotes || challenge.instructions || undefined,
+                    tips: parsedTips.length > 0 ? parsedTips : undefined
                 }}
             />
         </div>

@@ -120,6 +120,7 @@ model Challenge {
   status              String    @default("pending")
   completedAt         DateTime?
   skippedReason       String?
+  tips                String?   // JSON array string of challenge-specific tips
   createdAt           DateTime  @default(now())
 
   goal     Goal?              @relation(fields: [goalId], references: [id], onDelete: Cascade)

@@ -9,6 +9,7 @@ interface ChallengeInfo {
     difficulty: number;
     personalizationNotes?: string;
     domain?: string;
+    tips?: string[];
 }
 
 interface Props {
@@ -58,7 +59,10 @@ export default function ChallengeDetailClient({ challengeId, isCompleted, challe
         notes: ''
     });
 
-    const dynamicTips = getDynamicTips(challenge);
+    // Use AI-generated tips if available, otherwise fall back to dynamic tips
+    const displayTips = challenge.tips && challenge.tips.length > 0
+        ? challenge.tips.slice(0, 4)
+        : getDynamicTips(challenge);
 
     const handleComplete = async () => {
         setIsSubmitting(true);
@@ -141,12 +145,12 @@ export default function ChallengeDetailClient({ challengeId, isCompleted, challe
                 </button>
             </div>
 
-            {/* Tips Section - Now Dynamic */}
+            {/* Tips Section - AI-generated with fallback to dynamic tips */}
             <div className="card card-surface">
                 <h3 className="heading-4 mb-md">💡 Tips for Success</h3>
                 <ul style={{ paddingLeft: '1.5rem' }}>
-                    {dynamicTips.map((tip, index) => (
-                        <li key={index} className={`text-secondary ${index < dynamicTips.length - 1 ? 'mb-sm' : ''}`}>
+                    {displayTips.map((tip, index) => (
+                        <li key={index} className={`text-secondary ${index < displayTips.length - 1 ? 'mb-sm' : ''}`}>
                             {tip}
                         </li>
                     ))}

@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
                 instructions: challengeData.instructions || undefined,
                 successCriteria: challengeData.successCriteria || undefined,
                 personalizationNotes: challengeData.personalizationNotes || undefined,
+                tips: challengeData.tips ? JSON.parse(challengeData.tips) : undefined,
                 difficulty: challengeData.difficulty || 5,
                 isRealityShift: challengeData.isRealityShift || false,
                 scheduledDate: scheduledDate

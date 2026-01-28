@@ -318,12 +318,13 @@ export async function createChallenge(data: {
     templateId?: string;
     title: string;
     description: string;
-    instructions?: string;
-    successCriteria?: string;
     difficulty: number;
     isRealityShift?: boolean;
     scheduledDate: Date;
     personalizationNotes?: string;
+    tips?: string[];
+    instructions?: string;
+    successCriteria?: string;
 }) {
     return await prisma.challenge.create({
         data: {
@@ -332,12 +333,13 @@ export async function createChallenge(data: {
             templateId: data.templateId,
             title: data.title,
             description: data.description,
-            instructions: data.instructions,
-            successCriteria: data.successCriteria,
             difficulty: data.difficulty,
             isRealityShift: data.isRealityShift ?? false,
             scheduledDate: data.scheduledDate,
             personalizationNotes: data.personalizationNotes,
+            tips: data.tips ? JSON.stringify(data.tips) : undefined,
+            instructions: data.instructions,
+            successCriteria: data.successCriteria,
             status: 'pending',
         },
     });

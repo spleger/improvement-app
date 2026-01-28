@@ -60,6 +60,7 @@ export interface Challenge {
     description: string;
     instructions?: string | null;
     successCriteria?: string | null;
+    tips?: string | null;
     personalizationNotes: string | null;
     difficulty: number;
     isRealityShift: boolean;
@@ -160,5 +161,21 @@ export interface ShiftSuggestion {
     reasoning: string;
     intensity: number;
     suggestedFocus: string;
+}
+
+/**
+ * Type for AI-generated challenge data.
+ * This represents the output from generateChallenge and generateMultipleChallenges.
+ * All fields that the AI generates are explicitly typed here.
+ */
+export interface GeneratedChallenge {
+    title: string;
+    description: string;
+    instructions: string | null;
+    successCriteria: string | null;
+    tips: string | null; // JSON-stringified array of tips
+    personalizationNotes: string | null; // Stores the challenge type
+    difficulty: number;
+    isRealityShift: boolean;
 }
 
