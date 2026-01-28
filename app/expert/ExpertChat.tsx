@@ -962,16 +962,10 @@ export default function ExpertChat() {
                 }
 
                 .dropdown-grid {
-                    display: flex;
-                    flex-wrap: wrap;
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
                     gap: 12px;
                     margin-bottom: 16px;
-                }
-
-                .dropdown-grid > * {
-                    flex: 0 0 calc(33.333% - 8px);
-                    min-width: 80px;
-                    max-width: calc(33.333% - 8px);
                 }
 
                 .chat-messages {
@@ -1303,11 +1297,6 @@ export default function ExpertChat() {
                         top: calc(var(--nav-height) + max(8px, env(safe-area-inset-top)));
                         height: calc(100vh - var(--nav-height) - max(8px, env(safe-area-inset-top)) - 70px - env(safe-area-inset-bottom) - var(--keyboard-offset));
                         height: calc(100dvh - var(--nav-height) - max(8px, env(safe-area-inset-top)) - 70px - env(safe-area-inset-bottom) - var(--keyboard-offset));
-                    }
-
-                    .dropdown-grid > * {
-                        flex: 0 0 calc(50% - 6px);
-                        max-width: calc(50% - 6px);
                     }
 
                     .message-bubble {
