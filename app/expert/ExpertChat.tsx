@@ -804,6 +804,7 @@ export default function ExpertChat() {
             <style jsx>{`
                 .expert-chat {
                     --keyboard-offset: 0px;
+                    --nav-height: 64px;
                     display: flex;
                     flex-direction: column;
                     min-height: 400px;
@@ -813,11 +814,11 @@ export default function ExpertChat() {
                     overflow: hidden;
                     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
                     position: fixed;
-                    top: max(16px, env(safe-area-inset-top));
+                    top: calc(var(--nav-height) + max(16px, env(safe-area-inset-top)));
                     left: 16px;
                     right: 16px;
-                    height: calc(100vh - max(16px, env(safe-area-inset-top)) - 80px - env(safe-area-inset-bottom) - var(--keyboard-offset));
-                    height: calc(100dvh - max(16px, env(safe-area-inset-top)) - 80px - env(safe-area-inset-bottom) - var(--keyboard-offset));
+                    height: calc(100vh - var(--nav-height) - max(16px, env(safe-area-inset-top)) - 80px - env(safe-area-inset-bottom) - var(--keyboard-offset));
+                    height: calc(100dvh - var(--nav-height) - max(16px, env(safe-area-inset-top)) - 80px - env(safe-area-inset-bottom) - var(--keyboard-offset));
                     z-index: 10;
                     overscroll-behavior: none;
                     will-change: height;
@@ -1299,9 +1300,9 @@ export default function ExpertChat() {
                         left: 8px;
                         right: 8px;
                         border-radius: 16px;
-                        top: max(8px, env(safe-area-inset-top));
-                        height: calc(100vh - max(8px, env(safe-area-inset-top)) - 70px - env(safe-area-inset-bottom) - var(--keyboard-offset));
-                        height: calc(100dvh - max(8px, env(safe-area-inset-top)) - 70px - env(safe-area-inset-bottom) - var(--keyboard-offset));
+                        top: calc(var(--nav-height) + max(8px, env(safe-area-inset-top)));
+                        height: calc(100vh - var(--nav-height) - max(8px, env(safe-area-inset-top)) - 70px - env(safe-area-inset-bottom) - var(--keyboard-offset));
+                        height: calc(100dvh - var(--nav-height) - max(8px, env(safe-area-inset-top)) - 70px - env(safe-area-inset-bottom) - var(--keyboard-offset));
                     }
 
                     .dropdown-grid > * {
