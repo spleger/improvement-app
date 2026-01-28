@@ -23,7 +23,10 @@ declare global {
     }
 }
 
-type RecordingState = 'idle' | 'recording' | 'processing' | 'confirming';
+// Transcription timeout in milliseconds (30 seconds)
+const TRANSCRIPTION_TIMEOUT = 30000;
+
+type RecordingState = 'idle' | 'recording' | 'transcribing' | 'previewing' | 'interpreting' | 'confirming';
 
 export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLoggerProps) {
     const [state, setState] = useState<RecordingState>('idle');
@@ -32,10 +35,12 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
     const [error, setError] = useState('');
     const [saving, setSaving] = useState(false);
     const [editedNotes, setEditedNotes] = useState<{ [key: string]: string }>({});
+    const [canRetryTranscription, setCanRetryTranscription] = useState(false);
 
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
     const streamRef = useRef<MediaStream | null>(null);
+    const audioBlobRef = useRef<Blob | null>(null);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -69,34 +74,10 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                 stream.getTracks().forEach(track => track.stop());
 
                 const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                audioBlobRef.current = audioBlob; // Store for retry capability
 
                 // Transcribe via server
-                setState('processing');
-                try {
-                    const formData = new FormData();
-                    formData.append('file', audioBlob, 'recording.webm');
-
-                    const response = await fetch('/api/transcribe', {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    const data = await response.json();
-                    const text = data.text || data.data?.text || '';
-
-                    if (text.trim()) {
-                        setTranscript(text);
-                        // Now interpret the transcript
-                        await interpretTranscript(text);
-                    } else {
-                        setError('No speech detected. Please try again.');
-                        setState('idle');
-                    }
-                } catch (err) {
-                    console.error('Transcription failed:', err);
-                    setError('Transcription failed. Please try again.');
-                    setState('idle');
-                }
+                await transcribeAudio(audioBlob);
             };
 
             mediaRecorder.start();
@@ -114,6 +95,83 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
         }
     };
 
+    const transcribeAudio = async (audioBlob: Blob) => {
+        setState('transcribing');
+        setError('');
+        setCanRetryTranscription(false);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), TRANSCRIPTION_TIMEOUT);
+
+        try {
+            const formData = new FormData();
+            formData.append('file', audioBlob, 'recording.webm');
+
+            const response = await fetch('/api/transcribe', {
+                method: 'POST',
+                body: formData,
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            const data = await response.json();
+
+            // Check for API error response (standardized format: { success: boolean, data/error })
+            if (!response.ok || data.success === false) {
+                throw new Error(data.error || `Server error: ${response.status}`);
+            }
+
+            // Extract transcript from standardized API response format
+            const text = data.data?.text ?? data.text ?? '';
+            const message = data.data?.message;
+
+            // Set transcript (may be empty if no speech detected)
+            setTranscript(text);
+
+            // Handle 'no speech detected' case - stay in previewing to allow retry or manual entry
+            if (!text.trim() && message) {
+                setError(message);
+                setCanRetryTranscription(true);
+                setState('previewing');
+                return;
+            }
+
+            if (!text.trim()) {
+                setError('No speech detected. Please try again.');
+                setCanRetryTranscription(true);
+                setState('previewing');
+                return;
+            }
+
+            // Show transcript preview before AI interpretation
+            setState('previewing');
+        } catch (err: any) {
+            clearTimeout(timeoutId);
+
+            if (err.name === 'AbortError') {
+                setError('Transcription timed out. Please retry.');
+            } else {
+                setError(err.message || 'Transcription failed. Please retry.');
+            }
+            setCanRetryTranscription(true);
+            // Stay in previewing state to allow retry or manual entry (follows VoiceRecorder pattern)
+            setState('previewing');
+        }
+    };
+
+    const retryTranscription = async () => {
+        if (audioBlobRef.current) {
+            await transcribeAudio(audioBlobRef.current);
+        }
+    };
+
+    const proceedToInterpret = async () => {
+        if (transcript.trim()) {
+            await interpretTranscript(transcript);
+        }
+    };
+
     const interpretTranscript = async (text: string) => {
         if (!text.trim()) {
             setError('No speech detected. Please try again.');
@@ -121,7 +179,7 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
             return;
         }
 
-        setState('processing');
+        setState('interpreting');
 
         try {
             const res = await fetch('/api/habits/interpret', {
@@ -198,6 +256,8 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
         setTranscript('');
         setInterpretedLogs([]);
         setError('');
+        setCanRetryTranscription(false);
+        audioBlobRef.current = null;
     };
 
     return (
@@ -218,7 +278,17 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                             <p>Tell me which habits you completed today</p>
                             <p className="hint">e.g., "I did my meditation and workout, but skipped journaling"</p>
 
-                            {error && <div className="error">{error}</div>}
+                            {error && (
+                                <div className="error">
+                                    {error}
+                                    {canRetryTranscription && (
+                                        <button className="retry-inline-btn" onClick={retryTranscription}>
+                                            <RotateCcw size={14} />
+                                            Retry Transcription
+                                        </button>
+                                    )}
+                                </div>
+                            )}
 
                             <button className="record-btn" onClick={startRecording}>
                                 <Mic size={24} />
@@ -253,14 +323,75 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                         </>
                     )}
 
-                    {/* PROCESSING State */}
-                    {state === 'processing' && (
+                    {/* TRANSCRIBING State */}
+                    {state === 'transcribing' && (
                         <>
                             <div className="voice-icon processing">
                                 <Loader2 size={48} className="spin" />
                             </div>
-                            <h2>Processing...</h2>
-                            <p>AI is interpreting your habits</p>
+                            <h2>Transcribing...</h2>
+                            <p>Converting speech to text</p>
+                        </>
+                    )}
+
+                    {/* PREVIEWING State - Shows transcript before AI interpretation */}
+                    {state === 'previewing' && (
+                        <>
+                            <div className="voice-icon idle">
+                                <Check size={48} />
+                            </div>
+                            <h2>{error ? 'Transcription Issue' : 'Transcript Ready'}</h2>
+                            <p>{error ? 'You can retry, re-record, or manually enter text' : 'Review what was transcribed before AI interpretation'}</p>
+
+                            <div className="transcript-preview">
+                                <span className="transcript-label">You said:</span>
+                                <textarea
+                                    className="transcript-edit"
+                                    value={transcript}
+                                    onChange={(e) => setTranscript(e.target.value)}
+                                    placeholder="Transcription will appear here, or type manually..."
+                                />
+                            </div>
+
+                            {error && (
+                                <div className="error">
+                                    {error}
+                                    {canRetryTranscription && (
+                                        <button className="retry-inline-btn" onClick={retryTranscription}>
+                                            <RotateCcw size={14} />
+                                            Retry Transcription
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="preview-actions">
+                                <button className="retry-btn" onClick={reset}>
+                                    <RotateCcw size={18} />
+                                    Re-record
+                                </button>
+                                <button className="confirm-btn" onClick={proceedToInterpret} disabled={!transcript.trim()}>
+                                    <Check size={18} />
+                                    Continue
+                                </button>
+                            </div>
+                        </>
+                    )}
+
+                    {/* INTERPRETING State */}
+                    {state === 'interpreting' && (
+                        <>
+                            <div className="voice-icon processing">
+                                <Loader2 size={48} className="spin" />
+                            </div>
+                            <h2>Interpreting...</h2>
+                            <p>AI is analyzing your habits</p>
+                            {transcript && (
+                                <div className="transcript-preview" style={{ marginTop: '16px' }}>
+                                    <span className="transcript-label">You said:</span>
+                                    <p className="transcript-text">{transcript}</p>
+                                </div>
+                            )}
                         </>
                     )}
 
@@ -569,7 +700,8 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                         font-size: 0.9rem;
                     }
 
-                    .confirm-actions {
+                    .confirm-actions,
+                    .preview-actions {
                         display: flex;
                         gap: 12px;
                         margin-top: 20px;
@@ -602,6 +734,59 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                     .confirm-btn:disabled {
                         opacity: 0.6;
                         cursor: not-allowed;
+                    }
+
+                    .retry-inline-btn {
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 6px;
+                        margin-top: 8px;
+                        margin-left: 8px;
+                        padding: 6px 12px;
+                        background: var(--color-error);
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        font-size: 0.8rem;
+                        font-weight: 500;
+                        cursor: pointer;
+                        transition: opacity 0.2s;
+                    }
+
+                    .retry-inline-btn:hover {
+                        opacity: 0.9;
+                    }
+
+                    .transcript-label {
+                        font-size: 0.75rem;
+                        color: var(--color-text-muted);
+                        text-transform: uppercase;
+                        letter-spacing: 0.05em;
+                        display: block;
+                        margin-bottom: 4px;
+                    }
+
+                    .transcript-text {
+                        color: var(--color-text);
+                        font-style: italic;
+                        margin: 0;
+                    }
+
+                    .transcript-edit {
+                        width: 100%;
+                        min-height: 60px;
+                        background: transparent;
+                        border: none;
+                        color: var(--color-text);
+                        font-style: italic;
+                        font-size: 0.95rem;
+                        resize: none;
+                        outline: none;
+                    }
+
+                    .transcript-edit::placeholder {
+                        color: var(--color-text-muted);
+                        font-style: normal;
                     }
                 `}</style>
             </div>

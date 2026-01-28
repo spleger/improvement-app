@@ -1,13 +1,16 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Mic, Square, Save, Trash2, Loader2, Play, Pause, RefreshCw } from 'lucide-react';
+import { Mic, Square, Save, Trash2, Loader2, Play, Pause, RefreshCw, RotateCcw } from 'lucide-react';
 
 interface VoiceRecorderProps {
     onSave: (transcript: string, duration: number) => Promise<void>;
 }
 
 type RecordingState = 'idle' | 'recording' | 'processing' | 'review' | 'saved';
+
+// Transcription timeout in milliseconds (30 seconds)
+const TRANSCRIPTION_TIMEOUT = 30000;
 
 export default function VoiceRecorder({ onSave }: VoiceRecorderProps) {
     const [state, setState] = useState<RecordingState>('idle');
@@ -16,6 +19,7 @@ export default function VoiceRecorder({ onSave }: VoiceRecorderProps) {
     const [error, setError] = useState<string | null>(null);
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [canRetryTranscription, setCanRetryTranscription] = useState(false);
 
     // Audio Playback State
     const [isPlaying, setIsPlaying] = useState(false);
@@ -25,6 +29,7 @@ export default function VoiceRecorder({ onSave }: VoiceRecorderProps) {
     const chunksRef = useRef<Blob[]>([]);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
+    const audioBlobRef = useRef<Blob | null>(null);
 
     // Cleanup
     useEffect(() => {
@@ -64,36 +69,13 @@ export default function VoiceRecorder({ onSave }: VoiceRecorderProps) {
 
             mediaRecorder.onstop = async () => {
                 const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
+                audioBlobRef.current = audioBlob; // Store for retry capability
                 const url = URL.createObjectURL(audioBlob);
                 setAudioUrl(url);
                 stream.getTracks().forEach(track => track.stop());
 
                 // Auto-transcribe on stop
-                setState('processing');
-                try {
-                    const formData = new FormData();
-                    formData.append('file', audioBlob, 'recording.webm');
-
-                    const response = await fetch('/api/transcribe', {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    const data = await response.json();
-                    const text = data.text || data.data?.text || '';
-
-                    if (text) {
-                        setTranscript(text);
-                    } else {
-                        // If no speech detected, just show empty
-                        setTranscript('');
-                    }
-                } catch (err) {
-                    console.error('Transcription failed:', err);
-                    setError('Transcription failed, but audio is saved.');
-                } finally {
-                    setState('review');
-                }
+                await transcribeAudio(audioBlob);
             };
 
             mediaRecorder.start();
@@ -117,6 +99,67 @@ export default function VoiceRecorder({ onSave }: VoiceRecorderProps) {
         }
     };
 
+    const transcribeAudio = async (audioBlob: Blob) => {
+        setState('processing');
+        setError(null);
+        setCanRetryTranscription(false);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), TRANSCRIPTION_TIMEOUT);
+
+        try {
+            const formData = new FormData();
+            formData.append('file', audioBlob, 'recording.webm');
+
+            const response = await fetch('/api/transcribe', {
+                method: 'POST',
+                body: formData,
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            const data = await response.json();
+
+            // Check for API error response (standardized format: { success: boolean, data/error })
+            if (!response.ok || data.success === false) {
+                throw new Error(data.error || `Server error: ${response.status}`);
+            }
+
+            // Extract transcript from standardized API response format
+            // API returns: { success: true, data: { text: '...', message?: '...' } }
+            const text = data.data?.text ?? '';
+            const message = data.data?.message;
+
+            // Set transcript (may be empty if no speech detected)
+            setTranscript(text);
+
+            // Handle 'no speech detected' case - show message but still allow manual entry
+            if (!text && message) {
+                setError(message);
+                setCanRetryTranscription(true);
+            }
+
+            setState('review');
+        } catch (err: any) {
+            clearTimeout(timeoutId);
+
+            if (err.name === 'AbortError') {
+                setError('Transcription timed out. Please retry.');
+            } else {
+                setError(err.message || 'Transcription failed. Please retry or edit manually.');
+            }
+            setCanRetryTranscription(true);
+            setState('review');
+        }
+    };
+
+    const retryTranscription = async () => {
+        if (audioBlobRef.current) {
+            await transcribeAudio(audioBlobRef.current);
+        }
+    };
+
     const handleSave = async () => {
         setIsSaving(true);
         try {
@@ -135,7 +178,9 @@ export default function VoiceRecorder({ onSave }: VoiceRecorderProps) {
         setDuration(0);
         setState('idle');
         chunksRef.current = [];
+        audioBlobRef.current = null;
         setError(null);
+        setCanRetryTranscription(false);
     };
 
     const togglePlayback = () => {
@@ -156,8 +201,31 @@ export default function VoiceRecorder({ onSave }: VoiceRecorderProps) {
     return (
         <div className="voice-recorder card-glass boxed-accent-top">
             {error && (
-                <div className="mb-lg p-md" style={{ borderLeft: '4px solid var(--color-error)', background: 'rgba(239, 68, 68, 0.1)', borderRadius: 'var(--radius-md)', color: 'var(--color-error)' }}>
-                    {error}
+                <div className="error-container mb-lg p-md" style={{ borderLeft: '4px solid var(--color-error)', background: 'rgba(239, 68, 68, 0.1)', borderRadius: 'var(--radius-md)', color: 'var(--color-error)' }}>
+                    <div className="error-message">{error}</div>
+                    {canRetryTranscription && (
+                        <button
+                            onClick={retryTranscription}
+                            className="retry-transcription-btn"
+                            style={{
+                                marginTop: '8px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '8px 16px',
+                                background: 'var(--color-error)',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: 'var(--radius-md)',
+                                cursor: 'pointer',
+                                fontWeight: '500',
+                                fontSize: '0.9rem'
+                            }}
+                        >
+                            <RotateCcw size={16} />
+                            Retry Transcription
+                        </button>
+                    )}
                 </div>
             )}
 

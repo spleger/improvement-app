@@ -7,6 +7,9 @@ const ANTHROPIC_API_KEY = ANTHROPIC_API_KEY_RAW?.replace(/^["']|["']$/g, '').tri
 
 export const dynamic = 'force-dynamic';
 
+// Default timeout for AI interpretation API calls (30 seconds as per spec)
+const INTERPRETATION_TIMEOUT_MS = 30000;
+
 // POST /api/habits/interpret - AI interprets voice transcript and maps to habits
 export async function POST(request: NextRequest) {
     try {
@@ -58,6 +61,10 @@ Output ONLY valid JSON, no markdown, no explanation. Format:
 
         const userMessage = `Here's what the user said about their habits today:\n\n"${transcript.trim()}"`;
 
+        // Create AbortController for timeout handling
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), INTERPRETATION_TIMEOUT_MS);
+
         try {
             const response = await fetch('https://api.anthropic.com/v1/messages', {
                 method: 'POST',
@@ -71,8 +78,12 @@ Output ONLY valid JSON, no markdown, no explanation. Format:
                     max_tokens: 1000,
                     system: systemPrompt,
                     messages: [{ role: 'user', content: userMessage }]
-                })
+                }),
+                signal: controller.signal
             });
+
+            // Clear timeout on successful response
+            clearTimeout(timeoutId);
 
             if (!response.ok) {
                 console.error('Claude API error:', response.status);
@@ -111,8 +122,23 @@ Output ONLY valid JSON, no markdown, no explanation. Format:
                 data: { interpretedLogs: validLogs }
             });
 
-        } catch (aiError) {
+        } catch (aiError: unknown) {
+            // Clear timeout on error
+            clearTimeout(timeoutId);
+
             console.error('AI interpretation failed:', aiError);
+
+            // Handle timeout errors specifically
+            if (aiError instanceof Error && aiError.name === 'AbortError') {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        error: 'AI interpretation timed out. Please try again.',
+                        errorType: 'timeout'
+                    },
+                    { status: 504 }
+                );
+            }
 
             // Fallback: Try simple keyword matching
             const fallbackLogs = habits.map(habit => {
