@@ -129,18 +129,18 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
             // Set transcript (may be empty if no speech detected)
             setTranscript(text);
 
-            // Handle 'no speech detected' case
+            // Handle 'no speech detected' case - stay in previewing to allow retry or manual entry
             if (!text.trim() && message) {
                 setError(message);
                 setCanRetryTranscription(true);
-                setState('idle');
+                setState('previewing');
                 return;
             }
 
             if (!text.trim()) {
                 setError('No speech detected. Please try again.');
                 setCanRetryTranscription(true);
-                setState('idle');
+                setState('previewing');
                 return;
             }
 
@@ -155,7 +155,8 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                 setError(err.message || 'Transcription failed. Please retry.');
             }
             setCanRetryTranscription(true);
-            setState('idle');
+            // Stay in previewing state to allow retry or manual entry (follows VoiceRecorder pattern)
+            setState('previewing');
         }
     };
 
@@ -339,22 +340,37 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                             <div className="voice-icon idle">
                                 <Check size={48} />
                             </div>
-                            <h2>Transcript Ready</h2>
-                            <p>Review what was transcribed before AI interpretation</p>
+                            <h2>{error ? 'Transcription Issue' : 'Transcript Ready'}</h2>
+                            <p>{error ? 'You can retry, re-record, or manually enter text' : 'Review what was transcribed before AI interpretation'}</p>
 
                             <div className="transcript-preview">
                                 <span className="transcript-label">You said:</span>
-                                <p className="transcript-text">"{transcript}"</p>
+                                <textarea
+                                    className="transcript-edit"
+                                    value={transcript}
+                                    onChange={(e) => setTranscript(e.target.value)}
+                                    placeholder="Transcription will appear here, or type manually..."
+                                />
                             </div>
 
-                            {error && <div className="error">{error}</div>}
+                            {error && (
+                                <div className="error">
+                                    {error}
+                                    {canRetryTranscription && (
+                                        <button className="retry-inline-btn" onClick={retryTranscription}>
+                                            <RotateCcw size={14} />
+                                            Retry Transcription
+                                        </button>
+                                    )}
+                                </div>
+                            )}
 
                             <div className="preview-actions">
                                 <button className="retry-btn" onClick={reset}>
                                     <RotateCcw size={18} />
                                     Re-record
                                 </button>
-                                <button className="confirm-btn" onClick={proceedToInterpret}>
+                                <button className="confirm-btn" onClick={proceedToInterpret} disabled={!transcript.trim()}>
                                     <Check size={18} />
                                     Continue
                                 </button>
@@ -754,6 +770,23 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                         color: var(--color-text);
                         font-style: italic;
                         margin: 0;
+                    }
+
+                    .transcript-edit {
+                        width: 100%;
+                        min-height: 60px;
+                        background: transparent;
+                        border: none;
+                        color: var(--color-text);
+                        font-style: italic;
+                        font-size: 0.95rem;
+                        resize: none;
+                        outline: none;
+                    }
+
+                    .transcript-edit::placeholder {
+                        color: var(--color-text-muted);
+                        font-style: normal;
                     }
                 `}</style>
             </div>
