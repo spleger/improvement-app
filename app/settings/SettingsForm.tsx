@@ -19,6 +19,12 @@ interface Preferences {
     streakReminders?: boolean;
     theme?: string;
     accentColor?: string;
+    // AI Voice Selection
+    voiceId?: string;
+    // AI Personality Customization
+    aiCustomName?: string;
+    tonePreference?: string;
+    rudeMode?: boolean;
 }
 
 const DEFAULT_PREFS: Preferences = {
@@ -35,7 +41,13 @@ const DEFAULT_PREFS: Preferences = {
     dailyReminderTime: '09:00',
     streakReminders: true,
     theme: 'minimal',
-    accentColor: 'teal'
+    accentColor: 'teal',
+    // AI Voice Selection
+    voiceId: 'nova',
+    // AI Personality Customization
+    aiCustomName: '',
+    tonePreference: 'friendly',
+    rudeMode: false
 };
 
 const ACCENT_COLORS = [
@@ -44,6 +56,18 @@ const ACCENT_COLORS = [
     { id: 'blue', name: 'Blue', primary: '#3b82f6', secondary: '#60a5fa', emoji: '💙' },
     { id: 'purple', name: 'Purple', primary: '#8b5cf6', secondary: '#a78bfa', emoji: '💜' },
     { id: 'rose', name: 'Rose', primary: '#e11d48', secondary: '#f43f5e', emoji: '🌹' },
+];
+
+const VOICE_OPTIONS = [
+    { id: 'alloy', name: 'Alloy', gender: 'neutral', description: 'Balanced and versatile' },
+    { id: 'ash', name: 'Ash', gender: 'male', description: 'Warm and conversational' },
+    { id: 'coral', name: 'Coral', gender: 'female', description: 'Warm and engaging' },
+    { id: 'echo', name: 'Echo', gender: 'male', description: 'Clear and professional' },
+    { id: 'fable', name: 'Fable', gender: 'neutral', description: 'Expressive and dynamic' },
+    { id: 'onyx', name: 'Onyx', gender: 'male', description: 'Deep and authoritative' },
+    { id: 'nova', name: 'Nova', gender: 'female', description: 'Friendly and approachable' },
+    { id: 'sage', name: 'Sage', gender: 'female', description: 'Calm and wise' },
+    { id: 'shimmer', name: 'Shimmer', gender: 'female', description: 'Bright and energetic' },
 ];
 
 export default function SettingsForm({ initialPreferences }: { initialPreferences: Preferences | null }) {
