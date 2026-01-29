@@ -724,6 +724,18 @@ button {
   }
 }
 
+/* Pillar responsive - tablet (768px) */
+@media (max-width: 768px) {
+  .pillar-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-sm);
+  }
+
+  .pillar-card {
+    min-height: 130px;
+  }
+}
+
 /* Pillar responsive - mobile (1 column) */
 @media (max-width: 640px) {
   .pillar-grid {
@@ -749,6 +761,38 @@ button {
   .quadrant-bottom-right {
     grid-column: 1;
     grid-row: auto;
+  }
+}
+
+/* ===================================
+   CALENDAR GRID RESPONSIVE
+   =================================== */
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+/* Calendar responsive - tablet */
+@media (max-width: 768px) {
+  .calendar-grid {
+    gap: 4px;
+  }
+}
+
+/* Calendar responsive - mobile */
+@media (max-width: 480px) {
+  .calendar-grid {
+    gap: 3px;
+  }
+
+  .calendar-cell {
+    font-size: 0.65rem !important;
+  }
+
+  .calendar-cell-day {
+    font-size: 0.6rem !important;
   }
 }
 
@@ -1135,6 +1179,10 @@ button {
   flex-direction: column;
 }
 
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
 .items-center {
   align-items: center;
 }
@@ -1483,6 +1531,22 @@ button {
   /* Stats grid mobile adjustments */
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-sm);
+  }
+
+  .stat-card {
+    padding: var(--spacing-md);
+  }
+
+  .stat-value {
+    font-size: 1.5rem;
+  }
+
+  /* Chart card responsive */
+  .chart-card {
+    min-height: 250px !important;
+    height: auto !important;
+    padding: var(--spacing-sm) !important;
   }
 
   /* Page header flex wrapping */

@@ -22,9 +22,7 @@ const GOAL_COLORS = [
     { bg: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)', border: '#10b981' },
 ];
 
-// Calendar grid constants for fixed dimensions
-const CALENDAR_CELL_SIZE = 40; // Fixed cell size in pixels
-const CALENDAR_GAP = 6; // Gap between cells
+// Calendar grid constants
 const CALENDAR_MIN_HEIGHT = 280; // Minimum height for calendar section to prevent layout shift
 
 interface Challenge {
@@ -359,12 +357,7 @@ export default function ProgressPage() {
                         /* Calendar Skeleton Loading State */
                         <div style={{ minHeight: `${CALENDAR_MIN_HEIGHT - 40}px` }}>
                             {/* Weekday headers skeleton */}
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(7, 1fr)',
-                                gap: `${CALENDAR_GAP}px`,
-                                marginBottom: 'var(--spacing-sm)'
-                            }}>
+                            <div className="calendar-grid" style={{ marginBottom: 'var(--spacing-sm)' }}>
                                 {[1, 2, 3, 4, 5, 6, 7].map(i => (
                                     <div
                                         key={i}
@@ -377,19 +370,16 @@ export default function ProgressPage() {
                                 ))}
                             </div>
                             {/* Calendar cells skeleton - 6 rows for calendar grid */}
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(7, 1fr)',
-                                gap: `${CALENDAR_GAP}px`
-                            }}>
+                            <div className="calendar-grid">
                                 {Array.from({ length: 42 }).map((_, i) => (
                                     <div
                                         key={i}
                                         className="skeleton-breathe"
                                         style={{
                                             width: '100%',
-                                            height: `${CALENDAR_CELL_SIZE}px`,
-                                            minHeight: `${CALENDAR_CELL_SIZE}px`,
+                                            aspectRatio: '1',
+                                            minHeight: '28px',
+                                            maxHeight: '44px',
                                             borderRadius: '6px'
                                         }}
                                     />
@@ -413,12 +403,12 @@ export default function ProgressPage() {
                     ) : (
                         /* Actual Calendar Content */
                         <>
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: `repeat(7, minmax(${CALENDAR_CELL_SIZE}px, 1fr))`,
-                                gap: `${CALENDAR_GAP}px`,
-                                minHeight: `${CALENDAR_MIN_HEIGHT - 100}px`
-                            }}>
+                            <div
+                                className="calendar-grid"
+                                style={{
+                                    minHeight: `${CALENDAR_MIN_HEIGHT - 100}px`
+                                }}
+                            >
                                 {/* Weekday headers */}
                                 {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => (
                                     <div key={i} className="text-tiny text-muted text-center" style={{
@@ -460,15 +450,16 @@ export default function ProgressPage() {
                                             className={`calendar-cell ${hasActivity ? 'calendar-cell-active' : ''} ${isToday ? 'calendar-cell-today' : ''}`}
                                             style={{
                                                 width: '100%',
-                                                height: `${CALENDAR_CELL_SIZE}px`,
-                                                minHeight: `${CALENDAR_CELL_SIZE}px`,
+                                                aspectRatio: '1',
+                                                minHeight: '28px',
+                                                maxHeight: '44px',
                                                 borderRadius: '6px',
                                                 display: 'flex',
                                                 flexDirection: 'column',
                                                 alignItems: 'center',
                                                 justifyContent: 'center',
-                                                fontSize: '0.75rem',
-                                                gap: '2px',
+                                                fontSize: 'clamp(0.6rem, 2vw, 0.75rem)',
+                                                gap: '1px',
                                                 visibility: day.isEmpty ? 'hidden' : 'visible',
                                                 background: getBackground(),
                                                 color: ['completed', 'skipped'].includes(day.status) ? 'white' : 'var(--color-text-muted)',
@@ -485,8 +476,8 @@ export default function ProgressPage() {
                                                 <span style={{
                                                     position: 'absolute',
                                                     top: '1px',
-                                                    left: '2px',
-                                                    fontSize: '0.5rem',
+                                                    left: '1px',
+                                                    fontSize: 'clamp(0.4rem, 1.2vw, 0.5rem)',
                                                     fontWeight: 600,
                                                     lineHeight: 1,
                                                     color: ['completed', 'skipped'].includes(day.status) ? 'rgba(255,255,255,0.9)' : 'var(--color-accent)',
@@ -511,15 +502,15 @@ export default function ProgressPage() {
                                             )}
                                             {/* Date label */}
                                             <span style={{
-                                                fontSize: '0.7rem',
+                                                fontSize: 'clamp(0.55rem, 1.8vw, 0.7rem)',
                                                 fontWeight: 600,
                                                 lineHeight: 1,
-                                                marginTop: day.monthLabel ? '6px' : '0'
+                                                marginTop: day.monthLabel ? '4px' : '0'
                                             }}>
                                                 {day.dayOfMonth || ''}
                                             </span>
                                             {/* Status icon */}
-                                            <span style={{ fontSize: '0.65rem', lineHeight: 1 }}>
+                                            <span style={{ fontSize: 'clamp(0.5rem, 1.5vw, 0.65rem)', lineHeight: 1 }}>
                                                 {day.status === 'completed' && '✓'}
                                                 {day.status === 'skipped' && '✗'}
                                                 {day.status === 'pending' && '○'}
