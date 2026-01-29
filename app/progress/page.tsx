@@ -3,16 +3,13 @@ import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import PageHeader from '../components/PageHeader';
+// Import PillarCard components for 4-quadrant pillar layout with sparklines
+// PillarCard: Individual card component with icon, stats, and mini sparkline chart
+// PillarGrid: Grid wrapper that renders 4 PillarCard components (Soul, Mind, Body, Goals)
+import { PillarCard, PillarGrid, type PillarData } from './PillarCard';
 
-// Pillar type definitions for the 4-quadrant layout
-interface PillarData {
-    id: 'soul' | 'mind' | 'body' | 'goals';
-    icon: string;
-    title: string;
-    value: number | string;
-    label: string;
-    sublabel?: string;
-}
+// Re-export PillarCard types for potential external use
+export type { PillarData };
 
 // Goal color palette for visual distinction
 const GOAL_COLORS = [
@@ -172,7 +169,42 @@ export default async function ProgressPage() {
         ? Math.round((recentSurveys.reduce((sum, s) => sum + s.motivationLevel, 0) / recentSurveys.length) * 10) / 10
         : 0;
 
-    // Build pillar data for the 4-quadrant layout
+    // Build sparkline data from surveys for each pillar (latest 14 days for trend visibility)
+    const sparklineSurveys = surveys.slice(0, 14).reverse(); // Reverse for chronological order
+    const moodSparkline = sparklineSurveys.map(s => ({
+        value: s.overallMood,
+        date: new Date(s.surveyDate).toISOString().split('T')[0]
+    }));
+    const motivationSparkline = sparklineSurveys.map(s => ({
+        value: s.motivationLevel,
+        date: new Date(s.surveyDate).toISOString().split('T')[0]
+    }));
+    const energySparkline = sparklineSurveys.map(s => ({
+        value: s.energyLevel,
+        date: new Date(s.surveyDate).toISOString().split('T')[0]
+    }));
+
+    // Calculate goals sparkline from daily completion rates over last 14 days
+    const goalsSparkline: Array<{ value: number; date?: string }> = [];
+    for (let i = 13; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+
+        // Count challenges completed up to this date
+        const challengesUpToDate = challenges.filter(c => {
+            const challengeDate = new Date(c.scheduledDate).toISOString().split('T')[0];
+            return challengeDate <= dateStr;
+        });
+        const completedUpToDate = challengesUpToDate.filter(c => c.status === 'completed').length;
+        const totalUpToDate = challengesUpToDate.length;
+
+        // Scale to 0-10 for consistency with other pillars
+        const rate = totalUpToDate > 0 ? Math.round((completedUpToDate / totalUpToDate) * 10) : 0;
+        goalsSparkline.push({ value: rate, date: dateStr });
+    }
+
+    // Build pillar data for the 4-quadrant layout with sparklines
     const pillarData: PillarData[] = [
         {
             id: 'soul',
@@ -180,7 +212,9 @@ export default async function ProgressPage() {
             title: 'Soul',
             value: avgMood > 0 ? avgMood : '—',
             label: 'Mood Score',
-            sublabel: recentSurveys.length > 0 ? `${recentSurveys.length}-day avg` : 'No data yet'
+            sublabel: recentSurveys.length > 0 ? `${recentSurveys.length}-day avg` : 'No data yet',
+            sparklineData: moodSparkline,
+            sparklineColor: '#a855f7'
         },
         {
             id: 'mind',
@@ -188,7 +222,9 @@ export default async function ProgressPage() {
             title: 'Mind',
             value: avgMotivation > 0 ? avgMotivation : '—',
             label: 'Motivation',
-            sublabel: recentSurveys.length > 0 ? `${recentSurveys.length}-day avg` : 'No data yet'
+            sublabel: recentSurveys.length > 0 ? `${recentSurveys.length}-day avg` : 'No data yet',
+            sparklineData: motivationSparkline,
+            sparklineColor: '#0d9488'
         },
         {
             id: 'body',
@@ -196,7 +232,9 @@ export default async function ProgressPage() {
             title: 'Body',
             value: avgEnergy > 0 ? avgEnergy : '—',
             label: 'Energy Level',
-            sublabel: recentSurveys.length > 0 ? `${recentSurveys.length}-day avg` : 'No data yet'
+            sublabel: recentSurveys.length > 0 ? `${recentSurveys.length}-day avg` : 'No data yet',
+            sparklineData: energySparkline,
+            sparklineColor: '#10b981'
         },
         {
             id: 'goals',
@@ -204,7 +242,9 @@ export default async function ProgressPage() {
             title: 'Goals',
             value: stats.completionRate > 0 ? `${stats.completionRate}%` : '—',
             label: 'Completion Rate',
-            sublabel: totalCount > 0 ? `${completedCount}/${totalCount} challenges` : 'No challenges yet'
+            sublabel: totalCount > 0 ? `${completedCount}/${totalCount} challenges` : 'No challenges yet',
+            sparklineData: goalsSparkline,
+            sparklineColor: '#f59e0b'
         }
     ];
 
@@ -217,29 +257,10 @@ export default async function ProgressPage() {
                 subtitle={activeGoal ? `Day ${dayInJourney} of your ${activeGoal.title} journey` : 'Track your transformation'}
             />
 
-            {/* Pillars of Health - 4-Quadrant Layout */}
+            {/* Pillars of Health - 4-Quadrant Layout with Sparklines */}
             <section className="pillar-section" style={{ marginBottom: 'var(--spacing-2xl)' }}>
                 <h2 className="heading-4 mb-md">Pillars of Health</h2>
-                <div className="pillar-grid">
-                    {pillarData.map((pillar) => (
-                        <div
-                            key={pillar.id}
-                            className={`pillar-card pillar-${pillar.id}`}
-                        >
-                            <div className="pillar-header">
-                                <span className="pillar-icon">{pillar.icon}</span>
-                                <span className="pillar-title">{pillar.title}</span>
-                            </div>
-                            <div className="pillar-content">
-                                <div className="pillar-value">{pillar.value}</div>
-                                <div className="pillar-label">{pillar.label}</div>
-                                {pillar.sublabel && (
-                                    <div className="pillar-sublabel">{pillar.sublabel}</div>
-                                )}
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                <PillarGrid pillars={pillarData} />
             </section>
 
             {/* Section Separator */}
