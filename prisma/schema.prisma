@@ -262,6 +262,15 @@ model UserPreferences {
   dailyReminderTime         String?
   streakReminders           Boolean?
   theme                     String?
+
+  // AI Voice Selection
+  voiceId                   String?  // OpenAI voice ID: alloy, ash, coral, echo, fable, onyx, nova, sage, shimmer
+
+  // AI Personality Customization
+  aiCustomName              String?  // Custom name for AI coach (e.g., "Max", "Coach Aria")
+  tonePreference            String?  // "professional" | "friendly" | "casual"
+  rudeMode                  Boolean? @default(false) // Enable tough-love, no-excuses mode
+
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
 
