@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import VoiceRecorder from '@/app/components/VoiceRecorder';
+import VoiceRecorder from './VoiceRecorder';
 import PageHeader from '@/app/components/PageHeader';
 import { Calendar, Mic, Clock, BarChart2 } from 'lucide-react';
 
@@ -19,6 +19,7 @@ interface DiaryEntry {
 export default function DiaryPage() {
     const [entries, setEntries] = useState<DiaryEntry[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
 
     const fetchEntries = async () => {
         try {
@@ -38,25 +39,13 @@ export default function DiaryPage() {
         fetchEntries();
     }, []);
 
-    const handleSaveEntry = async (transcript: string, duration: number) => {
-        try {
-            const res = await fetch('/api/diary', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    transcript,
-                    audioDurationSeconds: duration,
-                    moodScore: 7 // Placeholder mood, could be added to UI later
-                })
-            });
+    const handleVoiceRecorderClose = () => {
+        setShowVoiceRecorder(false);
+    };
 
-            if (res.ok) {
-                await fetchEntries(); // Refresh list
-            }
-        } catch (error) {
-            console.error('Failed to save entry', error);
-            throw error;
-        }
+    const handleVoiceRecorderSaved = async () => {
+        setShowVoiceRecorder(false);
+        await fetchEntries(); // Refresh list
     };
 
     const formatDate = (dateString: string) => {
@@ -78,10 +67,60 @@ export default function DiaryPage() {
                 subtitle="Capture your daily reflections, wins, and blockers"
             />
 
+            {/* Voice Recorder Modal */}
+            {showVoiceRecorder && (
+                <VoiceRecorder
+                    onClose={handleVoiceRecorderClose}
+                    onSaved={handleVoiceRecorderSaved}
+                />
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-lg">
                 {/* Recorder Section */}
                 <div className="md:col-span-2 space-y-lg">
-                    <VoiceRecorder onSave={handleSaveEntry} />
+                    {/* Voice Record Button */}
+                    <div
+                        className="card-glass boxed-accent-top text-center"
+                        style={{
+                            boxShadow: 'var(--shadow-md)',
+                            border: '1px solid var(--color-border)',
+                            padding: 'var(--spacing-xl)'
+                        }}
+                    >
+                        <button
+                            onClick={() => setShowVoiceRecorder(true)}
+                            className="voice-record-btn"
+                            style={{
+                                width: '100px',
+                                height: '100px',
+                                borderRadius: '50%',
+                                background: 'var(--gradient-primary)',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                margin: '0 auto 1.5rem',
+                                boxShadow: '0 8px 32px rgba(99, 102, 241, 0.4)',
+                                transition: 'transform 0.2s, box-shadow 0.2s',
+                                color: 'white'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'scale(1.05)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'scale(1)';
+                            }}
+                        >
+                            <Mic size={40} />
+                        </button>
+                        <h3 className="text-xl font-bold mb-sm" style={{ color: 'var(--color-text)' }}>
+                            Tap to Record
+                        </h3>
+                        <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                            Capture your thoughts with a voice diary entry
+                        </p>
+                    </div>
 
                     <div className="space-y-md">
                         <h2 className="text-2xl font-bold flex items-center gap-sm">

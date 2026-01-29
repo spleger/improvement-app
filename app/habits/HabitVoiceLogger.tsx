@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Mic, MicOff, X, Check, RotateCcw, Loader2 } from 'lucide-react';
+import { Mic, MicOff, X, Check, RotateCcw, Loader2, Pause, Play } from 'lucide-react';
 
 interface InterpretedLog {
     habitId: string;
@@ -23,10 +23,7 @@ declare global {
     }
 }
 
-// Transcription timeout in milliseconds (30 seconds)
-const TRANSCRIPTION_TIMEOUT = 30000;
-
-type RecordingState = 'idle' | 'recording' | 'transcribing' | 'previewing' | 'interpreting' | 'confirming';
+type RecordingState = 'idle' | 'recording' | 'paused' | 'processing' | 'confirming';
 
 export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLoggerProps) {
     const [state, setState] = useState<RecordingState>('idle');
@@ -35,21 +32,28 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
     const [error, setError] = useState('');
     const [saving, setSaving] = useState(false);
     const [editedNotes, setEditedNotes] = useState<{ [key: string]: string }>({});
-    const [canRetryTranscription, setCanRetryTranscription] = useState(false);
+    const [duration, setDuration] = useState(0);
 
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
     const streamRef = useRef<MediaStream | null>(null);
-    const audioBlobRef = useRef<Blob | null>(null);
+    const timerRef = useRef<NodeJS.Timeout | null>(null);
 
     // Cleanup on unmount
     useEffect(() => {
         return () => {
+            if (timerRef.current) clearInterval(timerRef.current);
             if (streamRef.current) {
                 streamRef.current.getTracks().forEach(track => track.stop());
             }
         };
     }, []);
+
+    const formatDuration = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
 
     const startRecording = async () => {
         setError('');
@@ -74,14 +78,44 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                 stream.getTracks().forEach(track => track.stop());
 
                 const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                audioBlobRef.current = audioBlob; // Store for retry capability
 
                 // Transcribe via server
-                await transcribeAudio(audioBlob);
+                setState('processing');
+                try {
+                    const formData = new FormData();
+                    formData.append('file', audioBlob, 'recording.webm');
+
+                    const response = await fetch('/api/transcribe', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+                    const text = data.text || data.data?.text || '';
+
+                    if (text.trim()) {
+                        setTranscript(text);
+                        // Now interpret the transcript
+                        await interpretTranscript(text);
+                    } else {
+                        setError('No speech detected. Please try again.');
+                        setState('idle');
+                    }
+                } catch (err) {
+                    console.error('Transcription failed:', err);
+                    setError('Transcription failed. Please try again.');
+                    setState('idle');
+                }
             };
 
             mediaRecorder.start();
             setState('recording');
+            setDuration(0);
+
+            // Start timer
+            timerRef.current = setInterval(() => {
+                setDuration(d => d + 1);
+            }, 1000);
         } catch (err) {
             console.error('Microphone access denied:', err);
             setError('Could not access microphone');
@@ -89,86 +123,28 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
         }
     };
 
-    const stopRecording = () => {
+    const pauseRecording = () => {
         if (mediaRecorderRef.current && state === 'recording') {
+            mediaRecorderRef.current.pause();
+            setState('paused');
+            if (timerRef.current) clearInterval(timerRef.current);
+        }
+    };
+
+    const resumeRecording = () => {
+        if (mediaRecorderRef.current && state === 'paused') {
+            mediaRecorderRef.current.resume();
+            setState('recording');
+            timerRef.current = setInterval(() => {
+                setDuration(d => d + 1);
+            }, 1000);
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorderRef.current && (state === 'recording' || state === 'paused')) {
             mediaRecorderRef.current.stop();
-        }
-    };
-
-    const transcribeAudio = async (audioBlob: Blob) => {
-        setState('transcribing');
-        setError('');
-        setCanRetryTranscription(false);
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), TRANSCRIPTION_TIMEOUT);
-
-        try {
-            const formData = new FormData();
-            formData.append('file', audioBlob, 'recording.webm');
-
-            const response = await fetch('/api/transcribe', {
-                method: 'POST',
-                body: formData,
-                signal: controller.signal
-            });
-
-            clearTimeout(timeoutId);
-
-            const data = await response.json();
-
-            // Check for API error response (standardized format: { success: boolean, data/error })
-            if (!response.ok || data.success === false) {
-                throw new Error(data.error || `Server error: ${response.status}`);
-            }
-
-            // Extract transcript from standardized API response format
-            const text = data.data?.text ?? data.text ?? '';
-            const message = data.data?.message;
-
-            // Set transcript (may be empty if no speech detected)
-            setTranscript(text);
-
-            // Handle 'no speech detected' case - stay in previewing to allow retry or manual entry
-            if (!text.trim() && message) {
-                setError(message);
-                setCanRetryTranscription(true);
-                setState('previewing');
-                return;
-            }
-
-            if (!text.trim()) {
-                setError('No speech detected. Please try again.');
-                setCanRetryTranscription(true);
-                setState('previewing');
-                return;
-            }
-
-            // Show transcript preview before AI interpretation
-            setState('previewing');
-        } catch (err: any) {
-            clearTimeout(timeoutId);
-
-            if (err.name === 'AbortError') {
-                setError('Transcription timed out. Please retry.');
-            } else {
-                setError(err.message || 'Transcription failed. Please retry.');
-            }
-            setCanRetryTranscription(true);
-            // Stay in previewing state to allow retry or manual entry (follows VoiceRecorder pattern)
-            setState('previewing');
-        }
-    };
-
-    const retryTranscription = async () => {
-        if (audioBlobRef.current) {
-            await transcribeAudio(audioBlobRef.current);
-        }
-    };
-
-    const proceedToInterpret = async () => {
-        if (transcript.trim()) {
-            await interpretTranscript(transcript);
+            if (timerRef.current) clearInterval(timerRef.current);
         }
     };
 
@@ -179,7 +155,7 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
             return;
         }
 
-        setState('interpreting');
+        setState('processing');
 
         try {
             const res = await fetch('/api/habits/interpret', {
@@ -256,8 +232,8 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
         setTranscript('');
         setInterpretedLogs([]);
         setError('');
-        setCanRetryTranscription(false);
-        audioBlobRef.current = null;
+        setDuration(0);
+        if (timerRef.current) clearInterval(timerRef.current);
     };
 
     return (
@@ -278,17 +254,7 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                             <p>Tell me which habits you completed today</p>
                             <p className="hint">e.g., "I did my meditation and workout, but skipped journaling"</p>
 
-                            {error && (
-                                <div className="error">
-                                    {error}
-                                    {canRetryTranscription && (
-                                        <button className="retry-inline-btn" onClick={retryTranscription}>
-                                            <RotateCcw size={14} />
-                                            Retry Transcription
-                                        </button>
-                                    )}
-                                </div>
-                            )}
+                            {error && <div className="error">{error}</div>}
 
                             <button className="record-btn" onClick={startRecording}>
                                 <Mic size={24} />
@@ -297,15 +263,25 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                         </>
                     )}
 
-                    {/* RECORDING State */}
-                    {state === 'recording' && (
+                    {/* RECORDING / PAUSED State */}
+                    {(state === 'recording' || state === 'paused') && (
                         <>
-                            <div className="voice-icon recording">
-                                <Mic size={48} />
-                                <div className="pulse-ring"></div>
-                                <div className="pulse-ring delay"></div>
+                            <div className={`voice-icon ${state === 'recording' ? 'recording' : 'paused'}`}>
+                                {state === 'recording' ? <Mic size={48} /> : <Pause size={48} />}
+                                {state === 'recording' && (
+                                    <>
+                                        <div className="pulse-ring"></div>
+                                        <div className="pulse-ring delay"></div>
+                                    </>
+                                )}
                             </div>
-                            <h2>Listening...</h2>
+
+                            {/* Timer Display */}
+                            <div className="timer-display">
+                                {formatDuration(duration)}
+                            </div>
+
+                            <h2>{state === 'recording' ? 'Listening...' : 'Paused'}</h2>
 
                             <div className="transcript-preview" style={{
                                 display: 'flex',
@@ -313,85 +289,39 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                                 justifyContent: 'center',
                                 color: 'var(--color-text-secondary)'
                             }}>
-                                <span className="breathing-text">Listening... Tap stop when done</span>
+                                <span className="breathing-text">
+                                    {state === 'recording' ? 'Listening... Tap pause or stop when done' : 'Recording paused. Tap resume to continue.'}
+                                </span>
                             </div>
 
-                            <button className="stop-btn" onClick={stopRecording}>
-                                <MicOff size={24} />
-                                Stop Recording
-                            </button>
-                        </>
-                    )}
-
-                    {/* TRANSCRIBING State */}
-                    {state === 'transcribing' && (
-                        <>
-                            <div className="voice-icon processing">
-                                <Loader2 size={48} className="spin" />
-                            </div>
-                            <h2>Transcribing...</h2>
-                            <p>Converting speech to text</p>
-                        </>
-                    )}
-
-                    {/* PREVIEWING State - Shows transcript before AI interpretation */}
-                    {state === 'previewing' && (
-                        <>
-                            <div className="voice-icon idle">
-                                <Check size={48} />
-                            </div>
-                            <h2>{error ? 'Transcription Issue' : 'Transcript Ready'}</h2>
-                            <p>{error ? 'You can retry, re-record, or manually enter text' : 'Review what was transcribed before AI interpretation'}</p>
-
-                            <div className="transcript-preview">
-                                <span className="transcript-label">You said:</span>
-                                <textarea
-                                    className="transcript-edit"
-                                    value={transcript}
-                                    onChange={(e) => setTranscript(e.target.value)}
-                                    placeholder="Transcription will appear here, or type manually..."
-                                />
-                            </div>
-
-                            {error && (
-                                <div className="error">
-                                    {error}
-                                    {canRetryTranscription && (
-                                        <button className="retry-inline-btn" onClick={retryTranscription}>
-                                            <RotateCcw size={14} />
-                                            Retry Transcription
-                                        </button>
-                                    )}
-                                </div>
-                            )}
-
-                            <div className="preview-actions">
-                                <button className="retry-btn" onClick={reset}>
-                                    <RotateCcw size={18} />
-                                    Re-record
-                                </button>
-                                <button className="confirm-btn" onClick={proceedToInterpret} disabled={!transcript.trim()}>
-                                    <Check size={18} />
-                                    Continue
+                            <div className="recording-controls">
+                                {state === 'recording' ? (
+                                    <button className="pause-btn" onClick={pauseRecording}>
+                                        <Pause size={24} />
+                                        Pause
+                                    </button>
+                                ) : (
+                                    <button className="resume-btn" onClick={resumeRecording}>
+                                        <Play size={24} />
+                                        Resume
+                                    </button>
+                                )}
+                                <button className="stop-btn" onClick={stopRecording}>
+                                    <MicOff size={24} />
+                                    Stop
                                 </button>
                             </div>
                         </>
                     )}
 
-                    {/* INTERPRETING State */}
-                    {state === 'interpreting' && (
+                    {/* PROCESSING State */}
+                    {state === 'processing' && (
                         <>
                             <div className="voice-icon processing">
                                 <Loader2 size={48} className="spin" />
                             </div>
-                            <h2>Interpreting...</h2>
-                            <p>AI is analyzing your habits</p>
-                            {transcript && (
-                                <div className="transcript-preview" style={{ marginTop: '16px' }}>
-                                    <span className="transcript-label">You said:</span>
-                                    <p className="transcript-text">{transcript}</p>
-                                </div>
-                            )}
+                            <h2>Processing...</h2>
+                            <p>AI is interpreting your habits</p>
                         </>
                     )}
 
@@ -559,6 +489,14 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                         to { transform: rotate(360deg); }
                     }
 
+                    .timer-display {
+                        font-size: 2rem;
+                        font-weight: 700;
+                        font-family: monospace;
+                        color: var(--color-text);
+                        margin-bottom: 8px;
+                    }
+
                     h2 {
                         font-size: 1.5rem;
                         font-weight: 700;
@@ -623,6 +561,48 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                     }
 
                     .stop-btn:hover {
+                        opacity: 0.9;
+                    }
+
+                    .voice-icon.paused {
+                        background: var(--color-warning, #fbbf24);
+                        color: white;
+                    }
+
+                    .recording-controls {
+                        display: flex;
+                        gap: 12px;
+                        justify-content: center;
+                    }
+
+                    .pause-btn, .resume-btn {
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 10px;
+                        padding: 14px 28px;
+                        border-radius: 14px;
+                        font-size: 1rem;
+                        font-weight: 600;
+                        cursor: pointer;
+                        border: none;
+                        transition: all 0.2s;
+                    }
+
+                    .pause-btn {
+                        background: var(--color-warning, #fbbf24);
+                        color: white;
+                    }
+
+                    .pause-btn:hover {
+                        opacity: 0.9;
+                    }
+
+                    .resume-btn {
+                        background: var(--color-success);
+                        color: white;
+                    }
+
+                    .resume-btn:hover {
                         opacity: 0.9;
                     }
 
@@ -700,8 +680,7 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                         font-size: 0.9rem;
                     }
 
-                    .confirm-actions,
-                    .preview-actions {
+                    .confirm-actions {
                         display: flex;
                         gap: 12px;
                         margin-top: 20px;
@@ -734,59 +713,6 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                     .confirm-btn:disabled {
                         opacity: 0.6;
                         cursor: not-allowed;
-                    }
-
-                    .retry-inline-btn {
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 6px;
-                        margin-top: 8px;
-                        margin-left: 8px;
-                        padding: 6px 12px;
-                        background: var(--color-error);
-                        color: white;
-                        border: none;
-                        border-radius: 8px;
-                        font-size: 0.8rem;
-                        font-weight: 500;
-                        cursor: pointer;
-                        transition: opacity 0.2s;
-                    }
-
-                    .retry-inline-btn:hover {
-                        opacity: 0.9;
-                    }
-
-                    .transcript-label {
-                        font-size: 0.75rem;
-                        color: var(--color-text-muted);
-                        text-transform: uppercase;
-                        letter-spacing: 0.05em;
-                        display: block;
-                        margin-bottom: 4px;
-                    }
-
-                    .transcript-text {
-                        color: var(--color-text);
-                        font-style: italic;
-                        margin: 0;
-                    }
-
-                    .transcript-edit {
-                        width: 100%;
-                        min-height: 60px;
-                        background: transparent;
-                        border: none;
-                        color: var(--color-text);
-                        font-style: italic;
-                        font-size: 0.95rem;
-                        resize: none;
-                        outline: none;
-                    }
-
-                    .transcript-edit::placeholder {
-                        color: var(--color-text-muted);
-                        font-style: normal;
                     }
                 `}</style>
             </div>
