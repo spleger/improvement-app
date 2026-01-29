@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { getCurrentUser } from '@/lib/auth';
+import * as db from '@/lib/db';
 
 export async function POST(request: NextRequest) {
     try {
@@ -10,7 +11,11 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { text, voice = 'nova' } = body;
+        const { text } = body;
+
+        // Fetch user preferences to get voiceId with fallback to 'nova'
+        const prefs = await db.getUserPreferences(user.userId);
+        const voice = prefs?.voiceId || 'nova';
 
         if (!text || typeof text !== 'string') {
             return NextResponse.json({ error: 'No text provided' }, { status: 400 });
