@@ -46,7 +46,7 @@ export default function BottomNavigation() {
     const trackingSubmenu = [
         { id: 'habits', icon: '✅', label: 'Log Habits', href: '/habits' },
         { id: 'diary', icon: '🎙️', label: 'Voice Diary', href: '/diary' },
-        { id: 'checkin', icon: '📊', label: 'Check-in', href: '/progress' },
+        { id: 'checkin', icon: '📊', label: 'Check-in', href: '/survey' },
     ];
 
     return (

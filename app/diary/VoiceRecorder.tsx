@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Mic, MicOff, X, Check, RotateCcw, Loader2, Pause, Play, Trash2, Save } from 'lucide-react';
 
 interface VoiceRecorderProps {

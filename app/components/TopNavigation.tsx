@@ -236,7 +236,7 @@ export default function TopNavigation() {
                     margin-top: var(--spacing-sm);
                     background: var(--color-surface-solid);
                     border: 1px solid var(--color-border);
-                    border-radius: var(--radius-lg);
+                    border-radius: 20px;
                     padding: var(--spacing-sm);
                     min-width: 160px;
                     box-shadow: var(--shadow-lg);
@@ -244,6 +244,8 @@ export default function TopNavigation() {
                     animation: slideDown 0.15s ease-out;
                     display: flex;
                     flex-direction: column;
+                    align-items: center;
+                    gap: 8px;
                 }
 
                 @keyframes slideDown {
@@ -261,11 +263,21 @@ export default function TopNavigation() {
                     display: flex;
                     align-items: center;
                     gap: var(--spacing-sm);
-                    padding: var(--spacing-sm) var(--spacing-md);
-                    border-radius: var(--radius-md);
+                    padding: 10px 16px;
+                    border-radius: 9999px;
                     text-decoration: none;
                     color: var(--color-text-primary);
+                    background: var(--color-surface-2);
+                    border: 1px solid transparent;
                     transition: all var(--transition-fast);
+                    width: 100%; /* Or auto if we want true pills, but 100% fills the centered column */
+                    justify-content: center; /* Center content in the pill */
+                }
+
+                .quick-action-item:hover {
+                    background: var(--color-surface-hover);
+                    border-color: var(--color-primary-light);
+                    transform: translateX(2px);
                 }
 
                 .quick-action-item:hover {

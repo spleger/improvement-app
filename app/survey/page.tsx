@@ -15,7 +15,7 @@ export default function SurveyPage() {
     };
 
     return (
-        <div className="page animate-fade-in">
+        <div className={`${selectedMode === 'ai' ? 'page-chat' : 'page'} animate-fade-in`}>
             {/* Back button */}
             <Link href="/" className="btn btn-ghost mb-lg">
                 ← Back

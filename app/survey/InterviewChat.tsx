@@ -767,13 +767,12 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
                 .interview-chat {
                     display: flex;
                     flex-direction: column;
-                    height: calc(100dvh - 180px); /* Adjusted for mobile address bar */
-                    min-height: 400px;
+                    height: 100%;
+                    width: 100%;
                     background: var(--color-surface);
-                    border-radius: 24px;
-                    border: 1px solid var(--color-border);
+                    border: none;
+                    border-radius: 0;
                     overflow: hidden;
-                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
                 }
 
                 .interview-header {
