@@ -7,6 +7,8 @@ import PageHeader from '../components/PageHeader';
 // PillarCard: Individual card component with icon, stats, and mini sparkline chart
 // PillarGrid: Grid wrapper that renders 4 PillarCard components (Soul, Mind, Body, Goals)
 import { PillarCard, PillarGrid, type PillarData } from './PillarCard';
+// Import MoodEnergyChart for displaying mood/energy/motivation trends as a line chart
+import { MoodEnergyChart } from '../../components/Charts';
 
 // Re-export PillarCard types for potential external use
 export type { PillarData };
@@ -756,76 +758,18 @@ export default function ProgressPage() {
                 </>
             )}
 
-            {/* Mood Chart (Simplified) */}
-            {chartData.length > 0 && (
-                <>
-                    {/* Section Separator */}
-                    <hr className="section-separator-gradient" />
+            {/* Mood & Energy Trends Chart */}
+            <>
+                {/* Section Separator */}
+                <hr className="section-separator-gradient" />
 
-                    <section style={{ marginBottom: 'var(--spacing-2xl)' }}>
-                        <h2 className="heading-4 mb-md">Mood & Energy Trends</h2>
-                        <div className="card">
-                            <div style={{ height: '150px', display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
-                                {chartData.slice(-14).map((point, i) => (
-                                    <div key={i} style={{ flex: 1, display: 'flex', alignItems: 'flex-end', gap: '2px', height: '100%' }}>
-                                        {/* Mood bar */}
-                                        <div
-                                            style={{
-                                                flex: 1,
-                                                height: `${point.mood * 10}%`,
-                                                background: 'var(--gradient-primary)',
-                                                borderRadius: '2px 2px 0 0',
-                                                minHeight: '4px'
-                                            }}
-                                            title={`Mood: ${point.mood}`}
-                                        />
-                                        {/* Energy bar */}
-                                        <div
-                                            style={{
-                                                flex: 1,
-                                                height: `${point.energy * 10}%`,
-                                                background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)',
-                                                borderRadius: '2px 2px 0 0',
-                                                minHeight: '4px'
-                                            }}
-                                            title={`Energy: ${point.energy}`}
-                                        />
-                                        {/* Motivation bar */}
-                                        <div
-                                            style={{
-                                                flex: 1,
-                                                height: `${point.motivation * 10}%`,
-                                                background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
-                                                borderRadius: '2px 2px 0 0',
-                                                minHeight: '4px'
-                                            }}
-                                            title={`Motivation: ${point.motivation}`}
-                                        />
-                                    </div>
-                                ))}
-                            </div>
-                            {/* Legend */}
-                            <div className="flex flex-wrap justify-center gap-md mt-md text-tiny">
-                                <span className="flex items-center gap-sm">
-                                    <span style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--gradient-primary)' }} />
-                                    Mood
-                                </span>
-                                <span className="flex items-center gap-sm">
-                                    <span style={{ width: 12, height: 12, borderRadius: 3, background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)' }} />
-                                    Energy
-                                </span>
-                                <span className="flex items-center gap-sm">
-                                    <span style={{ width: 12, height: 12, borderRadius: 3, background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)' }} />
-                                    Motivation
-                                </span>
-                            </div>
-                            <div className="text-tiny text-muted text-center mt-sm">
-                                Last {Math.min(14, chartData.length)} days • Levels (1-10)
-                            </div>
-                        </div>
-                    </section>
-                </>
-            )}
+                <section style={{ marginBottom: 'var(--spacing-2xl)' }}>
+                    <h2 className="heading-4 mb-md">Mood & Energy Trends</h2>
+                    <div className="card" style={{ height: '300px' }}>
+                        <MoodEnergyChart data={chartData} />
+                    </div>
+                </section>
+            </>
 
             {/* Section Separator */}
             <hr className="section-separator-subtle" />
