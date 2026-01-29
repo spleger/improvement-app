@@ -3,6 +3,8 @@
 import {
     LineChart,
     Line,
+    AreaChart,
+    Area,
     XAxis,
     YAxis,
     CartesianGrid,
@@ -68,6 +70,79 @@ const CustomTooltip = ({
     }
     return null;
 };
+
+// MiniStatChart - Sparkline-style mini chart for pillar cards
+interface MiniStatChartProps {
+    data: Array<{ value: number; date?: string }>;
+    color?: string;
+    height?: number;
+    showGradient?: boolean;
+}
+
+export function MiniStatChart({
+    data,
+    color = '#0d9488',
+    height = 40,
+    showGradient = true,
+}: MiniStatChartProps) {
+    // Don't render if no data
+    if (!data || data.length === 0) {
+        return (
+            <div
+                style={{
+                    width: '100%',
+                    height: `${height}px`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                }}
+            >
+                <span
+                    style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--color-text-muted)',
+                    }}
+                >
+                    No data
+                </span>
+            </div>
+        );
+    }
+
+    // Generate unique gradient ID to avoid conflicts when multiple charts on page
+    const gradientId = `miniStatGradient-${color.replace('#', '')}`;
+
+    return (
+        <div style={{ width: '100%', height: `${height}px` }}>
+            <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                    data={data}
+                    margin={{ top: 2, right: 2, left: 2, bottom: 2 }}
+                >
+                    {showGradient && (
+                        <defs>
+                            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+                                <stop offset="95%" stopColor={color} stopOpacity={0.05} />
+                            </linearGradient>
+                        </defs>
+                    )}
+                    <Area
+                        type="monotone"
+                        dataKey="value"
+                        stroke={color}
+                        strokeWidth={2}
+                        fill={showGradient ? `url(#${gradientId})` : 'transparent'}
+                        dot={false}
+                        activeDot={false}
+                        isAnimationActive={true}
+                        animationDuration={500}
+                    />
+                </AreaChart>
+            </ResponsiveContainer>
+        </div>
+    );
+}
 
 export function MoodEnergyChart({ data }: MoodEnergyChartProps) {
     // Format dates for display on X-axis
