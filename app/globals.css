@@ -524,6 +524,235 @@ button {
 }
 
 /* ===================================
+   PILLAR LAYOUT - 4 QUADRANT GRID
+   =================================== */
+
+/* Main pillar grid container - 4 columns on desktop */
+.pillar-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-md);
+  width: 100%;
+}
+
+/* 2x2 quadrant layout variant */
+.quadrant-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, auto);
+  gap: var(--spacing-md);
+  width: 100%;
+}
+
+/* Base pillar card styling */
+.pillar-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  transition: all var(--transition-normal);
+  display: flex;
+  flex-direction: column;
+  min-height: 140px;
+}
+
+.pillar-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Pillar card top accent line */
+.pillar-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-primary);
+}
+
+/* Soul Pillar - Purple gradient */
+.pillar-soul::before {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.pillar-soul .pillar-icon,
+.pillar-soul .pillar-value {
+  color: #764ba2;
+}
+
+[data-theme="dark"] .pillar-soul .pillar-icon,
+[data-theme="dark"] .pillar-soul .pillar-value {
+  color: #a78bfa;
+}
+
+/* Mind Pillar - Teal/Cyan gradient */
+.pillar-mind::before {
+  background: linear-gradient(135deg, #0d9488 0%, #06b6d4 100%);
+}
+
+.pillar-mind .pillar-icon,
+.pillar-mind .pillar-value {
+  color: #0d9488;
+}
+
+[data-theme="dark"] .pillar-mind .pillar-icon,
+[data-theme="dark"] .pillar-mind .pillar-value {
+  color: #14b8a6;
+}
+
+/* Body Pillar - Green gradient */
+.pillar-body::before {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+}
+
+.pillar-body .pillar-icon,
+.pillar-body .pillar-value {
+  color: #059669;
+}
+
+[data-theme="dark"] .pillar-body .pillar-icon,
+[data-theme="dark"] .pillar-body .pillar-value {
+  color: #10b981;
+}
+
+/* Goals Pillar - Fire/Orange gradient */
+.pillar-goals::before {
+  background: linear-gradient(135deg, #f12711 0%, #f5af19 100%);
+}
+
+.pillar-goals .pillar-icon,
+.pillar-goals .pillar-value {
+  color: #f5af19;
+}
+
+[data-theme="dark"] .pillar-goals .pillar-icon,
+[data-theme="dark"] .pillar-goals .pillar-value {
+  color: #fbbf24;
+}
+
+/* Pillar card inner elements */
+.pillar-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.pillar-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.pillar-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+}
+
+.pillar-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.pillar-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: var(--spacing-xs);
+}
+
+.pillar-label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.pillar-sublabel {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  margin-top: var(--spacing-xs);
+}
+
+/* Pillar card with glassmorphism */
+.pillar-card-glass {
+  background: var(--color-surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+/* Quadrant position helpers */
+.quadrant-top-left {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.quadrant-top-right {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.quadrant-bottom-left {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.quadrant-bottom-right {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+/* Full-width pillar section spanning all columns */
+.pillar-section-full {
+  grid-column: 1 / -1;
+}
+
+/* Pillar responsive - tablet (2 columns) */
+@media (max-width: 1024px) {
+  .pillar-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Pillar responsive - mobile (1 column) */
+@media (max-width: 640px) {
+  .pillar-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .quadrant-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pillar-card {
+    min-height: 120px;
+  }
+
+  .pillar-value {
+    font-size: 2rem;
+  }
+
+  /* Reset quadrant positions for mobile stacking */
+  .quadrant-top-left,
+  .quadrant-top-right,
+  .quadrant-bottom-left,
+  .quadrant-bottom-right {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+
+/* ===================================
    DIFFICULTY INDICATOR
    =================================== */
 
