@@ -594,13 +594,21 @@ export default function ProgressPage() {
                                 const color = colorIndex >= 0 ? GOAL_COLORS[colorIndex] : null;
                                 const completionRate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
 
+                                // Get gradient background style for goal card
+                                const goalCardBg = color
+                                    ? `linear-gradient(135deg, ${color.border}15 0%, transparent 60%)`
+                                    : 'var(--color-surface)';
+
                                 return (
                                     <div
                                         key={goalId || 'no-goal'}
                                         className="card"
                                         style={{
                                             padding: '12px 16px',
-                                            borderLeft: color ? `4px solid ${color.border}` : '4px solid var(--color-text-muted)'
+                                            borderLeft: color ? `4px solid ${color.border}` : '4px solid var(--color-text-muted)',
+                                            background: goalCardBg,
+                                            position: 'relative',
+                                            overflow: 'hidden'
                                         }}
                                     >
                                         <div className="flex justify-between items-center mb-sm">
