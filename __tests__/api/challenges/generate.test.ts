@@ -3,6 +3,12 @@ import { POST } from '@/app/api/challenges/generate/route';
 import { NextRequest } from 'next/server';
 import { dbMock, startDb, stopDb, createMockRequest } from '@/test-utils';
 
+// Mock next/cache to avoid "static generation store missing" error in tests
+jest.mock('next/cache', () => ({
+    revalidatePath: jest.fn(),
+    revalidateTag: jest.fn(),
+}));
+
 // Mock dependencies
 jest.mock('@/lib/auth', () => ({
     getCurrentUser: jest.fn(),

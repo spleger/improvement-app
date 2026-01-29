@@ -1,5 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { generateMultipleChallenges } from '@/lib/ai';
@@ -78,6 +79,9 @@ export async function POST(request: NextRequest) {
 
             createdChallenges.push(newChallenge);
         }
+
+        // 6. Invalidate dashboard cache so new challenges appear immediately
+        revalidatePath('/');
 
         return NextResponse.json({
             success: true,

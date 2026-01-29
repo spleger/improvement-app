@@ -42,7 +42,7 @@ export default function TopNavigation() {
     const quickActions = [
         { id: 'habits', icon: '✅', label: 'Log habits', href: '/habits' },
         { id: 'diary', icon: '🎙️', label: 'Voice diary', href: '/diary' },
-        { id: 'checkin', icon: '📊', label: 'Check-in', href: '/progress' },
+        { id: 'checkin', icon: '📋', label: 'Check-in', href: '/survey' },
     ];
 
     // Close quick actions when clicking outside
@@ -242,6 +242,8 @@ export default function TopNavigation() {
                     box-shadow: var(--shadow-lg);
                     z-index: 110;
                     animation: slideDown 0.15s ease-out;
+                    display: flex;
+                    flex-direction: column;
                 }
 
                 @keyframes slideDown {
