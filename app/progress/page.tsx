@@ -449,9 +449,13 @@ export default function ProgressPage() {
                                         return 'var(--color-surface)';
                                     };
 
+                                    const isToday = day.date === new Date().toISOString().split('T')[0];
+                                    const hasActivity = ['completed', 'skipped', 'pending'].includes(day.status);
+
                                     return (
                                         <div
                                             key={i}
+                                            className={`calendar-cell ${hasActivity ? 'calendar-cell-active' : ''} ${isToday ? 'calendar-cell-today' : ''}`}
                                             style={{
                                                 width: '100%',
                                                 height: `${CALENDAR_CELL_SIZE}px`,
@@ -466,11 +470,11 @@ export default function ProgressPage() {
                                                 visibility: day.isEmpty ? 'hidden' : 'visible',
                                                 background: getBackground(),
                                                 color: ['completed', 'skipped'].includes(day.status) ? 'white' : 'var(--color-text-muted)',
-                                                border: day.date === new Date().toISOString().split('T')[0]
+                                                border: isToday
                                                     ? '2px solid var(--color-accent)'
                                                     : 'none',
                                                 position: 'relative',
-                                                transition: 'transform var(--transition-fast), box-shadow var(--transition-fast)'
+                                                cursor: hasActivity ? 'pointer' : 'default'
                                             }}
                                             title={day.date ? `${day.date}: ${day.status}${day.goalTitle ? ` (${day.goalTitle})` : ''}` : ''}
                                         >
@@ -729,6 +733,32 @@ export default function ProgressPage() {
             </section>
 
             {/* Bottom Navigation */}
+
+            {/* Calendar Cell Hover Styles */}
+            <style jsx>{`
+                .calendar-cell {
+                    transition: transform var(--transition-fast),
+                                box-shadow var(--transition-fast),
+                                filter var(--transition-fast),
+                                opacity var(--transition-fast);
+                }
+                .calendar-cell:hover {
+                    transform: scale(1.08);
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                    z-index: 10;
+                }
+                .calendar-cell-active:hover {
+                    transform: scale(1.12);
+                    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+                    filter: brightness(1.1);
+                }
+                .calendar-cell-today {
+                    box-shadow: 0 0 0 2px var(--color-accent), 0 2px 8px rgba(13, 148, 136, 0.3);
+                }
+                .calendar-cell-today:hover {
+                    box-shadow: 0 0 0 2px var(--color-accent), 0 6px 16px rgba(13, 148, 136, 0.4);
+                }
+            `}</style>
         </div>
     );
 }
