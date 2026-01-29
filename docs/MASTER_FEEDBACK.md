@@ -5,6 +5,43 @@
 
 ---
 
+---
+
+## Jan 29 Outstanding Issues
+
+### AI & Backend Core
+
+- [ ] **Daily Challenge Rotation** — Challenges should reset daily (old ones disappear, new ones active).
+- [ ] **Fix New Challenges Nesting** — Newly created challenges do not appear nested under the goal (Dashboard bug).
+- [ ] **AI Context** — Expert/Check-in AI only knows one goal; must have context of ALL goals.
+- [ ] **Voice Settings** — Add options for voice selection, speed, and emotion.
+
+### Voice & Chat UI
+
+- [ ] **Habit Log Overlay** — Still opens below content; MUST open *over* page (modal/overlay).
+- [ ] **Voice Finish Interaction** — Pulsing mic should be clickable to finish recording.
+- [ ] **Chat Interface** —
+  - [ ] Fix auto-scroll (should NOT scroll to bottom on generation).
+  - [ ] Hide keyboard after sending.
+  - [ ] Maximize text space (hide coach icon, user icon, use full width).
+- [ ] **Live Voice Chat** — New feature: "Talk to AI" button, floating pulsing UI, near-instant streaming response.
+
+### Progress & Navigation
+
+- [ ] **Bottom Nav Tracking** — Dropdown is broken/missing functional items from top bar. Needs styling (pills, spacing).
+- [ ] **Progress Page Redesign** —
+  - [ ] 30-day view: One goal selected (dropdown), clear markers.
+  - [ ] Mood/Energy Graph: One goal selected, curved lines, toggle for mood/energy/motivation.
+- [ ] **Remove Nav Links** — Remove "Daily Check-in" and "Home" links from bottom of Progress page.
+
+### Check-in Flow
+
+- [ ] **Voice Check-in Fixes** — Port Expert Chat layout fixes (fullscreen, no cut-offs).
+- [ ] **Progress Bar** — Replace coach selection with progress bar.
+- [ ] **All Goals** — Check-in must ask about *all* goals, not just one.
+
+---
+
 ## Jan 28 Outstanding Issues
 
 ### Dashboard
