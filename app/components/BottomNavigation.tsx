@@ -121,12 +121,15 @@ export default function BottomNavigation() {
                     bottom: 100%;
                     left: 50%;
                     transform: translateX(-50%);
-                    margin-bottom: var(--spacing-sm);
+                    margin-bottom: var(--spacing-md); /* Increased spacing */
                     background: var(--color-surface-solid);
                     border: 1px solid var(--color-border);
-                    border-radius: var(--radius-lg);
+                    border-radius: 20px; /* More rounded container */
                     padding: var(--spacing-sm);
-                    min-width: 160px;
+                    min-width: 180px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px; /* Gap for pills */
                     box-shadow: var(--shadow-lg);
                     z-index: 110;
                     animation: slideUp 0.15s ease-out;
@@ -147,15 +150,19 @@ export default function BottomNavigation() {
                     display: flex;
                     align-items: center;
                     gap: var(--spacing-sm);
-                    padding: var(--spacing-sm) var(--spacing-md);
-                    border-radius: var(--radius-md);
+                    padding: 10px 16px;
+                    border-radius: 9999px; /* Pill shape */
                     text-decoration: none;
                     color: var(--color-text-primary);
+                    background: var(--color-surface-2); /* Slight background */
+                    border: 1px solid transparent; /* Prevent jump on hover */
                     transition: all var(--transition-fast);
                 }
 
                 .tracking-submenu-item:hover {
                     background: var(--color-surface-hover);
+                    border-color: var(--color-primary-light);
+                    transform: translateX(2px);
                 }
 
                 .tracking-submenu-icon {

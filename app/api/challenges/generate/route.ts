@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
 
             // Schedule challenges on consecutive days
             const scheduledDate = new Date(now);
-            scheduledDate.setDate(scheduledDate.getDate() + 1 + i);
+            scheduledDate.setDate(scheduledDate.getDate() + i);
 
             const newChallenge = await db.createChallenge({
                 goalId: goal.id,

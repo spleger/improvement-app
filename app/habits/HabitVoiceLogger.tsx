@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Mic, MicOff, X, Check, RotateCcw, Loader2, Pause, Play } from 'lucide-react';
 
 interface InterpretedLog {
@@ -26,7 +27,15 @@ declare global {
 type RecordingState = 'idle' | 'recording' | 'paused' | 'processing' | 'confirming';
 
 export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLoggerProps) {
+    const [mounted, setMounted] = useState(false);
     const [state, setState] = useState<RecordingState>('idle');
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted) return null;
+
     const [transcript, setTranscript] = useState('');
     const [interpretedLogs, setInterpretedLogs] = useState<InterpretedLog[]>([]);
     const [error, setError] = useState('');
@@ -236,7 +245,7 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
         if (timerRef.current) clearInterval(timerRef.current);
     };
 
-    return (
+    const overlay = (
         <div className="voice-overlay" onClick={onClose}>
             <div className="voice-modal" onClick={(e) => e.stopPropagation()}>
                 <button className="close-btn" onClick={onClose}>
@@ -266,7 +275,12 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                     {/* RECORDING / PAUSED State */}
                     {(state === 'recording' || state === 'paused') && (
                         <>
-                            <div className={`voice-icon ${state === 'recording' ? 'recording' : 'paused'}`}>
+                            <div
+                                className={`voice-icon ${state === 'recording' ? 'recording' : 'paused'}`}
+                                onClick={stopRecording}
+                                style={{ cursor: 'pointer' }}
+                                title="Tap to Stop"
+                            >
                                 {state === 'recording' ? <Mic size={48} /> : <Pause size={48} />}
                                 {state === 'recording' && (
                                     <>
@@ -718,4 +732,6 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
             </div>
         </div>
     );
+
+    return createPortal(overlay, document.body);
 }

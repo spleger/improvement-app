@@ -767,9 +767,8 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
                 .interview-chat {
                     display: flex;
                     flex-direction: column;
-                    height: calc(100vh - 250px);
+                    height: calc(100dvh - 180px); /* Adjusted for mobile address bar */
                     min-height: 400px;
-                    max-height: 550px;
                     background: var(--color-surface);
                     border-radius: 24px;
                     border: 1px solid var(--color-border);

@@ -375,11 +375,16 @@ export default function ExpertChat() {
     }, [selectedCoach]);
 
     useEffect(() => {
-        // Only auto-scroll when not streaming (user controls scroll during streaming)
-        if (!isStreaming) {
-            scrollToBottom();
+        // Only scroll on initial load or if explicitly requested
+        // We DO NOT scroll on every message update to allow user to read previous text
+        if (messages.length > 0 && !isStreaming) {
+            // Check if it was a user message just sent (last message is user)
+            const lastMsg = messages[messages.length - 1];
+            if (lastMsg.role === 'user') {
+                scrollToBottom();
+            }
         }
-    }, [messages, isStreaming]);
+    }, [messages.length, isStreaming]);
 
     const sendMessage = async (content: string) => {
         if (!content.trim()) return;
@@ -490,7 +495,9 @@ export default function ExpertChat() {
         } finally {
             setIsLoading(false);
             setIsStreaming(false);
-            inputRef.current?.focus();
+            setIsStreaming(false);
+            // Force blur to close keyboard on mobile
+            inputRef.current?.blur();
         }
     };
 
@@ -711,20 +718,25 @@ export default function ExpertChat() {
                 )}
 
                 {messages.map(message => (
-                    <div key={message.id} className={`message ${message.role}`}>
+                    <div key={message.id} className={`message ${message.role}`} style={{ gridTemplateColumns: '1fr' }}>
+                        {/* Avatar hidden to maximize text space per feedback */}
+                        {/* 
                         {message.role === 'assistant' && (
                             <div className="message-avatar" style={{ background: selectedCoach.color }}>
                                 {selectedCoach.icon}
                             </div>
                         )}
-                        <div className="message-bubble">
+                        */}
+                        <div className="message-bubble" style={{ maxWidth: '100%', margin: 0 }}>
                             {renderMessageContent(message.content)}
                         </div>
+                        {/* 
                         {message.role === 'user' && (
                             <div className="message-avatar user-avatar">
                                 <User size={16} />
                             </div>
                         )}
+                        */}
                     </div>
                 ))}
 
