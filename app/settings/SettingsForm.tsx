@@ -409,6 +409,67 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                 </div>
             </section>
 
+            {/* AI Voice Selection Section */}
+            <section className="card mb-lg">
+                <h2 className="heading-4 mb-md">🎙️ AI Voice</h2>
+                <p className="text-small text-muted mb-md">
+                    Choose the voice for audio responses
+                </p>
+
+                <div className="form-group">
+                    <div
+                        className="voice-grid"
+                        style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(3, 1fr)',
+                            gap: 'var(--spacing-sm)'
+                        }}
+                    >
+                        {VOICE_OPTIONS.map(voice => (
+                            <button
+                                key={voice.id}
+                                onClick={() => updatePref('voiceId', voice.id)}
+                                className="btn"
+                                style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    padding: '12px 8px',
+                                    border: prefs.voiceId === voice.id
+                                        ? '2px solid var(--color-primary)'
+                                        : '1px solid var(--color-border)',
+                                    background: prefs.voiceId === voice.id
+                                        ? 'var(--color-surface-2)'
+                                        : 'var(--color-surface)',
+                                    minHeight: '90px',
+                                    justifyContent: 'center'
+                                }}
+                            >
+                                <span style={{ fontSize: '1.25rem' }}>
+                                    {voice.gender === 'female' ? '👩' : voice.gender === 'male' ? '👨' : '🧑'}
+                                </span>
+                                <span className="text-small" style={{ fontWeight: 600 }}>
+                                    {voice.name}
+                                </span>
+                                <span
+                                    className="text-tiny text-muted"
+                                    style={{
+                                        textAlign: 'center',
+                                        lineHeight: 1.2,
+                                        maxWidth: '100%',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis'
+                                    }}
+                                >
+                                    {voice.description}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
             {/* Notifications Section */}
             <section className="card mb-lg">
                 <h2 className="heading-4 mb-md">🔔 Notifications</h2>
