@@ -2,240 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
-
-async function getUserContext(userId: string) {
-    try {
-        // Get active goal
-        const activeGoal = await db.getActiveGoalByUserId(userId);
-
-        // Get recent challenges
-        const challenges = await db.getChallengesByUserId(userId, { limit: 10 });
-        const completedChallenges = challenges.filter(c => c.status === 'completed');
-        const todayChallenge = await db.getTodayChallenge(userId);
-
-        // Get streak
-        const streak = await db.calculateStreak(userId);
-
-        // Get user preferences (NEW)
-        const preferences = await db.getUserPreferences(userId);
-
-        // Get recent surveys for mood data
-        const surveys = await db.getSurveysByUserId(userId, 7);
-        const avgMood = surveys.length > 0
-            ? Math.round(surveys.reduce((sum, s) => sum + s.overallMood, 0) / surveys.length * 10) / 10
-            : null;
-
-        // Get habit stats
-        const habitStats = await db.getHabitStats(userId, 7);
-        const todayHabitLogs = await db.getHabitLogsForDate(userId, new Date());
-
-        // Calculate day in journey
-        const dayInJourney = activeGoal
-            ? Math.ceil((Date.now() - new Date(activeGoal.startedAt).getTime()) / (1000 * 60 * 60 * 24))
-            : 0;
-
-        return {
-            activeGoal,
-            todayChallenge,
-            completedChallengesCount: completedChallenges.length,
-            totalChallenges: challenges.length,
-            streak,
-            avgMood,
-            dayInJourney,
-            recentChallenges: challenges.slice(0, 5),
-            preferences,
-            recentDiary: await db.getDiaryEntriesByUserId(userId, 3), // Fetch recent 3 entries
-            recentSurveys: surveys.slice(0, 3), // Include last 3 check-ins for AI context
-            habitStats,
-            todayHabitLogs
-        };
-    } catch (error) {
-        console.error('Error fetching user context:', error);
-        return null;
-    }
-}
-
-function buildSystemPrompt(context: any, coachId?: string) {
-    let roleDescription = 'You are a Transformation Coach - an expert in habit formation, goal achievement, and personal development.';
-
-    // Customize role based on coach ID
-    switch (coachId) {
-        case 'languages':
-            roleDescription = 'You are a Language Learning Expert and Polyglot Coach. You focus on immersion strategies, overcoming speaking anxiety, and consistent practice.';
-            break;
-        case 'mobility':
-            roleDescription = 'You are a Mobility and Movement Coach. You focus on flexibility, joint health, and building a body that moves without pain.';
-            break;
-        case 'emotional':
-            roleDescription = 'You are an Emotional Intelligence Coach. You focus on emotional regulation, self-awareness, and building resilience.';
-            break;
-        case 'relationships':
-            roleDescription = 'You are a Relationship and Communication Coach. You focus on empathy, active listening, and building deeper connections.';
-            break;
-        case 'health':
-            roleDescription = 'You are a Health and Vitality Coach. You focus on sustainable fitness, nutrition habits, and physical energy.';
-            break;
-        case 'tolerance':
-            roleDescription = 'You are a Resilience and Tolerance Coach. You focus on getting comfortable with discomfort, stoicism, and mental toughness.';
-            break;
-        case 'skills':
-            roleDescription = 'You are a Skill Acquisition Expert. You focus on deliberate practice, the 80/20 rule of learning, and overcoming plateaus.';
-            break;
-        case 'habits':
-            roleDescription = 'You are a Habit Formation Expert. You focus on cue-routine-reward loops, environment design, and small atomic habits.';
-            break;
-        default:
-        // Keep default general coach
-    }
-
-    let prompt = `${roleDescription} You're warm, encouraging, and evidence-based in your approach.
-
-Your role is to help users:
-- Stay motivated on their 30-day transformation journeys
-- Build consistent habits
-- Overcome challenges and setbacks
-- Process emotions around change
-- Celebrate wins (big and small)
-
-IMPORTANT: Stay STRICTLY within your domain of expertise (${coachId || 'General'}). If the user asks about something totally unrelated, gently guide them to the General Coach or the appropriate specialist.
-
-=== INTERACTIVE WIDGETS PROCTOCOL ===
-You can trigger interactive widgets in the chat to help the user take action.
-To use a widget, output a JSON block formatted exactly like this on a separate line:
-<<<{"type": "WIDGET_TYPE", "payload": { ... }}>>>
-
-Supported Widgets:
-1. Suggest Challenge (Use when user asks for a challenge or needs something to do)
-   <<<{"type": "suggest_challenge", "payload": {"title": "Challenge Title", "difficulty": 5, "isRealityShift": false}}>>>
-
-2. Log Mood (Use when user mentions feeling a certain way or you want to check in)
-   <<<{"type": "log_mood", "payload": {}}>>>
-
-3. Create Goal (Use when user wants to start a new journey or has no active goal)
-   <<<{"type": "create_goal", "payload": {"title": "Suggested Goal Title", "domainId": 1}}>>>
-=====================================
-
-Guidelines:
-- Keep responses concise (2-4 paragraphs max)
-- Use specific, actionable advice
-- Reference their ACTUAL goals and progress when relevant
-- Be empathetic but also gently push users out of comfort zones
-- Use occasional emojis to be warm but not excessive
-- Ask follow-up questions to understand their situation better
-`;
-
-    if (context) {
-        prompt += `\n=== USER'S CURRENT CONTEXT ===\n`;
-
-        if (context.preferences?.displayName) {
-            prompt += `User's Name: ${context.preferences.displayName}\n`;
-        }
-
-        if (context.preferences?.preferredDifficulty) {
-            prompt += `User's Preferred Difficulty: ${context.preferences.preferredDifficulty}/10\n`;
-        }
-
-        if (context.activeGoal) {
-            prompt += `\n📎 ACTIVE GOAL:
-- Title: "${context.activeGoal.title}"
-- Domain: ${context.activeGoal.domain?.name || 'General'}
-- Day ${context.dayInJourney} of 30-day journey
-- Current state: "${context.activeGoal.currentState || 'Not specified'}"
-- Desired state: "${context.activeGoal.desiredState || 'Not specified'}"
-- Difficulty preference: ${context.activeGoal.difficultyLevel}/10
-- Reality Shift mode: ${context.activeGoal.realityShiftEnabled ? 'ON (wants extreme challenges)' : 'OFF'}
-`;
-        } else {
-            prompt += `\n⚠️ User has no active goal set yet. Encourage them to set one using the create_goal widget!\n`;
-        }
-
-        prompt += `\n📊 PROGRESS:
-- Current streak: ${context.streak} days
-- Challenges completed: ${context.completedChallengesCount}
-- Total challenges attempted: ${context.totalChallenges}
-${context.avgMood ? `- Average mood (last 7 days): ${context.avgMood}/10` : ''}
-`;
-
-        if (context.todayChallenge) {
-            prompt += `\n🎯 TODAY'S CHALLENGE:
-- "${context.todayChallenge.title}"
-- Difficulty: ${context.todayChallenge.difficulty}/10
-- Status: ${context.todayChallenge.status}
-${context.todayChallenge.description ? `- Description: ${context.todayChallenge.description}` : ''}
-`;
-        }
-
-        if (context.recentChallenges && context.recentChallenges.length > 0) {
-            prompt += `\n📋 RECENT CHALLENGES:\n`;
-            context.recentChallenges.slice(0, 3).forEach((c: any) => {
-                prompt += `- "${c.title}" (${c.status}, difficulty ${c.difficulty}/10)\n`;
-            });
-        }
-
-        if (context.recentDiary && context.recentDiary.length > 0) {
-            prompt += `\n🎙️ RECENT DIARY ENTRIES (Full Context):\n`;
-            context.recentDiary.slice(0, 3).forEach((e: any) => {
-                const date = new Date(e.createdAt).toLocaleDateString();
-                let insights = '';
-                let title = 'Untitled Entry';
-                try {
-                    const parsed = JSON.parse(e.aiInsights || '{}');
-                    if (parsed.title) title = parsed.title;
-                    if (parsed.sentiment) insights += `Sentiment: ${parsed.sentiment}. `;
-                    if (parsed.distortions?.length) insights += `Distortions: ${parsed.distortions.join(', ')}. `;
-                } catch (err) { }
-
-                // Include transcript excerpt (first 500 chars) for real context
-                const transcriptExcerpt = e.transcript
-                    ? (e.transcript.length > 500 ? e.transcript.substring(0, 500) + '...' : e.transcript)
-                    : 'No transcript';
-
-                prompt += `- [${date}] "${title}":\n`;
-                prompt += `  Summary: ${e.aiSummary || 'No AI summary'}\n`;
-                prompt += `  ${insights}\n`;
-                prompt += `  Transcript: "${transcriptExcerpt}"\n\n`;
-            });
-            prompt += `(Use these diary insights to be deeply empathetic. Reference what they actually said.)\n`;
-        }
-
-        if (context.recentSurveys && context.recentSurveys.length > 0) {
-            prompt += `\n📊 RECENT CHECK-INS (Daily Wellness):\n`;
-            context.recentSurveys.slice(0, 3).forEach((s: any) => {
-                const date = new Date(s.surveyDate).toLocaleDateString();
-                prompt += `- [${date}] Energy: ${s.energyLevel}/10, Motivation: ${s.motivationLevel}/10, Mood: ${s.overallMood}/10\n`;
-                if (s.biggestWin) prompt += `  Win: "${s.biggestWin}"\n`;
-                if (s.biggestBlocker) prompt += `  Blocker: "${s.biggestBlocker}"\n`;
-            });
-            prompt += `(Reference these when discussing their recent state. If energy was low, be understanding.)\n`;
-        }
-
-        // Habit tracking context
-        if (context.habitStats && context.habitStats.totalHabits > 0) {
-            prompt += `\n✅ HABIT TRACKING:\n`;
-            prompt += `Active Habits (${context.habitStats.totalHabits}):\n`;
-
-            context.habitStats.habits.forEach((h: any) => {
-                const todayLog = context.todayHabitLogs?.find((l: any) => l.habitId === h.id);
-                const status = todayLog?.completed ? '✓ Done' : '○ Pending';
-                const streakText = h.streak > 0 ? ` - ${h.streak} day streak 🔥` : '';
-                prompt += `- "${h.name}" (${h.icon}) [${status}]${streakText}\n`;
-                if (todayLog?.notes) {
-                    prompt += `  Note: "${todayLog.notes}"\n`;
-                }
-            });
-
-            prompt += `\nToday's Progress: ${context.habitStats.completedToday}/${context.habitStats.totalHabits}\n`;
-            prompt += `Weekly Completion Rate: ${context.habitStats.weeklyCompletionRate}%\n`;
-            prompt += `(Reference habits when discussing consistency. Celebrate streaks! If they're missing habits, gently encourage.)\n`;
-        }
-
-        prompt += `\n=== END OF CONTEXT ===\n`;
-    }
-
-    prompt += `\nRemember to reference this context naturally when relevant. For example, if they mention struggling, relate it to their specific goal or challenge. Celebrate their streak if it's going well!`;
-
-    return prompt;
-}
+import { getUserContext, buildEnhancedSystemPrompt } from '@/lib/ai/context';
 
 export const dynamic = 'force-dynamic';
 
@@ -265,38 +32,22 @@ export async function POST(request: NextRequest) {
         const standardCoachIds = ['general', 'languages', 'mobility', 'emotional', 'relationships', 'health', 'tolerance', 'skills', 'habits'];
 
         if (coachId && !standardCoachIds.includes(coachId)) {
-            // It's likely a custom coach ID
-            // We need a way to fetch a single custom coach. Since we only have getCustomCoachesByUserId, we can use that or add getCustomCoachById
-            // For now, let's just fetch all and filter (not optimal but works for MVP) or assumes we added getCustomCoachById in a better world.
-            // Actually, let's modify getCustomCoachesByUserId to be getAll or use a direct query here?
-            // To keep it clean, let's use db.pool directly or add a helper.
-            // I'll add a helper inline or assume the user has few coaches.
-
-            // Better: Add getCustomCoachById to db.ts? No, I can't easily jump files.
-            // I'll execute a raw query here for speed, or fetch list.
+            // It's likely a custom coach ID - fetch from database
             const coaches = await db.getCustomCoachesByUserId(user.userId);
             const customCoach = coaches.find((c: any) => c.id === coachId);
 
             if (customCoach) {
-                systemPrompt = `${customCoach.systemPrompt}\n\n`;
-                systemPrompt += `You are "${customCoach.name}", a specialized AI coach.\n`;
-                systemPrompt += `Stay in character. Your goal is to help the user with: ${customCoach.name}.\n\n`;
-                // Add standard context
-                systemPrompt += buildSystemPrompt(context, 'custom_overlay').split('=== INTERACTIVE WIDGETS PROCTOCOL ===')[1] ?
-                    '=== INTERACTIVE WIDGETS PROCTOCOL ===' + buildSystemPrompt(context, 'custom_overlay').split('=== INTERACTIVE WIDGETS PROCTOCOL ===')[1]
-                    : buildSystemPrompt(context, 'general'); // Fallback to reusing the protocol section if parsing fails
-
-                // Actually, simpler: Use the buildSystemPrompt but replace the role description
-                const basePrompt = buildSystemPrompt(context, 'general');
-                // Inject custom role
+                // Build base prompt with enhanced personalization and daily focus
+                const basePrompt = buildEnhancedSystemPrompt(context, 'general');
+                // Inject custom coach role at the beginning
                 const promptPrefix = `You are ${customCoach.name}. ${customCoach.systemPrompt}\n\n`;
-                // Use [\s\S] instead of DOTALL /s flag for compatibility
-                systemPrompt = promptPrefix + basePrompt.replace(/^You are a Transformation Coach[\s\S]*?\n\n/, '');
+                // Replace the default role description with custom coach identity
+                systemPrompt = promptPrefix + basePrompt.replace(/^You are [^,]+,[\s\S]*?\n\n/, '');
             } else {
-                systemPrompt = buildSystemPrompt(context, coachId);
+                systemPrompt = buildEnhancedSystemPrompt(context, coachId);
             }
         } else {
-            systemPrompt = buildSystemPrompt(context, coachId);
+            systemPrompt = buildEnhancedSystemPrompt(context, coachId);
         }
 
         // Build conversation history for Claude

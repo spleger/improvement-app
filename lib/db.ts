@@ -602,6 +602,12 @@ export async function saveUserPreferences(userId: string, prefs: {
     dailyReminderTime?: string;
     streakReminders?: boolean;
     theme?: string;
+    // AI Voice Selection
+    voiceId?: string;
+    // AI Personality Customization
+    aiCustomName?: string;
+    tonePreference?: string;
+    rudeMode?: boolean;
 }) {
     const data: any = { ...prefs };
     // Stringify JSON fields (Schema says String for SQLite compatibility likely, or just design)
