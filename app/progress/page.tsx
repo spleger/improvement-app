@@ -1,8 +1,17 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import * as db from '@/lib/db';
-import { getCurrentUser } from '@/lib/auth';
-import { redirect } from 'next/navigation';
 import PageHeader from '../components/PageHeader';
+// Import PillarCard components for 4-quadrant pillar layout with sparklines
+// PillarCard: Individual card component with icon, stats, and mini sparkline chart
+// PillarGrid: Grid wrapper that renders 4 PillarCard components (Soul, Mind, Body, Goals)
+import { PillarCard, PillarGrid, type PillarData } from './PillarCard';
+// Import MoodEnergyChart for displaying mood/energy/motivation trends as a line chart
+import { MoodEnergyChart } from '../../components/Charts';
+
+// Re-export PillarCard types for potential external use
+export type { PillarData };
 
 // Goal color palette for visual distinction
 const GOAL_COLORS = [
@@ -13,21 +22,67 @@ const GOAL_COLORS = [
     { bg: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)', border: '#10b981' },
 ];
 
-export default async function ProgressPage() {
-    const user = await getCurrentUser();
-    if (!user) {
-        redirect('/login');
-    }
+// Calendar grid constants
+const CALENDAR_MIN_HEIGHT = 280; // Minimum height for calendar section to prevent layout shift
 
-    // Get data
-    const challenges = await db.getChallengesByUserId(user.userId, { limit: 30 });
-    const surveys = await db.getSurveysByUserId(user.userId, 30);
-    // const journals = await db.getDiaryEntriesByUserId(user.userId, 10);
+interface Challenge {
+    id: string;
+    status: string;
+    scheduledDate: string;
+    goalId?: string | null;
+    goalTitle?: string | null;
+}
 
-    const activeGoal = await db.getActiveGoalByUserId(user.userId);
+interface Survey {
+    id: string;
+    surveyDate: string;
+    overallMood: number;
+    energyLevel: number;
+    motivationLevel: number;
+}
 
-    // Fetch all goals for multi-goal support
-    const allGoals = await db.getGoalsByUserId(user.userId);
+interface Goal {
+    id: string;
+    title: string;
+    startedAt: string;
+    status: string;
+}
+
+interface ProgressData {
+    challenges: Challenge[];
+    surveys: Survey[];
+    activeGoal: Goal | null;
+    allGoals: Goal[];
+    streak: number;
+}
+
+export default function ProgressPage() {
+    const [isLoading, setIsLoading] = useState(true);
+    const [data, setData] = useState<ProgressData | null>(null);
+
+    useEffect(() => {
+        async function fetchData() {
+            try {
+                const res = await fetch('/api/progress');
+                const result = await res.json();
+                if (result.success) {
+                    setData(result.data);
+                }
+            } catch (error) {
+                // Error fetching progress data - show empty state
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchData();
+    }, []);
+
+    // Extract data or use defaults during loading
+    const challenges = data?.challenges || [];
+    const surveys = data?.surveys || [];
+    const activeGoal = data?.activeGoal || null;
+    const allGoals = data?.allGoals || [];
+    const streak = data?.streak || 0;
 
     // Create a map of goalId to color index for consistent coloring
     const goalColorMap = new Map<string | null, number>();
@@ -54,7 +109,6 @@ export default async function ProgressPage() {
     });
 
     // Calculate overall stats
-    const streak = await db.calculateStreak(user.userId);
     const completedCount = completedChallenges.length;
     const skippedCount = skippedChallenges.length;
     const totalCount = challenges.length;
@@ -150,6 +204,97 @@ export default async function ProgressPage() {
         completionRate: totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
     };
 
+    // Calculate pillar data from surveys (latest 7 days average)
+    const recentSurveys = surveys.slice(0, 7);
+    const avgMood = recentSurveys.length > 0
+        ? Math.round((recentSurveys.reduce((sum, s) => sum + s.overallMood, 0) / recentSurveys.length) * 10) / 10
+        : 0;
+    const avgEnergy = recentSurveys.length > 0
+        ? Math.round((recentSurveys.reduce((sum, s) => sum + s.energyLevel, 0) / recentSurveys.length) * 10) / 10
+        : 0;
+    const avgMotivation = recentSurveys.length > 0
+        ? Math.round((recentSurveys.reduce((sum, s) => sum + s.motivationLevel, 0) / recentSurveys.length) * 10) / 10
+        : 0;
+
+    // Build sparkline data from surveys for each pillar (latest 14 days for trend visibility)
+    const sparklineSurveys = surveys.slice(0, 14).reverse(); // Reverse for chronological order
+    const moodSparkline = sparklineSurveys.map(s => ({
+        value: s.overallMood,
+        date: new Date(s.surveyDate).toISOString().split('T')[0]
+    }));
+    const motivationSparkline = sparklineSurveys.map(s => ({
+        value: s.motivationLevel,
+        date: new Date(s.surveyDate).toISOString().split('T')[0]
+    }));
+    const energySparkline = sparklineSurveys.map(s => ({
+        value: s.energyLevel,
+        date: new Date(s.surveyDate).toISOString().split('T')[0]
+    }));
+
+    // Calculate goals sparkline from daily completion rates over last 14 days
+    const goalsSparkline: Array<{ value: number; date?: string }> = [];
+    for (let i = 13; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+
+        // Count challenges completed up to this date
+        const challengesUpToDate = challenges.filter(c => {
+            const challengeDate = new Date(c.scheduledDate).toISOString().split('T')[0];
+            return challengeDate <= dateStr;
+        });
+        const completedUpToDate = challengesUpToDate.filter(c => c.status === 'completed').length;
+        const totalUpToDate = challengesUpToDate.length;
+
+        // Scale to 0-10 for consistency with other pillars
+        const rate = totalUpToDate > 0 ? Math.round((completedUpToDate / totalUpToDate) * 10) : 0;
+        goalsSparkline.push({ value: rate, date: dateStr });
+    }
+
+    // Build pillar data for the 4-quadrant layout with sparklines
+    const pillarData: PillarData[] = [
+        {
+            id: 'soul',
+            icon: '💜',
+            title: 'Soul',
+            value: avgMood > 0 ? avgMood : '—',
+            label: 'Mood Score',
+            sublabel: recentSurveys.length > 0 ? `${recentSurveys.length}-day avg` : 'No data yet',
+            sparklineData: moodSparkline,
+            sparklineColor: '#a855f7'
+        },
+        {
+            id: 'mind',
+            icon: '🧠',
+            title: 'Mind',
+            value: avgMotivation > 0 ? avgMotivation : '—',
+            label: 'Motivation',
+            sublabel: recentSurveys.length > 0 ? `${recentSurveys.length}-day avg` : 'No data yet',
+            sparklineData: motivationSparkline,
+            sparklineColor: '#0d9488'
+        },
+        {
+            id: 'body',
+            icon: '💪',
+            title: 'Body',
+            value: avgEnergy > 0 ? avgEnergy : '—',
+            label: 'Energy Level',
+            sublabel: recentSurveys.length > 0 ? `${recentSurveys.length}-day avg` : 'No data yet',
+            sparklineData: energySparkline,
+            sparklineColor: '#10b981'
+        },
+        {
+            id: 'goals',
+            icon: '🎯',
+            title: 'Goals',
+            value: stats.completionRate > 0 ? `${stats.completionRate}%` : '—',
+            label: 'Completion Rate',
+            sublabel: totalCount > 0 ? `${completedCount}/${totalCount} challenges` : 'No challenges yet',
+            sparklineData: goalsSparkline,
+            sparklineColor: '#f59e0b'
+        }
+    ];
+
     return (
         <div className="page animate-fade-in">
             {/* Header */}
@@ -159,24 +304,33 @@ export default async function ProgressPage() {
                 subtitle={activeGoal ? `Day ${dayInJourney} of your ${activeGoal.title} journey` : 'Track your transformation'}
             />
 
+            {/* Pillars of Health - 4-Quadrant Layout with Sparklines */}
+            <section className="pillar-section" style={{ marginBottom: 'var(--spacing-2xl)' }}>
+                <h2 className="heading-4 mb-md" style={{ color: 'var(--color-text-primary)' }}>Pillars of Health</h2>
+                <PillarGrid pillars={pillarData} />
+            </section>
+
+            {/* Section Separator */}
+            <hr className="section-separator-gradient" />
+
             {/* Stats Overview */}
             <section style={{ marginBottom: 'var(--spacing-2xl)' }}>
-                <h2 className="heading-4 mb-md">Overview</h2>
+                <h2 className="heading-4 mb-md" style={{ color: 'var(--color-text-primary)' }}>Overview</h2>
                 <div className="stats-grid">
-                    <div className="stat-card">
+                    <div className="stat-card stat-card-interactive">
                         <div className="stat-value fire">{stats.streak}</div>
                         <div className="stat-label">Day Streak</div>
                     </div>
-                    <div className="stat-card">
-                        <div className="stat-value">{stats.completed}</div>
+                    <div className="stat-card stat-card-interactive">
+                        <div className="stat-value stat-value-success">{stats.completed}</div>
                         <div className="stat-label">Completed</div>
                     </div>
-                    <div className="stat-card">
-                        <div className="stat-value">{stats.completionRate}%</div>
+                    <div className="stat-card stat-card-interactive">
+                        <div className="stat-value stat-value-accent">{stats.completionRate}%</div>
                         <div className="stat-label">Success Rate</div>
                     </div>
-                    <div className="stat-card">
-                        <div className="stat-value">{stats.skipped}</div>
+                    <div className="stat-card stat-card-interactive">
+                        <div className="stat-value stat-value-muted">{stats.skipped}</div>
                         <div className="stat-label">Skipped</div>
                     </div>
                 </div>
@@ -188,164 +342,234 @@ export default async function ProgressPage() {
             {/* Calendar View */}
             <section style={{ marginBottom: 'var(--spacing-2xl)' }}>
                 <div className="flex items-center justify-between mb-md">
-                    <h2 className="heading-4">Last 30 Days</h2>
+                    <h2 className="heading-4" style={{ color: 'var(--color-text-primary)' }}>Last 30 Days</h2>
                     <span className="text-tiny text-muted">{monthRange}</span>
                 </div>
-                <div className="card">
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(7, 1fr)',
-                        gap: '6px'
-                    }}>
-                        {/* Weekday headers */}
-                        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => (
-                            <div key={i} className="text-tiny text-muted text-center" style={{
-                                padding: '4px',
-                                fontWeight: 500
-                            }}>
-                                {day}
+                <div
+                    className={`card calendar-card ${isLoading ? 'loading-breathe' : ''}`}
+                    style={{
+                        minHeight: `${CALENDAR_MIN_HEIGHT}px`,
+                        boxShadow: 'var(--shadow-md)',
+                        border: '1px solid var(--color-border)',
+                        transition: 'box-shadow var(--transition-normal), transform var(--transition-normal)'
+                    }}
+                >
+                    {isLoading ? (
+                        /* Calendar Skeleton Loading State */
+                        <div style={{ minHeight: `${CALENDAR_MIN_HEIGHT - 40}px` }}>
+                            {/* Weekday headers skeleton */}
+                            <div className="calendar-grid" style={{ marginBottom: 'var(--spacing-sm)' }}>
+                                {[1, 2, 3, 4, 5, 6, 7].map(i => (
+                                    <div
+                                        key={i}
+                                        className="skeleton-breathe"
+                                        style={{
+                                            height: '16px',
+                                            borderRadius: 'var(--radius-sm)'
+                                        }}
+                                    />
+                                ))}
                             </div>
-                        ))}
-                        {/* Calendar cells */}
-                        {calendarData.map((day, i) => {
-                            const goalColorIndex = day.goalId ? goalColorMap.get(day.goalId) ?? 0 : -1;
-                            const goalColor = goalColorIndex >= 0 ? GOAL_COLORS[goalColorIndex] : null;
-
-                            // Determine background based on status and goal
-                            const getBackground = () => {
-                                if (day.status === 'completed' && goalColor) {
-                                    return goalColor.bg;
-                                }
-                                if (day.status === 'completed') {
-                                    return 'var(--gradient-success)';
-                                }
-                                if (day.status === 'skipped') {
-                                    return 'var(--color-error)';
-                                }
-                                if (day.status === 'pending') {
-                                    return 'var(--color-warning)';
-                                }
-                                return 'var(--color-surface)';
-                            };
-
-                            return (
-                                <div
-                                    key={i}
-                                    style={{
-                                        aspectRatio: '1',
-                                        borderRadius: '6px',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontSize: '0.75rem',
-                                        gap: '2px',
-                                        visibility: day.isEmpty ? 'hidden' : 'visible',
-                                        background: getBackground(),
-                                        color: ['completed', 'skipped'].includes(day.status) ? 'white' : 'var(--color-text-muted)',
-                                        border: day.date === new Date().toISOString().split('T')[0]
-                                            ? '2px solid var(--color-accent)'
-                                            : 'none',
-                                        position: 'relative'
-                                    }}
-                                    title={day.date ? `${day.date}: ${day.status}${day.goalTitle ? ` (${day.goalTitle})` : ''}` : ''}
-                                >
-                                    {/* Month indicator label */}
-                                    {day.monthLabel && (
-                                        <span style={{
-                                            position: 'absolute',
-                                            top: '1px',
-                                            left: '2px',
-                                            fontSize: '0.5rem',
-                                            fontWeight: 600,
-                                            lineHeight: 1,
-                                            color: ['completed', 'skipped'].includes(day.status) ? 'rgba(255,255,255,0.9)' : 'var(--color-accent)',
-                                            textTransform: 'uppercase',
-                                            letterSpacing: '0.02em'
-                                        }}>
-                                            {day.monthLabel}
-                                        </span>
-                                    )}
-                                    {/* Goal indicator dot */}
-                                    {day.goalId && day.status !== 'none' && goalColor && (
-                                        <span style={{
-                                            position: 'absolute',
-                                            top: '2px',
-                                            right: '2px',
-                                            width: '5px',
-                                            height: '5px',
-                                            borderRadius: '50%',
-                                            background: 'rgba(255,255,255,0.8)',
-                                            border: `1px solid ${goalColor.border}`
-                                        }} />
-                                    )}
-                                    {/* Date label */}
-                                    <span style={{
-                                        fontSize: '0.7rem',
-                                        fontWeight: 600,
-                                        lineHeight: 1,
-                                        marginTop: day.monthLabel ? '6px' : '0'
+                            {/* Calendar cells skeleton - 6 rows for calendar grid */}
+                            <div className="calendar-grid">
+                                {Array.from({ length: 42 }).map((_, i) => (
+                                    <div
+                                        key={i}
+                                        className="skeleton-breathe"
+                                        style={{
+                                            width: '100%',
+                                            aspectRatio: '1',
+                                            minHeight: '28px',
+                                            maxHeight: '44px',
+                                            borderRadius: '6px'
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                            {/* Legend skeleton */}
+                            <div className="flex flex-wrap justify-center gap-md mt-md">
+                                {[1, 2, 3, 4, 5].map(i => (
+                                    <div
+                                        key={i}
+                                        className="skeleton-breathe"
+                                        style={{
+                                            width: '80px',
+                                            height: '16px',
+                                            borderRadius: 'var(--radius-full)'
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        /* Actual Calendar Content */
+                        <>
+                            <div
+                                className="calendar-grid"
+                                style={{
+                                    minHeight: `${CALENDAR_MIN_HEIGHT - 100}px`
+                                }}
+                            >
+                                {/* Weekday headers */}
+                                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => (
+                                    <div key={i} className="text-tiny text-muted text-center" style={{
+                                        padding: '4px',
+                                        fontWeight: 500,
+                                        height: '24px'
                                     }}>
-                                        {day.dayOfMonth || ''}
-                                    </span>
-                                    {/* Status icon */}
-                                    <span style={{ fontSize: '0.65rem', lineHeight: 1 }}>
-                                        {day.status === 'completed' && '✓'}
-                                        {day.status === 'skipped' && '✗'}
-                                        {day.status === 'pending' && '○'}
-                                    </span>
-                                </div>
-                            );
-                        })}
-                    </div>
-                    {/* Status Legend */}
-                    <div className="flex flex-wrap justify-center gap-md mt-md text-tiny">
-                        <span className="flex items-center gap-sm">
-                            <span style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--gradient-success)' }} />
-                            Completed
-                        </span>
-                        <span className="flex items-center gap-sm">
-                            <span style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--color-error)' }} />
-                            Skipped
-                        </span>
-                        <span className="flex items-center gap-sm">
-                            <span style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--color-warning)' }} />
-                            Pending
-                        </span>
-                        <span className="flex items-center gap-sm">
-                            <span style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--color-surface)' }} />
-                            No challenge
-                        </span>
-                        <span className="flex items-center gap-sm">
-                            <span style={{ width: 12, height: 12, borderRadius: 3, border: '2px solid var(--color-accent)' }} />
-                            Today
-                        </span>
-                    </div>
+                                        {day}
+                                    </div>
+                                ))}
+                                {/* Calendar cells */}
+                                {calendarData.map((day, i) => {
+                                    const goalColorIndex = day.goalId ? goalColorMap.get(day.goalId) ?? 0 : -1;
+                                    const goalColor = goalColorIndex >= 0 ? GOAL_COLORS[goalColorIndex] : null;
 
-                    {/* Goal Colors Legend (only if multiple goals) */}
-                    {allGoals.length > 1 && (
-                        <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
-                            <div className="text-tiny text-muted text-center mb-sm">Goal Colors</div>
-                            <div className="flex flex-wrap justify-center gap-md text-tiny">
-                                {allGoals.map((goal, index) => {
-                                    const colorIndex = index % GOAL_COLORS.length;
-                                    const color = GOAL_COLORS[colorIndex];
+                                    // Determine background based on status and goal
+                                    const getBackground = () => {
+                                        if (day.status === 'completed' && goalColor) {
+                                            return goalColor.bg;
+                                        }
+                                        if (day.status === 'completed') {
+                                            return 'var(--gradient-success)';
+                                        }
+                                        if (day.status === 'skipped') {
+                                            return 'var(--color-error)';
+                                        }
+                                        if (day.status === 'pending') {
+                                            return 'var(--color-warning)';
+                                        }
+                                        return 'var(--color-surface)';
+                                    };
+
+                                    const isToday = day.date === new Date().toISOString().split('T')[0];
+                                    const hasActivity = ['completed', 'skipped', 'pending'].includes(day.status);
+
                                     return (
-                                        <span key={goal.id} className="flex items-center gap-sm">
+                                        <div
+                                            key={i}
+                                            className={`calendar-cell ${hasActivity ? 'calendar-cell-active' : ''} ${isToday ? 'calendar-cell-today' : ''}`}
+                                            style={{
+                                                width: '100%',
+                                                aspectRatio: '1',
+                                                minHeight: '28px',
+                                                maxHeight: '44px',
+                                                borderRadius: '6px',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                fontSize: 'clamp(0.6rem, 2vw, 0.75rem)',
+                                                gap: '1px',
+                                                visibility: day.isEmpty ? 'hidden' : 'visible',
+                                                background: getBackground(),
+                                                color: ['completed', 'skipped'].includes(day.status) ? 'white' : 'var(--color-text-muted)',
+                                                border: isToday
+                                                    ? '2px solid var(--color-accent)'
+                                                    : 'none',
+                                                position: 'relative',
+                                                cursor: hasActivity ? 'pointer' : 'default'
+                                            }}
+                                            title={day.date ? `${day.date}: ${day.status}${day.goalTitle ? ` (${day.goalTitle})` : ''}` : ''}
+                                        >
+                                            {/* Month indicator label */}
+                                            {day.monthLabel && (
+                                                <span style={{
+                                                    position: 'absolute',
+                                                    top: '1px',
+                                                    left: '1px',
+                                                    fontSize: 'clamp(0.4rem, 1.2vw, 0.5rem)',
+                                                    fontWeight: 600,
+                                                    lineHeight: 1,
+                                                    color: ['completed', 'skipped'].includes(day.status) ? 'rgba(255,255,255,0.9)' : 'var(--color-accent)',
+                                                    textTransform: 'uppercase',
+                                                    letterSpacing: '0.02em'
+                                                }}>
+                                                    {day.monthLabel}
+                                                </span>
+                                            )}
+                                            {/* Goal indicator dot */}
+                                            {day.goalId && day.status !== 'none' && goalColor && (
+                                                <span style={{
+                                                    position: 'absolute',
+                                                    top: '2px',
+                                                    right: '2px',
+                                                    width: '5px',
+                                                    height: '5px',
+                                                    borderRadius: '50%',
+                                                    background: 'rgba(255,255,255,0.8)',
+                                                    border: `1px solid ${goalColor.border}`
+                                                }} />
+                                            )}
+                                            {/* Date label */}
                                             <span style={{
-                                                width: 12,
-                                                height: 12,
-                                                borderRadius: 3,
-                                                background: color.bg
-                                            }} />
-                                            <span style={{ maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                {goal.title}
+                                                fontSize: 'clamp(0.55rem, 1.8vw, 0.7rem)',
+                                                fontWeight: 600,
+                                                lineHeight: 1,
+                                                marginTop: day.monthLabel ? '4px' : '0'
+                                            }}>
+                                                {day.dayOfMonth || ''}
                                             </span>
-                                        </span>
+                                            {/* Status icon */}
+                                            <span style={{ fontSize: 'clamp(0.5rem, 1.5vw, 0.65rem)', lineHeight: 1 }}>
+                                                {day.status === 'completed' && '✓'}
+                                                {day.status === 'skipped' && '✗'}
+                                                {day.status === 'pending' && '○'}
+                                            </span>
+                                        </div>
                                     );
                                 })}
                             </div>
-                        </div>
+                            {/* Status Legend */}
+                            <div className="flex flex-wrap justify-center gap-md mt-md text-tiny" style={{ paddingTop: 'var(--spacing-sm)' }}>
+                                <span className="flex items-center gap-sm legend-item" style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', transition: 'background var(--transition-fast)' }}>
+                                    <span style={{ width: 12, height: 12, borderRadius: 4, background: 'var(--gradient-success)', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>Completed</span>
+                                </span>
+                                <span className="flex items-center gap-sm legend-item" style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', transition: 'background var(--transition-fast)' }}>
+                                    <span style={{ width: 12, height: 12, borderRadius: 4, background: 'var(--color-error)', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>Skipped</span>
+                                </span>
+                                <span className="flex items-center gap-sm legend-item" style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', transition: 'background var(--transition-fast)' }}>
+                                    <span style={{ width: 12, height: 12, borderRadius: 4, background: 'var(--color-warning)', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>Pending</span>
+                                </span>
+                                <span className="flex items-center gap-sm legend-item" style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', transition: 'background var(--transition-fast)' }}>
+                                    <span style={{ width: 12, height: 12, borderRadius: 4, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }} />
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>No challenge</span>
+                                </span>
+                                <span className="flex items-center gap-sm legend-item" style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', transition: 'background var(--transition-fast)' }}>
+                                    <span style={{ width: 12, height: 12, borderRadius: 4, border: '2px solid var(--color-accent)', boxShadow: '0 0 4px rgba(13, 148, 136, 0.3)' }} />
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>Today</span>
+                                </span>
+                            </div>
+
+                            {/* Goal Colors Legend (only if multiple goals) */}
+                            {allGoals.length > 1 && (
+                                <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
+                                    <div className="text-tiny text-muted text-center mb-sm">Goal Colors</div>
+                                    <div className="flex flex-wrap justify-center gap-md text-tiny">
+                                        {allGoals.map((goal, index) => {
+                                            const colorIndex = index % GOAL_COLORS.length;
+                                            const color = GOAL_COLORS[colorIndex];
+                                            return (
+                                                <span key={goal.id} className="flex items-center gap-sm">
+                                                    <span style={{
+                                                        width: 12,
+                                                        height: 12,
+                                                        borderRadius: 3,
+                                                        background: color.bg
+                                                    }} />
+                                                    <span style={{ maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                        {goal.title}
+                                                    </span>
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
             </section>
@@ -357,56 +581,166 @@ export default async function ProgressPage() {
                     <hr className="section-separator-gradient" />
 
                     <section style={{ marginBottom: 'var(--spacing-2xl)' }}>
-                        <h2 className="heading-4 mb-md">Progress by Goal</h2>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <h2 className="heading-4 mb-md" style={{ color: 'var(--color-text-primary)' }}>Progress by Goal</h2>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
                             {Array.from(goalStats.entries()).map(([goalId, stats]) => {
                                 const colorIndex = goalId ? goalColorMap.get(goalId) ?? 0 : -1;
                                 const color = colorIndex >= 0 ? GOAL_COLORS[colorIndex] : null;
                                 const completionRate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+                                const isComplete = completionRate === 100;
+                                const isHighProgress = completionRate >= 75;
+
+                                // Get gradient background style for goal card
+                                const goalCardBg = color
+                                    ? `linear-gradient(135deg, ${color.border}15 0%, transparent 60%)`
+                                    : 'var(--color-surface)';
 
                                 return (
                                     <div
                                         key={goalId || 'no-goal'}
-                                        className="card"
+                                        className="card goal-progress-card"
                                         style={{
-                                            padding: '12px 16px',
-                                            borderLeft: color ? `4px solid ${color.border}` : '4px solid var(--color-text-muted)'
+                                            padding: '16px 20px',
+                                            borderLeft: color ? `4px solid ${color.border}` : '4px solid var(--color-text-muted)',
+                                            background: goalCardBg,
+                                            position: 'relative',
+                                            overflow: 'hidden'
                                         }}
                                     >
-                                        <div className="flex justify-between items-center mb-sm">
-                                            <span className="text-sm font-medium" style={{ maxWidth: '60%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {/* Completion Badge */}
+                                        {isComplete && (
+                                            <div style={{
+                                                position: 'absolute',
+                                                top: '8px',
+                                                right: '8px',
+                                                width: '28px',
+                                                height: '28px',
+                                                borderRadius: '50%',
+                                                background: 'var(--gradient-success)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)',
+                                                animation: 'pulse 2s infinite'
+                                            }}>
+                                                <span style={{ color: 'white', fontSize: '14px', fontWeight: 'bold' }}>✓</span>
+                                            </div>
+                                        )}
+
+                                        {/* Header with title and percentage */}
+                                        <div className="flex justify-between items-center" style={{ marginBottom: '12px' }}>
+                                            <span style={{
+                                                fontSize: '0.95rem',
+                                                fontWeight: 600,
+                                                maxWidth: isComplete ? '70%' : '60%',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                whiteSpace: 'nowrap',
+                                                color: 'var(--color-text-primary)'
+                                            }}>
                                                 {stats.title}
                                             </span>
-                                            <span className="text-sm" style={{ color: 'var(--color-accent)', fontWeight: 600 }}>
-                                                {completionRate}% complete
+                                            <span style={{
+                                                fontSize: '1.1rem',
+                                                fontWeight: 700,
+                                                color: isComplete ? 'var(--color-success)' : isHighProgress ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+                                                display: isComplete ? 'none' : 'block'
+                                            }}>
+                                                {completionRate}%
                                             </span>
                                         </div>
-                                        <div style={{
-                                            display: 'flex',
-                                            gap: '4px',
-                                            height: '6px',
-                                            borderRadius: '3px',
+
+                                        {/* Progress Bar Container */}
+                                        <div className="progress-bar" style={{
+                                            height: '10px',
+                                            background: 'var(--color-surface-2)',
+                                            borderRadius: 'var(--radius-full)',
                                             overflow: 'hidden',
-                                            background: 'var(--color-surface)'
+                                            position: 'relative',
+                                            marginBottom: '12px'
                                         }}>
-                                            {stats.completed > 0 && (
-                                                <div style={{
+                                            {/* Completed Progress Fill with Gradient */}
+                                            <div
+                                                className="progress-bar-fill"
+                                                style={{
+                                                    position: 'absolute',
+                                                    left: 0,
+                                                    top: 0,
+                                                    height: '100%',
                                                     width: `${(stats.completed / stats.total) * 100}%`,
                                                     background: color ? color.bg : 'var(--gradient-success)',
-                                                    borderRadius: '3px 0 0 3px'
-                                                }} />
-                                            )}
+                                                    borderRadius: 'var(--radius-full)',
+                                                    transition: 'width 0.5s ease-out',
+                                                    boxShadow: isHighProgress ? `0 0 8px ${color?.border || 'rgba(16, 185, 129, 0.5)'}` : 'none'
+                                                }}
+                                            />
+                                            {/* Skipped Portion (stacked after completed) */}
                                             {stats.skipped > 0 && (
                                                 <div style={{
+                                                    position: 'absolute',
+                                                    left: `${(stats.completed / stats.total) * 100}%`,
+                                                    top: 0,
+                                                    height: '100%',
                                                     width: `${(stats.skipped / stats.total) * 100}%`,
-                                                    background: 'var(--color-error)'
+                                                    background: 'linear-gradient(135deg, var(--color-error) 0%, #f87171 100%)',
+                                                    transition: 'width 0.5s ease-out'
+                                                }} />
+                                            )}
+                                            {/* Shimmer Effect on High Progress */}
+                                            {isHighProgress && !isComplete && (
+                                                <div style={{
+                                                    position: 'absolute',
+                                                    top: 0,
+                                                    left: 0,
+                                                    height: '100%',
+                                                    width: `${(stats.completed / stats.total) * 100}%`,
+                                                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+                                                    animation: 'shimmer 2s infinite'
                                                 }} />
                                             )}
                                         </div>
-                                        <div className="flex gap-md mt-sm text-tiny text-muted">
-                                            <span>✓ {stats.completed}</span>
-                                            <span>✗ {stats.skipped}</span>
-                                            <span>Total: {stats.total}</span>
+
+                                        {/* Stats Row */}
+                                        <div className="flex justify-between items-center text-tiny">
+                                            <div className="flex gap-md">
+                                                <span style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '4px',
+                                                    color: 'var(--color-success)',
+                                                    fontWeight: 500
+                                                }}>
+                                                    <span style={{
+                                                        width: '8px',
+                                                        height: '8px',
+                                                        borderRadius: '50%',
+                                                        background: color ? color.bg : 'var(--gradient-success)',
+                                                        display: 'inline-block'
+                                                    }} />
+                                                    {stats.completed} done
+                                                </span>
+                                                {stats.skipped > 0 && (
+                                                    <span style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px',
+                                                        color: 'var(--color-error)',
+                                                        fontWeight: 500
+                                                    }}>
+                                                        <span style={{
+                                                            width: '8px',
+                                                            height: '8px',
+                                                            borderRadius: '50%',
+                                                            background: 'var(--color-error)',
+                                                            display: 'inline-block'
+                                                        }} />
+                                                        {stats.skipped} skipped
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span style={{ color: 'var(--color-text-muted)' }}>
+                                                {stats.completed + stats.skipped}/{stats.total} challenges
+                                            </span>
                                         </div>
                                     </div>
                                 );
@@ -416,82 +750,38 @@ export default async function ProgressPage() {
                 </>
             )}
 
-            {/* Mood Chart (Simplified) */}
-            {chartData.length > 0 && (
-                <>
-                    {/* Section Separator */}
-                    <hr className="section-separator-gradient" />
+            {/* Mood & Energy Trends Chart */}
+            <>
+                {/* Section Separator */}
+                <hr className="section-separator-gradient" />
 
-                    <section style={{ marginBottom: 'var(--spacing-2xl)' }}>
-                        <h2 className="heading-4 mb-md">Mood & Energy Trends</h2>
-                        <div className="card">
-                            <div style={{ height: '150px', display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
-                                {chartData.slice(-14).map((point, i) => (
-                                    <div key={i} style={{ flex: 1, display: 'flex', alignItems: 'flex-end', gap: '2px', height: '100%' }}>
-                                        {/* Mood bar */}
-                                        <div
-                                            style={{
-                                                flex: 1,
-                                                height: `${point.mood * 10}%`,
-                                                background: 'var(--gradient-primary)',
-                                                borderRadius: '2px 2px 0 0',
-                                                minHeight: '4px'
-                                            }}
-                                            title={`Mood: ${point.mood}`}
-                                        />
-                                        {/* Energy bar */}
-                                        <div
-                                            style={{
-                                                flex: 1,
-                                                height: `${point.energy * 10}%`,
-                                                background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)',
-                                                borderRadius: '2px 2px 0 0',
-                                                minHeight: '4px'
-                                            }}
-                                            title={`Energy: ${point.energy}`}
-                                        />
-                                        {/* Motivation bar */}
-                                        <div
-                                            style={{
-                                                flex: 1,
-                                                height: `${point.motivation * 10}%`,
-                                                background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
-                                                borderRadius: '2px 2px 0 0',
-                                                minHeight: '4px'
-                                            }}
-                                            title={`Motivation: ${point.motivation}`}
-                                        />
-                                    </div>
-                                ))}
-                            </div>
-                            {/* Legend */}
-                            <div className="flex flex-wrap justify-center gap-md mt-md text-tiny">
-                                <span className="flex items-center gap-sm">
-                                    <span style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--gradient-primary)' }} />
-                                    Mood
-                                </span>
-                                <span className="flex items-center gap-sm">
-                                    <span style={{ width: 12, height: 12, borderRadius: 3, background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)' }} />
-                                    Energy
-                                </span>
-                                <span className="flex items-center gap-sm">
-                                    <span style={{ width: 12, height: 12, borderRadius: 3, background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)' }} />
-                                    Motivation
-                                </span>
-                            </div>
-                            <div className="text-tiny text-muted text-center mt-sm">
-                                Last {Math.min(14, chartData.length)} days • Levels (1-10)
-                            </div>
-                        </div>
-                    </section>
-                </>
-            )}
+                <section style={{ marginBottom: 'var(--spacing-2xl)' }}>
+                    <h2 className="heading-4 mb-md" style={{ color: 'var(--color-text-primary)' }}>Mood & Energy Trends</h2>
+                    {/* Chart card wrapper with responsive container styling */}
+                    <div
+                        className="card chart-card"
+                        style={{
+                            minHeight: '300px',
+                            height: '320px',
+                            padding: 'var(--spacing-md)',
+                            boxShadow: 'var(--shadow-md)',
+                            border: '1px solid var(--color-border)',
+                            background: 'var(--color-surface)',
+                            borderRadius: 'var(--radius-lg)',
+                            overflow: 'hidden',
+                            willChange: 'box-shadow, transform'
+                        }}
+                    >
+                        <MoodEnergyChart data={chartData} />
+                    </div>
+                </section>
+            </>
 
             {/* Section Separator */}
             <hr className="section-separator-subtle" />
 
             {/* Quick Actions */}
-            <section style={{ marginTop: 'var(--spacing-xl)' }}>
+            <section style={{ marginTop: 'var(--spacing-2xl)', marginBottom: 'var(--spacing-lg)' }}>
                 <div className="flex gap-md">
                     <Link href="/survey" className="btn btn-primary" style={{ flex: 1 }}>
                         📝 Daily Check-in
@@ -503,6 +793,111 @@ export default async function ProgressPage() {
             </section>
 
             {/* Bottom Navigation */}
+
+            {/* Visual Polish Styles */}
+            <style jsx>{`
+                /* Stat Card Interactive Styles */
+                .stat-card-interactive {
+                    transition: transform var(--transition-normal),
+                                box-shadow var(--transition-normal),
+                                border-color var(--transition-normal);
+                    border: 1px solid transparent;
+                }
+                .stat-card-interactive:hover {
+                    transform: translateY(-3px);
+                    box-shadow: var(--shadow-md);
+                    border-color: var(--color-border);
+                }
+
+                /* Stat Value Color Variants */
+                .stat-value-success {
+                    color: var(--color-success);
+                }
+                .stat-value-accent {
+                    background: var(--gradient-primary);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    background-clip: text;
+                }
+                .stat-value-muted {
+                    color: var(--color-text-secondary);
+                }
+
+                /* Calendar Cell Hover Styles */
+                .calendar-cell {
+                    transition: transform var(--transition-fast),
+                                box-shadow var(--transition-fast),
+                                filter var(--transition-fast),
+                                opacity var(--transition-fast);
+                }
+                .calendar-cell:hover {
+                    transform: scale(1.08);
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                    z-index: 10;
+                }
+                .calendar-cell-active:hover {
+                    transform: scale(1.12);
+                    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+                    filter: brightness(1.1);
+                }
+                .calendar-cell-today {
+                    box-shadow: 0 0 0 2px var(--color-accent), 0 2px 8px rgba(13, 148, 136, 0.3);
+                }
+                .calendar-cell-today:hover {
+                    box-shadow: 0 0 0 2px var(--color-accent), 0 6px 16px rgba(13, 148, 136, 0.4);
+                }
+
+                /* Goal Progress Card Styles */
+                .goal-progress-card {
+                    transition: transform var(--transition-normal),
+                                box-shadow var(--transition-normal),
+                                border-color var(--transition-normal);
+                }
+                .goal-progress-card:hover {
+                    transform: translateY(-2px);
+                    box-shadow: var(--shadow-lg);
+                }
+
+                /* Chart Card Hover Effect */
+                .chart-card {
+                    transition: box-shadow var(--transition-normal),
+                                transform var(--transition-normal);
+                }
+                .chart-card:hover {
+                    box-shadow: var(--shadow-lg);
+                }
+
+                /* Calendar Card Hover Effect */
+                .calendar-card:hover {
+                    box-shadow: var(--shadow-lg);
+                }
+
+                /* Progress Bar Shimmer Animation */
+                @keyframes shimmer {
+                    0% {
+                        transform: translateX(-100%);
+                    }
+                    100% {
+                        transform: translateX(100%);
+                    }
+                }
+
+                /* Progress Bar Fill Glow Animation for Complete */
+                .progress-bar-fill {
+                    position: relative;
+                }
+
+                /* Section Heading Polish */
+                :global(.heading-4) {
+                    position: relative;
+                    display: inline-block;
+                }
+
+                /* Legend Item Hover */
+                .legend-item:hover {
+                    background: var(--color-surface-hover);
+                }
+            `}</style>
         </div>
     );
 }
