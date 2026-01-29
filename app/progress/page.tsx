@@ -306,7 +306,7 @@ export default function ProgressPage() {
 
             {/* Pillars of Health - 4-Quadrant Layout with Sparklines */}
             <section className="pillar-section" style={{ marginBottom: 'var(--spacing-2xl)' }}>
-                <h2 className="heading-4 mb-md">Pillars of Health</h2>
+                <h2 className="heading-4 mb-md" style={{ color: 'var(--color-text-primary)' }}>Pillars of Health</h2>
                 <PillarGrid pillars={pillarData} />
             </section>
 
@@ -315,22 +315,22 @@ export default function ProgressPage() {
 
             {/* Stats Overview */}
             <section style={{ marginBottom: 'var(--spacing-2xl)' }}>
-                <h2 className="heading-4 mb-md">Overview</h2>
+                <h2 className="heading-4 mb-md" style={{ color: 'var(--color-text-primary)' }}>Overview</h2>
                 <div className="stats-grid">
-                    <div className="stat-card">
+                    <div className="stat-card stat-card-interactive">
                         <div className="stat-value fire">{stats.streak}</div>
                         <div className="stat-label">Day Streak</div>
                     </div>
-                    <div className="stat-card">
-                        <div className="stat-value">{stats.completed}</div>
+                    <div className="stat-card stat-card-interactive">
+                        <div className="stat-value stat-value-success">{stats.completed}</div>
                         <div className="stat-label">Completed</div>
                     </div>
-                    <div className="stat-card">
-                        <div className="stat-value">{stats.completionRate}%</div>
+                    <div className="stat-card stat-card-interactive">
+                        <div className="stat-value stat-value-accent">{stats.completionRate}%</div>
                         <div className="stat-label">Success Rate</div>
                     </div>
-                    <div className="stat-card">
-                        <div className="stat-value">{stats.skipped}</div>
+                    <div className="stat-card stat-card-interactive">
+                        <div className="stat-value stat-value-muted">{stats.skipped}</div>
                         <div className="stat-label">Skipped</div>
                     </div>
                 </div>
@@ -342,15 +342,16 @@ export default function ProgressPage() {
             {/* Calendar View */}
             <section style={{ marginBottom: 'var(--spacing-2xl)' }}>
                 <div className="flex items-center justify-between mb-md">
-                    <h2 className="heading-4">Last 30 Days</h2>
+                    <h2 className="heading-4" style={{ color: 'var(--color-text-primary)' }}>Last 30 Days</h2>
                     <span className="text-tiny text-muted">{monthRange}</span>
                 </div>
                 <div
-                    className={`card ${isLoading ? 'loading-breathe' : ''}`}
+                    className={`card calendar-card ${isLoading ? 'loading-breathe' : ''}`}
                     style={{
                         minHeight: `${CALENDAR_MIN_HEIGHT}px`,
                         boxShadow: 'var(--shadow-md)',
-                        border: '1px solid var(--color-border)'
+                        border: '1px solid var(--color-border)',
+                        transition: 'box-shadow var(--transition-normal), transform var(--transition-normal)'
                     }}
                 >
                     {isLoading ? (
@@ -520,26 +521,26 @@ export default function ProgressPage() {
                                 })}
                             </div>
                             {/* Status Legend */}
-                            <div className="flex flex-wrap justify-center gap-md mt-md text-tiny">
-                                <span className="flex items-center gap-sm">
-                                    <span style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--gradient-success)' }} />
-                                    Completed
+                            <div className="flex flex-wrap justify-center gap-md mt-md text-tiny" style={{ paddingTop: 'var(--spacing-sm)' }}>
+                                <span className="flex items-center gap-sm legend-item" style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', transition: 'background var(--transition-fast)' }}>
+                                    <span style={{ width: 12, height: 12, borderRadius: 4, background: 'var(--gradient-success)', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>Completed</span>
                                 </span>
-                                <span className="flex items-center gap-sm">
-                                    <span style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--color-error)' }} />
-                                    Skipped
+                                <span className="flex items-center gap-sm legend-item" style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', transition: 'background var(--transition-fast)' }}>
+                                    <span style={{ width: 12, height: 12, borderRadius: 4, background: 'var(--color-error)', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>Skipped</span>
                                 </span>
-                                <span className="flex items-center gap-sm">
-                                    <span style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--color-warning)' }} />
-                                    Pending
+                                <span className="flex items-center gap-sm legend-item" style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', transition: 'background var(--transition-fast)' }}>
+                                    <span style={{ width: 12, height: 12, borderRadius: 4, background: 'var(--color-warning)', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>Pending</span>
                                 </span>
-                                <span className="flex items-center gap-sm">
-                                    <span style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--color-surface)' }} />
-                                    No challenge
+                                <span className="flex items-center gap-sm legend-item" style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', transition: 'background var(--transition-fast)' }}>
+                                    <span style={{ width: 12, height: 12, borderRadius: 4, background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }} />
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>No challenge</span>
                                 </span>
-                                <span className="flex items-center gap-sm">
-                                    <span style={{ width: 12, height: 12, borderRadius: 3, border: '2px solid var(--color-accent)' }} />
-                                    Today
+                                <span className="flex items-center gap-sm legend-item" style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', transition: 'background var(--transition-fast)' }}>
+                                    <span style={{ width: 12, height: 12, borderRadius: 4, border: '2px solid var(--color-accent)', boxShadow: '0 0 4px rgba(13, 148, 136, 0.3)' }} />
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>Today</span>
                                 </span>
                             </div>
 
@@ -580,8 +581,8 @@ export default function ProgressPage() {
                     <hr className="section-separator-gradient" />
 
                     <section style={{ marginBottom: 'var(--spacing-2xl)' }}>
-                        <h2 className="heading-4 mb-md">Progress by Goal</h2>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <h2 className="heading-4 mb-md" style={{ color: 'var(--color-text-primary)' }}>Progress by Goal</h2>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
                             {Array.from(goalStats.entries()).map(([goalId, stats]) => {
                                 const colorIndex = goalId ? goalColorMap.get(goalId) ?? 0 : -1;
                                 const color = colorIndex >= 0 ? GOAL_COLORS[colorIndex] : null;
@@ -755,7 +756,7 @@ export default function ProgressPage() {
                 <hr className="section-separator-gradient" />
 
                 <section style={{ marginBottom: 'var(--spacing-2xl)' }}>
-                    <h2 className="heading-4 mb-md">Mood & Energy Trends</h2>
+                    <h2 className="heading-4 mb-md" style={{ color: 'var(--color-text-primary)' }}>Mood & Energy Trends</h2>
                     {/* Chart card wrapper with responsive container styling */}
                     <div
                         className="card chart-card"
@@ -767,7 +768,8 @@ export default function ProgressPage() {
                             border: '1px solid var(--color-border)',
                             background: 'var(--color-surface)',
                             borderRadius: 'var(--radius-lg)',
-                            overflow: 'hidden'
+                            overflow: 'hidden',
+                            willChange: 'box-shadow, transform'
                         }}
                     >
                         <MoodEnergyChart data={chartData} />
@@ -779,7 +781,7 @@ export default function ProgressPage() {
             <hr className="section-separator-subtle" />
 
             {/* Quick Actions */}
-            <section style={{ marginTop: 'var(--spacing-xl)' }}>
+            <section style={{ marginTop: 'var(--spacing-2xl)', marginBottom: 'var(--spacing-lg)' }}>
                 <div className="flex gap-md">
                     <Link href="/survey" className="btn btn-primary" style={{ flex: 1 }}>
                         📝 Daily Check-in
@@ -792,8 +794,36 @@ export default function ProgressPage() {
 
             {/* Bottom Navigation */}
 
-            {/* Calendar Cell Hover Styles */}
+            {/* Visual Polish Styles */}
             <style jsx>{`
+                /* Stat Card Interactive Styles */
+                .stat-card-interactive {
+                    transition: transform var(--transition-normal),
+                                box-shadow var(--transition-normal),
+                                border-color var(--transition-normal);
+                    border: 1px solid transparent;
+                }
+                .stat-card-interactive:hover {
+                    transform: translateY(-3px);
+                    box-shadow: var(--shadow-md);
+                    border-color: var(--color-border);
+                }
+
+                /* Stat Value Color Variants */
+                .stat-value-success {
+                    color: var(--color-success);
+                }
+                .stat-value-accent {
+                    background: var(--gradient-primary);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    background-clip: text;
+                }
+                .stat-value-muted {
+                    color: var(--color-text-secondary);
+                }
+
+                /* Calendar Cell Hover Styles */
                 .calendar-cell {
                     transition: transform var(--transition-fast),
                                 box-shadow var(--transition-fast),
@@ -820,10 +850,25 @@ export default function ProgressPage() {
                 /* Goal Progress Card Styles */
                 .goal-progress-card {
                     transition: transform var(--transition-normal),
-                                box-shadow var(--transition-normal);
+                                box-shadow var(--transition-normal),
+                                border-color var(--transition-normal);
                 }
                 .goal-progress-card:hover {
                     transform: translateY(-2px);
+                    box-shadow: var(--shadow-lg);
+                }
+
+                /* Chart Card Hover Effect */
+                .chart-card {
+                    transition: box-shadow var(--transition-normal),
+                                transform var(--transition-normal);
+                }
+                .chart-card:hover {
+                    box-shadow: var(--shadow-lg);
+                }
+
+                /* Calendar Card Hover Effect */
+                .calendar-card:hover {
                     box-shadow: var(--shadow-lg);
                 }
 
@@ -840,6 +885,17 @@ export default function ProgressPage() {
                 /* Progress Bar Fill Glow Animation for Complete */
                 .progress-bar-fill {
                     position: relative;
+                }
+
+                /* Section Heading Polish */
+                :global(.heading-4) {
+                    position: relative;
+                    display: inline-block;
+                }
+
+                /* Legend Item Hover */
+                .legend-item:hover {
+                    background: var(--color-surface-hover);
                 }
             `}</style>
         </div>
