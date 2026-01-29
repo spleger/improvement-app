@@ -145,6 +145,42 @@ export function MiniStatChart({
 }
 
 export function MoodEnergyChart({ data }: MoodEnergyChartProps) {
+    // Empty state handling - show message when no survey data exists
+    if (!data || data.length === 0) {
+        return (
+            <div
+                style={{
+                    width: '100%',
+                    height: '100%',
+                    minHeight: '250px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexDirection: 'column',
+                    gap: 'var(--spacing-md)',
+                }}
+            >
+                <span
+                    style={{
+                        fontSize: '2rem',
+                        opacity: 0.3,
+                    }}
+                >
+                    📊
+                </span>
+                <span
+                    style={{
+                        fontSize: '0.875rem',
+                        color: 'var(--color-text-muted)',
+                        textAlign: 'center',
+                    }}
+                >
+                    No survey data yet. Complete your first daily check-in to see trends!
+                </span>
+            </div>
+        );
+    }
+
     // Format dates for display on X-axis
     const formattedData = data.map(item => ({
         ...item,
