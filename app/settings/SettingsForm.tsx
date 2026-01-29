@@ -70,6 +70,13 @@ const VOICE_OPTIONS = [
     { id: 'shimmer', name: 'Shimmer', gender: 'female', description: 'Bright and energetic' },
 ];
 
+const TONE_OPTIONS = [
+    { id: 'friendly', name: 'Friendly', emoji: '😊', description: 'Warm and approachable' },
+    { id: 'professional', name: 'Professional', emoji: '💼', description: 'Formal and business-like' },
+    { id: 'playful', name: 'Playful', emoji: '🎉', description: 'Fun and lighthearted' },
+    { id: 'motivational', name: 'Motivational', emoji: '🔥', description: 'Inspiring and energizing' },
+];
+
 export default function SettingsForm({ initialPreferences }: { initialPreferences: Preferences | null }) {
     const [prefs, setPrefs] = useState<Preferences>({ ...DEFAULT_PREFS, ...initialPreferences });
     const [saving, setSaving] = useState(false);
@@ -467,6 +474,99 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                             </button>
                         ))}
                     </div>
+                </div>
+            </section>
+
+            {/* AI Personality Customization Section */}
+            <section className="card mb-lg">
+                <h2 className="heading-4 mb-md">✨ AI Personality Customization</h2>
+                <p className="text-small text-muted mb-md">
+                    Customize how your AI coach presents itself
+                </p>
+
+                {/* Custom AI Name */}
+                <div className="form-group mb-md">
+                    <label className="form-label">Custom AI Name</label>
+                    <input
+                        type="text"
+                        value={prefs.aiCustomName || ''}
+                        onChange={e => updatePref('aiCustomName', e.target.value)}
+                        placeholder="e.g., Coach Max, Sensei, Buddy"
+                        className="form-input"
+                    />
+                    <p className="text-tiny text-muted" style={{ marginTop: 'var(--spacing-xs)' }}>
+                        Give your AI coach a personalized name
+                    </p>
+                </div>
+
+                {/* Tone Preference */}
+                <div className="form-group mb-md">
+                    <label className="form-label">Communication Tone</label>
+                    <div
+                        className="tone-grid"
+                        style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(2, 1fr)',
+                            gap: 'var(--spacing-sm)'
+                        }}
+                    >
+                        {TONE_OPTIONS.map(tone => (
+                            <button
+                                key={tone.id}
+                                onClick={() => updatePref('tonePreference', tone.id)}
+                                className="btn"
+                                style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    padding: '12px 8px',
+                                    border: prefs.tonePreference === tone.id
+                                        ? '2px solid var(--color-primary)'
+                                        : '1px solid var(--color-border)',
+                                    background: prefs.tonePreference === tone.id
+                                        ? 'var(--color-surface-2)'
+                                        : 'var(--color-surface)',
+                                    minHeight: '80px',
+                                    justifyContent: 'center'
+                                }}
+                            >
+                                <span style={{ fontSize: '1.5rem' }}>{tone.emoji}</span>
+                                <span className="text-small" style={{ fontWeight: 600 }}>
+                                    {tone.name}
+                                </span>
+                                <span
+                                    className="text-tiny text-muted"
+                                    style={{
+                                        textAlign: 'center',
+                                        lineHeight: 1.2
+                                    }}
+                                >
+                                    {tone.description}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Rude Mode Toggle */}
+                <div className="form-group">
+                    <label className="flex items-center gap-md" style={{ cursor: 'pointer', justifyContent: 'space-between' }}>
+                        <div style={{ flex: 1 }}>
+                            <div className="heading-5">🔥 Rude Mode</div>
+                            <div className="text-small text-muted">
+                                Enable brutally honest, no-nonsense feedback (not for the faint-hearted!)
+                            </div>
+                        </div>
+                        <div className="toggle-switch">
+                            <input
+                                type="checkbox"
+                                checked={prefs.rudeMode}
+                                onChange={e => updatePref('rudeMode', e.target.checked)}
+                            />
+                            <span className="toggle-slider"></span>
+                        </div>
+                    </label>
                 </div>
             </section>
 
