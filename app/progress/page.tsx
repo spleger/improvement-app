@@ -765,7 +765,20 @@ export default function ProgressPage() {
 
                 <section style={{ marginBottom: 'var(--spacing-2xl)' }}>
                     <h2 className="heading-4 mb-md">Mood & Energy Trends</h2>
-                    <div className="card" style={{ height: '300px' }}>
+                    {/* Chart card wrapper with responsive container styling */}
+                    <div
+                        className="card chart-card"
+                        style={{
+                            minHeight: '300px',
+                            height: '320px',
+                            padding: 'var(--spacing-md)',
+                            boxShadow: 'var(--shadow-md)',
+                            border: '1px solid var(--color-border)',
+                            background: 'var(--color-surface)',
+                            borderRadius: 'var(--radius-lg)',
+                            overflow: 'hidden'
+                        }}
+                    >
                         <MoodEnergyChart data={chartData} />
                     </div>
                 </section>
