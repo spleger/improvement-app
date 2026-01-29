@@ -4,6 +4,16 @@ import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import PageHeader from '../components/PageHeader';
 
+// Pillar type definitions for the 4-quadrant layout
+interface PillarData {
+    id: 'soul' | 'mind' | 'body' | 'goals';
+    icon: string;
+    title: string;
+    value: number | string;
+    label: string;
+    sublabel?: string;
+}
+
 // Goal color palette for visual distinction
 const GOAL_COLORS = [
     { bg: 'var(--gradient-primary)', border: 'var(--color-accent)' },
@@ -150,6 +160,54 @@ export default async function ProgressPage() {
         completionRate: totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
     };
 
+    // Calculate pillar data from surveys (latest 7 days average)
+    const recentSurveys = surveys.slice(0, 7);
+    const avgMood = recentSurveys.length > 0
+        ? Math.round((recentSurveys.reduce((sum, s) => sum + s.overallMood, 0) / recentSurveys.length) * 10) / 10
+        : 0;
+    const avgEnergy = recentSurveys.length > 0
+        ? Math.round((recentSurveys.reduce((sum, s) => sum + s.energyLevel, 0) / recentSurveys.length) * 10) / 10
+        : 0;
+    const avgMotivation = recentSurveys.length > 0
+        ? Math.round((recentSurveys.reduce((sum, s) => sum + s.motivationLevel, 0) / recentSurveys.length) * 10) / 10
+        : 0;
+
+    // Build pillar data for the 4-quadrant layout
+    const pillarData: PillarData[] = [
+        {
+            id: 'soul',
+            icon: '💜',
+            title: 'Soul',
+            value: avgMood > 0 ? avgMood : '—',
+            label: 'Mood Score',
+            sublabel: recentSurveys.length > 0 ? `${recentSurveys.length}-day avg` : 'No data yet'
+        },
+        {
+            id: 'mind',
+            icon: '🧠',
+            title: 'Mind',
+            value: avgMotivation > 0 ? avgMotivation : '—',
+            label: 'Motivation',
+            sublabel: recentSurveys.length > 0 ? `${recentSurveys.length}-day avg` : 'No data yet'
+        },
+        {
+            id: 'body',
+            icon: '💪',
+            title: 'Body',
+            value: avgEnergy > 0 ? avgEnergy : '—',
+            label: 'Energy Level',
+            sublabel: recentSurveys.length > 0 ? `${recentSurveys.length}-day avg` : 'No data yet'
+        },
+        {
+            id: 'goals',
+            icon: '🎯',
+            title: 'Goals',
+            value: stats.completionRate > 0 ? `${stats.completionRate}%` : '—',
+            label: 'Completion Rate',
+            sublabel: totalCount > 0 ? `${completedCount}/${totalCount} challenges` : 'No challenges yet'
+        }
+    ];
+
     return (
         <div className="page animate-fade-in">
             {/* Header */}
@@ -158,6 +216,34 @@ export default async function ProgressPage() {
                 title="Your Progress"
                 subtitle={activeGoal ? `Day ${dayInJourney} of your ${activeGoal.title} journey` : 'Track your transformation'}
             />
+
+            {/* Pillars of Health - 4-Quadrant Layout */}
+            <section className="pillar-section" style={{ marginBottom: 'var(--spacing-2xl)' }}>
+                <h2 className="heading-4 mb-md">Pillars of Health</h2>
+                <div className="pillar-grid">
+                    {pillarData.map((pillar) => (
+                        <div
+                            key={pillar.id}
+                            className={`pillar-card pillar-${pillar.id}`}
+                        >
+                            <div className="pillar-header">
+                                <span className="pillar-icon">{pillar.icon}</span>
+                                <span className="pillar-title">{pillar.title}</span>
+                            </div>
+                            <div className="pillar-content">
+                                <div className="pillar-value">{pillar.value}</div>
+                                <div className="pillar-label">{pillar.label}</div>
+                                {pillar.sublabel && (
+                                    <div className="pillar-sublabel">{pillar.sublabel}</div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            {/* Section Separator */}
+            <hr className="section-separator-gradient" />
 
             {/* Stats Overview */}
             <section style={{ marginBottom: 'var(--spacing-2xl)' }}>
