@@ -22,6 +22,7 @@ interface ChartData {
 
 interface MoodEnergyChartProps {
     data: ChartData[];
+    visibleMetrics?: Array<'mood' | 'energy' | 'motivation'>;
 }
 
 // Custom tooltip component for better styling
@@ -144,7 +145,7 @@ export function MiniStatChart({
     );
 }
 
-export function MoodEnergyChart({ data }: MoodEnergyChartProps) {
+export function MoodEnergyChart({ data, visibleMetrics = ['mood', 'energy', 'motivation'] }: MoodEnergyChartProps) {
     // Empty state handling - show message when no survey data exists
     if (!data || data.length === 0) {
         return (
@@ -234,33 +235,42 @@ export function MoodEnergyChart({ data }: MoodEnergyChartProps) {
                             fontSize: '12px'
                         }}
                     />
-                    <Line
-                        type="monotone"
-                        dataKey="mood"
-                        name="Mood"
-                        stroke="#667eea"
-                        strokeWidth={2}
-                        dot={{ fill: '#667eea', strokeWidth: 0, r: 3 }}
-                        activeDot={{ r: 5, strokeWidth: 0 }}
-                    />
-                    <Line
-                        type="monotone"
-                        dataKey="energy"
-                        name="Energy"
-                        stroke="#f59e0b"
-                        strokeWidth={2}
-                        dot={{ fill: '#f59e0b', strokeWidth: 0, r: 3 }}
-                        activeDot={{ r: 5, strokeWidth: 0 }}
-                    />
-                    <Line
-                        type="monotone"
-                        dataKey="motivation"
-                        name="Motivation"
-                        stroke="#10b981"
-                        strokeWidth={2}
-                        dot={{ fill: '#10b981', strokeWidth: 0, r: 3 }}
-                        activeDot={{ r: 5, strokeWidth: 0 }}
-                    />
+                    {visibleMetrics.includes('mood') && (
+                        <Line
+                            type="monotone"
+                            dataKey="mood"
+                            name="Mood"
+                            stroke="#667eea"
+                            strokeWidth={3}
+                            dot={{ fill: '#667eea', strokeWidth: 0, r: 4 }}
+                            activeDot={{ r: 6, strokeWidth: 0 }}
+                            animationDuration={1500}
+                        />
+                    )}
+                    {visibleMetrics.includes('energy') && (
+                        <Line
+                            type="monotone"
+                            dataKey="energy"
+                            name="Energy"
+                            stroke="#f59e0b"
+                            strokeWidth={3}
+                            dot={{ fill: '#f59e0b', strokeWidth: 0, r: 4 }}
+                            activeDot={{ r: 6, strokeWidth: 0 }}
+                            animationDuration={1500}
+                        />
+                    )}
+                    {visibleMetrics.includes('motivation') && (
+                        <Line
+                            type="monotone"
+                            dataKey="motivation"
+                            name="Motivation"
+                            stroke="#10b981"
+                            strokeWidth={3}
+                            dot={{ fill: '#10b981', strokeWidth: 0, r: 4 }}
+                            activeDot={{ r: 6, strokeWidth: 0 }}
+                            animationDuration={1500}
+                        />
+                    )}
                 </LineChart>
             </ResponsiveContainer>
         </div>

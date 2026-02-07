@@ -59,6 +59,9 @@ interface ProgressData {
 export default function ProgressPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [data, setData] = useState<ProgressData | null>(null);
+    // New state for filters
+    const [selectedGoalId, setSelectedGoalId] = useState<string | 'all'>('all');
+    const [selectedMetric, setSelectedMetric] = useState<'mood' | 'energy' | 'motivation'>('mood');
 
     useEffect(() => {
         async function fetchData() {
@@ -67,6 +70,15 @@ export default function ProgressPage() {
                 const result = await res.json();
                 if (result.success) {
                     setData(result.data);
+                    // Default to first active goal if available, otherwise 'all'
+                    if (result.data.activeGoal) {
+                        setSelectedGoalId(result.data.activeGoal.id);
+                    } else if (result.data.allGoals && result.data.allGoals.length > 0) {
+                        // Find first active goal in allGoals if the main activeGoal isn't set
+                        const firstActive = result.data.allGoals.find((g: Goal) => g.status === 'active');
+                        if (firstActive) setSelectedGoalId(firstActive.id);
+                        else setSelectedGoalId(result.data.allGoals[0].id);
+                    }
                 }
             } catch (error) {
                 // Error fetching progress data - show empty state
@@ -152,9 +164,27 @@ export default function ProgressPage() {
         date.setDate(date.getDate() - i);
         const dateStr = date.toISOString().split('T')[0];
 
-        const dayChallenge = challenges.find(c =>
-            new Date(c.scheduledDate).toISOString().split('T')[0] === dateStr
-        );
+        // FILTER LOGIC: Find challenge for this day based on selectedGoalId
+        let dayChallenge: Challenge | undefined;
+
+        if (selectedGoalId === 'all') {
+            // If multiple challenges on same day, prioritize completed > skipped > pending
+            const dayChallenges = challenges.filter(c =>
+                new Date(c.scheduledDate).toISOString().split('T')[0] === dateStr
+            );
+
+            // Sort by status priority
+            dayChallenge = dayChallenges.sort((a, b) => {
+                const statusPriority = { completed: 3, skipped: 2, pending: 1 };
+                return (statusPriority[b.status as keyof typeof statusPriority] || 0) - (statusPriority[a.status as keyof typeof statusPriority] || 0);
+            })[0];
+        } else {
+            // Find specific goal challenge
+            dayChallenge = challenges.find(c =>
+                new Date(c.scheduledDate).toISOString().split('T')[0] === dateStr &&
+                c.goalId === selectedGoalId
+            );
+        }
 
         // Check if month changed - show label on first day of month or first cell of new month
         const currentMonth = date.getMonth();
@@ -192,8 +222,10 @@ export default function ProgressPage() {
     }));
 
     // Calculate day in journey
-    const dayInJourney = activeGoal
-        ? Math.min(30, Math.ceil((Date.now() - new Date(activeGoal.startedAt).getTime()) / (1000 * 60 * 60 * 24)))
+    const displayedGoal = selectedGoalId === 'all' ? activeGoal : allGoals.find(g => g.id === selectedGoalId);
+
+    const dayInJourney = displayedGoal
+        ? Math.min(30, Math.ceil((Date.now() - new Date(displayedGoal.startedAt).getTime()) / (1000 * 60 * 60 * 24)))
         : 0;
 
     const stats = {
@@ -341,8 +373,51 @@ export default function ProgressPage() {
 
             {/* Calendar View */}
             <section style={{ marginBottom: 'var(--spacing-2xl)' }}>
-                <div className="flex items-center justify-between mb-md">
-                    <h2 className="heading-4" style={{ color: 'var(--color-text-primary)' }}>Last 30 Days</h2>
+                <div className="flex items-center justify-between mb-md flex-wrap gap-sm">
+                    <div className="flex items-center gap-md">
+                        <h2 className="heading-4" style={{ color: 'var(--color-text-primary)' }}>Last 30 Days</h2>
+                        {/* Goal Selector */}
+                        <div className="relative">
+                            <select
+                                value={selectedGoalId}
+                                onChange={(e) => setSelectedGoalId(e.target.value)}
+                                style={{
+                                    appearance: 'none',
+                                    background: 'var(--color-surface-2)',
+                                    border: '1px solid var(--color-border)',
+                                    borderRadius: 'var(--radius-full)',
+                                    padding: '6px 32px 6px 16px',
+                                    fontSize: '0.875rem',
+                                    color: 'var(--color-text-primary)',
+                                    cursor: 'pointer',
+                                    outline: 'none',
+                                    fontWeight: 500,
+                                    maxWidth: '200px',
+                                    whiteSpace: 'nowrap',
+                                    textOverflow: 'ellipsis'
+                                }}
+                            >
+                                <option value="all">All Goals</option>
+                                {allGoals.map(goal => (
+                                    <option key={goal.id} value={goal.id}>
+                                        {goal.title}
+                                    </option>
+                                ))}
+                            </select>
+                            {/* Custom arrow icon */}
+                            <div style={{
+                                position: 'absolute',
+                                right: '12px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                pointerEvents: 'none',
+                                color: 'var(--color-text-secondary)',
+                                fontSize: '0.7rem'
+                            }}>
+                                ▼
+                            </div>
+                        </div>
+                    </div>
                     <span className="text-tiny text-muted">{monthRange}</span>
                 </div>
                 <div
@@ -544,8 +619,8 @@ export default function ProgressPage() {
                                 </span>
                             </div>
 
-                            {/* Goal Colors Legend (only if multiple goals) */}
-                            {allGoals.length > 1 && (
+                            {/* Goal Colors Legend (only if multiple goals and showing all) */}
+                            {allGoals.length > 1 && selectedGoalId === 'all' && (
                                 <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--color-border)' }}>
                                     <div className="text-tiny text-muted text-center mb-sm">Goal Colors</div>
                                     <div className="flex flex-wrap justify-center gap-md text-tiny">
@@ -756,7 +831,32 @@ export default function ProgressPage() {
                 <hr className="section-separator-gradient" />
 
                 <section style={{ marginBottom: 'var(--spacing-2xl)' }}>
-                    <h2 className="heading-4 mb-md" style={{ color: 'var(--color-text-primary)' }}>Mood & Energy Trends</h2>
+                    <div className="flex items-center justify-between mb-md flex-wrap gap-sm">
+                        <h2 className="heading-4" style={{ color: 'var(--color-text-primary)' }}>Trends</h2>
+                        {/* Metric Selector Tabs */}
+                        <div className="flex bg-surface-2 rounded-full p-1 border border-border">
+                            {(['mood', 'energy', 'motivation'] as const).map((metric) => (
+                                <button
+                                    key={metric}
+                                    onClick={() => setSelectedMetric(metric)}
+                                    style={{
+                                        padding: '4px 12px',
+                                        borderRadius: 'var(--radius-full)',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 600,
+                                        color: selectedMetric === metric ? 'white' : 'var(--color-text-secondary)',
+                                        background: selectedMetric === metric ? 'var(--color-primary)' : 'transparent',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        transition: 'all var(--transition-fast)',
+                                        textTransform: 'capitalize'
+                                    }}
+                                >
+                                    {metric}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                     {/* Chart card wrapper with responsive container styling */}
                     <div
                         className="card chart-card"
@@ -772,7 +872,7 @@ export default function ProgressPage() {
                             willChange: 'box-shadow, transform'
                         }}
                     >
-                        <MoodEnergyChart data={chartData} />
+                        <MoodEnergyChart data={chartData} visibleMetrics={[selectedMetric]} />
                     </div>
                 </section>
             </>
