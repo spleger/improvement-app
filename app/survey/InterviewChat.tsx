@@ -95,6 +95,54 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
     const [isInterviewComplete, setIsInterviewComplete] = useState(false);
     const [contextLoading, setContextLoading] = useState(true);
 
+    const chatContainerRef = useRef<HTMLDivElement>(null);
+
+    // Handle virtual keyboard appearance on mobile
+    useEffect(() => {
+        const handleViewportResize = () => {
+            if (!chatContainerRef.current) return;
+
+            // visualViewport provides the actual visible area excluding keyboard
+            const viewport = window.visualViewport;
+            if (!viewport) return;
+
+            // Calculate keyboard height (difference between window height and visual viewport)
+            const keyboardHeight = window.innerHeight - viewport.height;
+
+            // Apply CSS custom property for keyboard offset
+            if (keyboardHeight > 0) {
+                chatContainerRef.current.style.setProperty('--keyboard-offset', `${keyboardHeight}px`);
+            } else {
+                chatContainerRef.current.style.setProperty('--keyboard-offset', '0px');
+            }
+        };
+
+        const viewport = window.visualViewport;
+        if (viewport) {
+            viewport.addEventListener('resize', handleViewportResize);
+            viewport.addEventListener('scroll', handleViewportResize);
+        }
+
+        // Also listen for window resize as fallback
+        window.addEventListener('resize', handleViewportResize);
+
+        return () => {
+            if (viewport) {
+                viewport.removeEventListener('resize', handleViewportResize);
+                viewport.removeEventListener('scroll', handleViewportResize);
+            }
+            window.removeEventListener('resize', handleViewportResize);
+        };
+    }, []);
+
+    // Handle input focus to ensure visibility when keyboard appears
+    const handleInputFocus = () => {
+        // Small delay to wait for keyboard animation
+        setTimeout(() => {
+            inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 300);
+    };
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -581,7 +629,8 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
         } finally {
             setIsLoading(false);
             setIsStreaming(false);
-            inputRef.current?.focus();
+            // Force blur to close keyboard on mobile
+            inputRef.current?.blur();
         }
     };
 
@@ -630,7 +679,8 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
 
                         if (text) {
                             setInput(prev => prev + (prev ? ' ' : '') + text);
-                            inputRef.current?.focus();
+                            // Focus input so user can edit or send
+                            handleInputFocus();
                         }
                     } catch {
                         // Transcription failed - silently ignore
@@ -651,7 +701,7 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
     const currentStageIndex = INTERVIEW_STAGES.findIndex(s => s.id === currentStage);
 
     return (
-        <div className="interview-chat">
+        <div className="interview-chat" ref={chatContainerRef}>
             {/* Progress Indicator */}
             <div className="interview-header">
                 {onBack && (
@@ -714,27 +764,15 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
 
                 {messages.map(message => (
                     <div key={message.id} className={`message ${message.role}`}>
-                        {message.role === 'assistant' && (
-                            <div className="message-avatar assistant-avatar">
-                                <MessageCircle size={16} />
-                            </div>
-                        )}
+                        {/* Avatars hidden to maximize space on mobile */}
                         <div className="message-bubble">
                             <span style={{ whiteSpace: 'pre-wrap' }}>{message.content}</span>
                         </div>
-                        {message.role === 'user' && (
-                            <div className="message-avatar user-avatar">
-                                <User size={16} />
-                            </div>
-                        )}
                     </div>
                 ))}
 
                 {isLoading && (
                     <div className="message assistant">
-                        <div className="message-avatar assistant-avatar">
-                            <MessageCircle size={16} />
-                        </div>
                         <div className="message-bubble typing">
                             <span></span><span></span><span></span>
                         </div>
@@ -760,6 +798,7 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
                     type="text"
                     value={input}
                     onChange={e => setInput(e.target.value)}
+                    onFocus={handleInputFocus}
                     placeholder={isTranscribing ? 'Transcribing...' : 'Type or speak your response...'}
                     className="chat-input"
                     disabled={isLoading || isTranscribing}
@@ -783,6 +822,10 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
                     border: none;
                     border-radius: 0;
                     overflow: hidden;
+                    /* Dynamic height handling for mobile keyboards */
+                    height: 100dvh; 
+                    height: calc(100dvh - var(--keyboard-offset, 0px));
+                    transition: height 0.1s ease-out;
                 }
 
                 .interview-header {
@@ -936,100 +979,108 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
                     flex: 1;
                     overflow-y: auto;
                     padding: 20px;
+                    overflow-y: auto;
                     display: flex;
                     flex-direction: column;
                     gap: 16px;
-                    background-image: radial-gradient(var(--color-surface-2) 1px, transparent 1px);
-                    background-size: 20px 20px;
+                    /* Ensure we have bottom padding for scrolling */
+                    padding-bottom: 40px;
                 }
 
                 .message {
                     display: flex;
-                    gap: 12px;
-                    align-items: flex-end;
-                    animation: slideIn 0.3s ease;
+                    width: 100%;
+                    flex-direction: column; /* Stack content if needed */
                 }
 
-                @keyframes slideIn {
-                    from { opacity: 0; transform: translateY(10px); }
-                    to { opacity: 1; transform: translateY(0); }
+                .message.assistant {
+                    align-items: flex-start;
                 }
 
                 .message.user {
-                    flex-direction: row-reverse;
+                    align-items: flex-end;
                 }
-
+                
+                /*
                 .message-avatar {
                     width: 32px;
                     height: 32px;
-                    border-radius: 10px;
+                    border-radius: 50%;
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     flex-shrink: 0;
+                    color: white;
                 }
 
                 .assistant-avatar {
-                    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
-                    color: white;
+                    background: var(--gradient-primary);
+                    margin-right: 12px;
                 }
 
                 .user-avatar {
-                    background: var(--gradient-primary);
-                    color: white;
+                    background: var(--color-surface-2);
+                    color: var(--color-text-secondary);
+                    margin-left: 12px;
                 }
+                */
 
                 .message-bubble {
-                    max-width: 75%;
                     padding: 12px 16px;
                     border-radius: 18px;
+                    font-size: 1rem;
                     line-height: 1.5;
-                    font-size: 0.9rem;
-                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+                    position: relative;
+                    max-width: 95%; /* Maximize space per feedback */
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
                 }
 
                 .message.assistant .message-bubble {
-                    background: var(--color-surface);
-                    color: var(--color-text);
-                    border: 1px solid var(--color-border);
-                    border-bottom-left-radius: 6px;
+                    background: var(--color-surface-2);
+                    color: var(--color-text-primary);
+                    border-bottom-left-radius: 4px;
+                    /* margin-left: 44px; Removed since avatar is gone */
                 }
 
                 .message.user .message-bubble {
-                    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+                    background: var(--color-primary);
                     color: white;
-                    border-bottom-right-radius: 6px;
+                    border-bottom-right-radius: 4px;
+                    /* margin-right: 44px; Removed since avatar is gone */
                 }
 
-                .message-bubble.typing {
-                    display: flex;
-                    gap: 4px;
-                    padding: 16px 20px;
-                }
-
-                .message-bubble.typing span {
-                    width: 8px;
-                    height: 8px;
-                    background: var(--color-text-muted);
+                .typing span {
+                    display: inline-block;
+                    width: 6px;
+                    height: 6px;
+                    background: currentColor;
                     border-radius: 50%;
-                    animation: bounce 1.4s infinite ease-in-out;
+                    animation: typing 1.4s infinite both;
+                    margin: 0 2px;
+                    opacity: 0.7;
                 }
 
-                .message-bubble.typing span:nth-child(1) { animation-delay: -0.32s; }
-                .message-bubble.typing span:nth-child(2) { animation-delay: -0.16s; }
+                .typing span:nth-child(2) {
+                    animation-delay: 0.2s;
+                }
 
-                @keyframes bounce {
-                    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-                    40% { transform: scale(1); opacity: 1; }
+                .typing span:nth-child(3) {
+                    animation-delay: 0.4s;
+                }
+
+                @keyframes typing {
+                    0%, 100% { transform: scale(1); opacity: 0.7; }
+                    50% { transform: scale(1.5); opacity: 1; }
                 }
 
                 .chat-input-form {
+                    padding: 16px;
                     display: flex;
+                    align-items: center;
                     gap: 12px;
-                    padding: 16px 20px;
-                    border-top: 1px solid var(--color-border);
                     background: rgba(var(--color-surface-rgb), 0.85);
                     backdrop-filter: blur(12px);
+                    border-top: 1px solid var(--color-border);
                 }
 
                 .chat-input {
