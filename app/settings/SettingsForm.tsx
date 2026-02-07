@@ -70,12 +70,7 @@ const VOICE_OPTIONS = [
     { id: 'shimmer', name: 'Shimmer', gender: 'female', description: 'Bright and energetic' },
 ];
 
-const TONE_OPTIONS = [
-    { id: 'friendly', name: 'Friendly', emoji: '😊', description: 'Warm and approachable' },
-    { id: 'professional', name: 'Professional', emoji: '💼', description: 'Formal and business-like' },
-    { id: 'playful', name: 'Playful', emoji: '🎉', description: 'Fun and lighthearted' },
-    { id: 'motivational', name: 'Motivational', emoji: '🔥', description: 'Inspiring and energizing' },
-];
+
 
 export default function SettingsForm({ initialPreferences }: { initialPreferences: Preferences | null }) {
     const [prefs, setPrefs] = useState<Preferences>({ ...DEFAULT_PREFS, ...initialPreferences });
@@ -187,7 +182,8 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                             padding: 'var(--spacing-lg) var(--spacing-md)',
                             background: 'var(--color-surface)',
                             borderRadius: 'var(--radius-md)',
-                            marginTop: 'var(--spacing-sm)'
+                            marginTop: 'var(--spacing-sm)',
+                            border: '1px solid var(--color-border)'
                         }}
                     >
                         <div className="flex items-center gap-lg">
@@ -197,10 +193,9 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                                 max="10"
                                 value={prefs.preferredDifficulty}
                                 onChange={e => updatePref('preferredDifficulty', parseInt(e.target.value))}
-                                className="slider"
+                                className="custom-slider"
                                 style={{
                                     flex: 1,
-                                    height: '12px',
                                     cursor: 'pointer'
                                 }}
                             />
@@ -234,7 +229,11 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                                 key={n}
                                 onClick={() => updatePref('challengesPerDay', n)}
                                 className={`btn ${prefs.challengesPerDay === n ? 'btn-primary' : 'btn-secondary'}`}
-                                style={{ flex: 1 }}
+                                style={{
+                                    flex: 1,
+                                    border: prefs.challengesPerDay === n ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+                                    fontWeight: 'bold'
+                                }}
                             >
                                 {n}
                             </button>
@@ -255,7 +254,13 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                                 key={opt.value}
                                 onClick={() => updatePref('challengeLengthPreference', opt.value)}
                                 className={`btn ${prefs.challengeLengthPreference === opt.value ? 'btn-primary' : 'btn-secondary'}`}
-                                style={{ flex: 1, flexDirection: 'column', padding: '0.75rem' }}
+                                style={{
+                                    flex: 1,
+                                    flexDirection: 'column',
+                                    padding: '0.75rem',
+                                    border: prefs.challengeLengthPreference === opt.value ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+                                    fontWeight: prefs.challengeLengthPreference === opt.value ? 'bold' : 'normal'
+                                }}
                             >
                                 <span>{opt.emoji}</span>
                                 <span className="text-tiny">{opt.label}</span>
@@ -284,7 +289,9 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    gap: 'var(--spacing-xs)'
+                                    gap: 'var(--spacing-xs)',
+                                    border: prefs.preferredChallengeTime === opt.value ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+                                    fontWeight: prefs.preferredChallengeTime === opt.value ? 'bold' : 'normal'
                                 }}
                             >
                                 <span>{opt.emoji}</span>
@@ -444,19 +451,22 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                                     gap: '4px',
                                     padding: '12px 8px',
                                     border: prefs.voiceId === voice.id
-                                        ? '2px solid var(--color-primary)'
+                                        ? '3px solid var(--color-primary)'
                                         : '1px solid var(--color-border)',
                                     background: prefs.voiceId === voice.id
                                         ? 'var(--color-surface-2)'
                                         : 'var(--color-surface)',
                                     minHeight: '90px',
-                                    justifyContent: 'center'
+                                    justifyContent: 'center',
+                                    fontWeight: prefs.voiceId === voice.id ? 'bold' : 'normal',
+                                    transform: prefs.voiceId === voice.id ? 'scale(1.02)' : 'none',
+                                    transition: 'all 0.2s ease'
                                 }}
                             >
                                 <span style={{ fontSize: '1.25rem' }}>
                                     {voice.gender === 'female' ? '👩' : voice.gender === 'male' ? '👨' : '🧑'}
                                 </span>
-                                <span className="text-small" style={{ fontWeight: 600 }}>
+                                <span className="text-small">
                                     {voice.name}
                                 </span>
                                 <span
@@ -477,98 +487,7 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                 </div>
             </section>
 
-            {/* AI Personality Customization Section */}
-            <section className="card mb-lg">
-                <h2 className="heading-4 mb-md">✨ AI Personality Customization</h2>
-                <p className="text-small text-muted mb-md">
-                    Customize how your AI coach presents itself
-                </p>
 
-                {/* Custom AI Name */}
-                <div className="form-group mb-md">
-                    <label className="form-label">Custom AI Name</label>
-                    <input
-                        type="text"
-                        value={prefs.aiCustomName || ''}
-                        onChange={e => updatePref('aiCustomName', e.target.value)}
-                        placeholder="e.g., Coach Max, Sensei, Buddy"
-                        className="form-input"
-                    />
-                    <p className="text-tiny text-muted" style={{ marginTop: 'var(--spacing-xs)' }}>
-                        Give your AI coach a personalized name
-                    </p>
-                </div>
-
-                {/* Tone Preference */}
-                <div className="form-group mb-md">
-                    <label className="form-label">Communication Tone</label>
-                    <div
-                        className="tone-grid"
-                        style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(2, 1fr)',
-                            gap: 'var(--spacing-sm)'
-                        }}
-                    >
-                        {TONE_OPTIONS.map(tone => (
-                            <button
-                                key={tone.id}
-                                onClick={() => updatePref('tonePreference', tone.id)}
-                                className="btn"
-                                style={{
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    gap: '4px',
-                                    padding: '12px 8px',
-                                    border: prefs.tonePreference === tone.id
-                                        ? '2px solid var(--color-primary)'
-                                        : '1px solid var(--color-border)',
-                                    background: prefs.tonePreference === tone.id
-                                        ? 'var(--color-surface-2)'
-                                        : 'var(--color-surface)',
-                                    minHeight: '80px',
-                                    justifyContent: 'center'
-                                }}
-                            >
-                                <span style={{ fontSize: '1.5rem' }}>{tone.emoji}</span>
-                                <span className="text-small" style={{ fontWeight: 600 }}>
-                                    {tone.name}
-                                </span>
-                                <span
-                                    className="text-tiny text-muted"
-                                    style={{
-                                        textAlign: 'center',
-                                        lineHeight: 1.2
-                                    }}
-                                >
-                                    {tone.description}
-                                </span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Rude Mode Toggle */}
-                <div className="form-group">
-                    <label className="flex items-center gap-md" style={{ cursor: 'pointer', justifyContent: 'space-between' }}>
-                        <div style={{ flex: 1 }}>
-                            <div className="heading-5">🔥 Rude Mode</div>
-                            <div className="text-small text-muted">
-                                Enable brutally honest, no-nonsense feedback (not for the faint-hearted!)
-                            </div>
-                        </div>
-                        <div className="toggle-switch">
-                            <input
-                                type="checkbox"
-                                checked={prefs.rudeMode}
-                                onChange={e => updatePref('rudeMode', e.target.checked)}
-                            />
-                            <span className="toggle-slider"></span>
-                        </div>
-                    </label>
-                </div>
-            </section>
 
             {/* Notifications Section */}
             <section className="card mb-lg">
