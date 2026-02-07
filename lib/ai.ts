@@ -129,7 +129,7 @@ IMPORTANT:
 export async function generateMultipleChallenges(
     count: number,
     userPrefs: UserPrefs,
-    goal: Goal,
+    goal: Goal | null,
     recentChallenges: Challenge[] = [],
     focusArea?: string
 ): Promise<GeneratedChallenge[]> {
@@ -143,6 +143,19 @@ export async function generateMultipleChallenges(
         ? `Focus Area: The user specifically wants to work on "${focusArea}". Design challenges around this focus while still being specific and actionable.`
         : '';
 
+    // Determine context based on goal presence
+    const goalContext = goal
+        ? `GOAL CONTEXT:
+- Title: "${goal.title}"
+- Description: ${goal.description || 'Not provided'}
+- Current State: ${goal.currentState || 'Starting point'}
+- Desired State: ${goal.desiredState || 'Goal achieved'}`
+        : `GOAL CONTEXT:
+- Title: "General Self-Improvement & Well-being"
+- Description: The user wants to improve their life generally without a specific goal. Focus on broad themes like health, productivity, mindfulness, and personal growth.
+- Current State: Looking for daily inspiration.
+- Desired State: A balanced, healthy, and productive life.`;
+
     // Determine which challenge types to require based on count
     const allChallengeTypes = ['physical', 'reflection', 'skill', 'social', 'habit', 'research'];
     const requiredTypes = allChallengeTypes.slice(0, clampedCount);
@@ -150,11 +163,7 @@ export async function generateMultipleChallenges(
     const prompt = `
 You are an expert personal development coach creating ${clampedCount} DISTINCT, SPECIFIC, ACTIONABLE challenges.
 
-GOAL CONTEXT:
-- Title: "${goal.title}"
-- Description: ${goal.description || 'Not provided'}
-- Current State: ${goal.currentState || 'Starting point'}
-- Desired State: ${goal.desiredState || 'Goal achieved'}
+${goalContext}
 
 USER PREFERENCES:
 - Preferred Difficulty: ${userPrefs.preferredDifficulty}/10

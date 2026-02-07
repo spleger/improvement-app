@@ -74,6 +74,10 @@ export default async function DashboardPage() {
 
     const pendingChallenges = todayChallenges.filter(c => c.status === 'pending');
     const completedToday = todayChallenges.filter(c => c.status === 'completed');
+    const generalChallenges = todayChallenges.filter(c => !c.goalId);
+
+    // Show general section if we have general challenges OR if user has no goals (and needs something to do)
+    const showGeneralSection = generalChallenges.length > 0 || activeGoals.length === 0;
 
     return (
         <div className="page animate-fade-in">
@@ -157,6 +161,25 @@ export default async function DashboardPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Daily Growth (General Challenges) */}
+            {showGeneralSection && (
+                <section className="mb-lg">
+                    <div className="flex justify-between items-center mb-md">
+                        <h2 className="heading-4">🌱 Daily Growth</h2>
+                    </div>
+
+                    {generalChallenges.length === 0 ? (
+                        <DailyChallengeLoader goalId={null} goalTitle="Daily Growth" />
+                    ) : (
+                        <div className="flex flex-col gap-md">
+                            {generalChallenges.map(challenge => (
+                                <ChallengeCard key={challenge.id} challenge={challenge} />
+                            ))}
+                        </div>
+                    )}
+                </section>
+            )}
 
             {/* Active Goals with Nested Challenges */}
             <section className="mb-lg">

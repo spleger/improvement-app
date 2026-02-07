@@ -16,19 +16,18 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { goalId, count = 1, focusArea } = body;
 
-        if (!goalId) {
-            return NextResponse.json({ success: false, error: 'Goal ID is required' }, { status: 400 });
-        }
-
         // Clamp count to valid range
         const clampedCount = Math.min(Math.max(Number(count) || 1, 1), 5);
 
-        // 1. Fetch Goal and verify ownership
-        const goals = await db.getGoalsByUserId(user.userId);
-        const goal = goals.find((g: any) => g.id === goalId);
+        let goal = null;
+        if (goalId) {
+            // 1. Fetch Goal and verify ownership
+            const goals = await db.getGoalsByUserId(user.userId);
+            goal = goals.find((g: any) => g.id === goalId);
 
-        if (!goal) {
-            return NextResponse.json({ success: false, error: 'Goal not found' }, { status: 404 });
+            if (!goal) {
+                return NextResponse.json({ success: false, error: 'Goal not found' }, { status: 404 });
+            }
         }
 
         // 2. Fetch User Context (Preferences)
@@ -47,7 +46,7 @@ export async function POST(request: NextRequest) {
         const challengeDataList = await generateMultipleChallenges(
             clampedCount,
             userPrefs,
-            goal as any,
+            goal ? (goal as any) : null,
             recentChallenges as any,
             focusArea?.trim() || undefined
         );
@@ -61,10 +60,9 @@ export async function POST(request: NextRequest) {
 
             // Schedule all generated challenges for today
             const scheduledDate = new Date(now);
-            // scheduledDate.setDate(scheduledDate.getDate() + i); // OLD: Scheduled for future days. NEW: All today.
 
             const newChallenge = await db.createChallenge({
-                goalId: goal.id,
+                goalId: goal ? goal.id : undefined,
                 userId: user.userId,
                 title: challengeData.title || `Challenge ${i + 1}`,
                 description: challengeData.description || 'No description provided',
@@ -88,7 +86,7 @@ export async function POST(request: NextRequest) {
             data: {
                 challenges: createdChallenges,
                 context: {
-                    day: Math.floor((Date.now() - new Date(goal.startedAt).getTime()) / (1000 * 60 * 60 * 24)) + 1,
+                    day: goal ? Math.floor((Date.now() - new Date(goal.startedAt).getTime()) / (1000 * 60 * 60 * 24)) + 1 : 1,
                     adaptedDifficulty: challengeDataList[0]?.difficulty || 5,
                     totalGenerated: createdChallenges.length
                 }

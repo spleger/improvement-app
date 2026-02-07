@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
 interface DailyChallengeLoaderProps {
-    goalId: string;
+    goalId: string | null;
     goalTitle: string;
 }
 
@@ -61,7 +61,9 @@ export default function DailyChallengeLoader({ goalId, goalTitle }: DailyChallen
     return (
         <div className="p-md bg-surface-2 rounded-md border border-border flex items-center justify-center gap-md animate-pulse">
             <Loader2 className="animate-spin text-primary" size={20} />
-            <span className="text-secondary text-small">Creating today's challenge for {goalTitle}...</span>
+            <span className="text-secondary text-small">
+                {goalId ? `Creating today's challenge for ${goalTitle}...` : `Creating today's ${goalTitle}...`}
+            </span>
         </div>
     );
 }
