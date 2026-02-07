@@ -59,6 +59,7 @@ function getGreeting() {
 import ThemeToggle from './ThemeToggle';
 import GoalCelebrationWrapper from './components/GoalCelebrationWrapper';
 import GoalActions from './components/GoalActions';
+import DailyChallengeLoader from './components/DailyChallengeLoader';
 
 // ... (keep existing imports)
 
@@ -174,6 +175,7 @@ export default async function DashboardPage() {
                         {activeGoals.map(goal => {
                             const dayInJourney = Math.ceil((Date.now() - new Date(goal.startedAt).getTime()) / (1000 * 60 * 60 * 24));
                             const progress = Math.min(Math.round((dayInJourney / 30) * 100), 100);
+
                             // Get challenges for this goal
                             const goalChallenges = todayChallenges.filter(c => c.goalId === goal.id);
                             const pendingGoalChallenges = goalChallenges.filter(c => c.status === 'pending');
@@ -235,7 +237,7 @@ export default async function DashboardPage() {
                                     </div>
 
                                     {/* Nested Challenges for this Goal */}
-                                    {goalChallenges.length > 0 && (
+                                    {goalChallenges.length > 0 ? (
                                         <div style={{
                                             marginLeft: '1rem',
                                             marginTop: '0.75rem',
@@ -285,30 +287,42 @@ export default async function DashboardPage() {
                                                 </div>
                                             )}
                                         </div>
+                                    ) : (
+                                        <div style={{
+                                            marginLeft: '1rem',
+                                            marginTop: '0.75rem',
+                                            paddingLeft: '1rem',
+                                            borderLeft: '3px dashed var(--color-border)',
+                                        }}>
+                                            <DailyChallengeLoader goalId={goal.id} goalTitle={goal.title} />
+                                        </div>
                                     )}
                                 </div>
                             );
                         })}
                     </div>
                 )}
-            </section>
+
+            </section >
 
             {/* No Challenges Prompt - Only shown when there are no challenges */}
-            {todayChallenges.length === 0 && activeGoals.length > 0 && (
-                <section className="mb-lg">
-                    <div className="card text-center">
-                        <p className="text-secondary mb-md">No challenges scheduled for today.</p>
-                        <div className="flex gap-sm justify-center">
-                            <Link href={`/challenges/generate?goalId=${activeGoals[0].id}`} className="btn btn-primary">
-                                Generate Challenge
-                            </Link>
-                            <Link href="/challenges/browse" className="btn btn-secondary">
-                                Browse Library
-                            </Link>
+            {
+                todayChallenges.length === 0 && activeGoals.length > 0 && (
+                    <section className="mb-lg">
+                        <div className="card text-center">
+                            <p className="text-secondary mb-md">No challenges scheduled for today.</p>
+                            <div className="flex gap-sm justify-center">
+                                <Link href={`/challenges/generate?goalId=${activeGoals[0].id}`} className="btn btn-primary">
+                                    Generate Challenge
+                                </Link>
+                                <Link href="/challenges/browse" className="btn btn-secondary">
+                                    Browse Library
+                                </Link>
+                            </div>
                         </div>
-                    </div>
-                </section>
-            )}
+                    </section>
+                )
+            }
 
             {/* Quick Stats */}
             <section className="mb-lg">
@@ -334,57 +348,59 @@ export default async function DashboardPage() {
             </section>
 
             {/* Habits Summary */}
-            {habitStats.totalHabits > 0 && (
-                <section className="mb-lg">
-                    <div className="flex justify-between items-center mb-md">
-                        <h2 className="heading-4">✅ Your Habits</h2>
-                        <Link href="/habits" className="btn btn-ghost text-small">View All</Link>
-                    </div>
-                    <Link href="/habits" className="card" style={{ textDecoration: 'none', display: 'block' }}>
-                        <div className="flex items-center gap-md">
-                            <div style={{
-                                width: '56px',
-                                height: '56px',
-                                borderRadius: '16px',
-                                background: habitStats.completedToday === habitStats.totalHabits ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'var(--gradient-primary)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: 'white',
-                                fontWeight: 'bold',
-                                fontSize: '1.25rem'
-                            }}>
-                                {habitStats.completedToday}/{habitStats.totalHabits}
-                            </div>
-                            <div style={{ flex: 1 }}>
-                                <div className="heading-5">
-                                    {habitStats.completedToday === habitStats.totalHabits && habitStats.totalHabits > 0
-                                        ? '🎉 All habits done today!'
-                                        : `${habitStats.totalHabits - habitStats.completedToday} habit${habitStats.totalHabits - habitStats.completedToday !== 1 ? 's' : ''} remaining`
-                                    }
-                                </div>
-                                <div className="text-small text-muted">Weekly rate: {habitStats.weeklyCompletionRate}%</div>
-                            </div>
-                            <span style={{ fontSize: '1.5rem' }}>→</span>
+            {
+                habitStats.totalHabits > 0 && (
+                    <section className="mb-lg">
+                        <div className="flex justify-between items-center mb-md">
+                            <h2 className="heading-4">✅ Your Habits</h2>
+                            <Link href="/habits" className="btn btn-ghost text-small">View All</Link>
                         </div>
-                        {/* Mini habit icons */}
-                        <div className="flex gap-xs mt-md" style={{ flexWrap: 'wrap' }}>
-                            {habitStats.habits.slice(0, 6).map((habit: any) => (
-                                <span key={habit.id} title={habit.name} style={{
-                                    fontSize: '1.25rem',
-                                    opacity: habit.streak > 0 ? 1 : 0.4
+                        <Link href="/habits" className="card" style={{ textDecoration: 'none', display: 'block' }}>
+                            <div className="flex items-center gap-md">
+                                <div style={{
+                                    width: '56px',
+                                    height: '56px',
+                                    borderRadius: '16px',
+                                    background: habitStats.completedToday === habitStats.totalHabits ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'var(--gradient-primary)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'white',
+                                    fontWeight: 'bold',
+                                    fontSize: '1.25rem'
                                 }}>
-                                    {habit.icon}
-                                </span>
-                            ))}
-                            {habitStats.habits.length > 6 && (
-                                <span className="text-small text-muted">+{habitStats.habits.length - 6}</span>
-                            )}
-                        </div>
-                    </Link>
-                </section>
-            )}
-        </div>
+                                    {habitStats.completedToday}/{habitStats.totalHabits}
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <div className="heading-5">
+                                        {habitStats.completedToday === habitStats.totalHabits && habitStats.totalHabits > 0
+                                            ? '🎉 All habits done today!'
+                                            : `${habitStats.totalHabits - habitStats.completedToday} habit${habitStats.totalHabits - habitStats.completedToday !== 1 ? 's' : ''} remaining`
+                                        }
+                                    </div>
+                                    <div className="text-small text-muted">Weekly rate: {habitStats.weeklyCompletionRate}%</div>
+                                </div>
+                                <span style={{ fontSize: '1.5rem' }}>→</span>
+                            </div>
+                            {/* Mini habit icons */}
+                            <div className="flex gap-xs mt-md" style={{ flexWrap: 'wrap' }}>
+                                {habitStats.habits.slice(0, 6).map((habit: any) => (
+                                    <span key={habit.id} title={habit.name} style={{
+                                        fontSize: '1.25rem',
+                                        opacity: habit.streak > 0 ? 1 : 0.4
+                                    }}>
+                                        {habit.icon}
+                                    </span>
+                                ))}
+                                {habitStats.habits.length > 6 && (
+                                    <span className="text-small text-muted">+{habitStats.habits.length - 6}</span>
+                                )}
+                            </div>
+                        </Link>
+                    </section>
+                )
+            }
+        </div >
     );
 }
 
