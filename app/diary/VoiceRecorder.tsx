@@ -7,6 +7,7 @@ import { Mic, MicOff, X, Check, RotateCcw, Loader2, Pause, Play, Trash2, Save } 
 interface VoiceRecorderProps {
     onClose: () => void;
     onSaved: () => void;
+    autoStart?: boolean;
 }
 
 type RecordingState = 'idle' | 'recording' | 'paused' | 'stopped' | 'processing' | 'saved';
@@ -19,7 +20,7 @@ declare global {
     }
 }
 
-export default function VoiceRecorder({ onClose, onSaved }: VoiceRecorderProps) {
+export default function VoiceRecorder({ onClose, onSaved, autoStart = false }: VoiceRecorderProps) {
     const [state, setState] = useState<RecordingState>('idle');
     const [duration, setDuration] = useState(0);
     const [transcript, setTranscript] = useState('');
@@ -33,6 +34,15 @@ export default function VoiceRecorder({ onClose, onSaved }: VoiceRecorderProps) 
     const chunksRef = useRef<Blob[]>([]);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
+    const hasAutoStartedRef = useRef(false);
+
+    // Auto-start recording if requested
+    useEffect(() => {
+        if (autoStart && !hasAutoStartedRef.current && state === 'idle') {
+            hasAutoStartedRef.current = true;
+            startRecording();
+        }
+    }, [autoStart]);
 
     useEffect(() => {
         // Initialize Speech Recognition

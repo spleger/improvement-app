@@ -72,6 +72,7 @@ export default function DiaryPage() {
                 <VoiceRecorder
                     onClose={handleVoiceRecorderClose}
                     onSaved={handleVoiceRecorderSaved}
+                    autoStart={true}
                 />
             )}
 

@@ -44,9 +44,8 @@ export default function BottomNavigation() {
     }, [pathname]);
 
     const trackingSubmenu = [
-        { id: 'habits', icon: '✅', label: 'Log Habits', href: '/habits' },
-        { id: 'diary', icon: '🎙️', label: 'Voice Diary', href: '/diary' },
-        { id: 'checkin', icon: '📊', label: 'Check-in', href: '/survey' },
+        { id: 'diary', label: 'Voice Diary', href: '/diary' },
+        { id: 'checkin', label: 'Check-in', href: '/survey' },
     ];
 
     return (
@@ -84,7 +83,7 @@ export default function BottomNavigation() {
                                     href={item.href}
                                     className="tracking-submenu-item"
                                 >
-                                    <span className="tracking-submenu-icon">{item.icon}</span>
+                                    {/* <span className="tracking-submenu-icon">{item.icon}</span> */}
                                     <span className="tracking-submenu-label">{item.label}</span>
                                 </Link>
                             ))}
@@ -149,24 +148,28 @@ export default function BottomNavigation() {
                 .tracking-submenu-item {
                     display: flex;
                     align-items: center;
+                    justify-content: center; /* Center text */
                     gap: var(--spacing-sm);
-                    padding: 10px 16px;
+                    padding: 12px 20px; /* Larger hit area */
                     border-radius: 9999px; /* Pill shape */
                     text-decoration: none;
                     color: var(--color-text-primary);
-                    background: var(--color-surface-2); /* Slight background */
-                    border: 1px solid transparent; /* Prevent jump on hover */
+                    background: var(--color-surface-2);
+                    border: 1px solid transparent;
                     transition: all var(--transition-fast);
+                    font-weight: 600; /* Bolder text */
                 }
 
                 .tracking-submenu-item:hover {
                     background: var(--color-surface-hover);
                     border-color: var(--color-primary-light);
-                    transform: translateX(2px);
+                    transform: translateY(-2px); /* Slight lift */
+                    box-shadow: var(--shadow-sm);
                 }
 
+                /* Icon removed from DOM, style not needed, but keeping for safety if used elsewhere or future */
                 .tracking-submenu-icon {
-                    font-size: 1rem;
+                    display: none; /* Hide if still present */
                 }
 
                 .tracking-submenu-label {

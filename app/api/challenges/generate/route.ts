@@ -59,9 +59,9 @@ export async function POST(request: NextRequest) {
         for (let i = 0; i < challengeDataList.length; i++) {
             const challengeData = challengeDataList[i];
 
-            // Schedule challenges on consecutive days
+            // Schedule all generated challenges for today
             const scheduledDate = new Date(now);
-            scheduledDate.setDate(scheduledDate.getDate() + i);
+            // scheduledDate.setDate(scheduledDate.getDate() + i); // OLD: Scheduled for future days. NEW: All today.
 
             const newChallenge = await db.createChallenge({
                 goalId: goal.id,

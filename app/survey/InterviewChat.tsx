@@ -72,9 +72,10 @@ interface InterviewChatProps {
     initialStage?: InterviewStage;
     onStageChange?: (stage: InterviewStage) => void;
     onComplete?: () => void;
+    onBack?: () => void;
 }
 
-export default function InterviewChat({ initialStage = 'mood', onStageChange, onComplete }: InterviewChatProps) {
+export default function InterviewChat({ initialStage = 'mood', onStageChange, onComplete, onBack }: InterviewChatProps) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -653,7 +654,16 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
         <div className="interview-chat">
             {/* Progress Indicator */}
             <div className="interview-header">
-                <div className="progress-container">
+                {onBack && (
+                    <button
+                        onClick={onBack}
+                        className="back-btn"
+                        style={{ position: 'absolute', left: '16px', top: '16px', background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--color-text-secondary)', zIndex: 10 }}
+                    >
+                        ←
+                    </button>
+                )}
+                <div className="progress-container" style={{ marginLeft: onBack ? '32px' : '0' }}>
                     <div className="progress-bar">
                         <div
                             className="progress-fill"

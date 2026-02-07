@@ -40,9 +40,8 @@ export default function TopNavigation() {
     }, []);
 
     const quickActions = [
-        { id: 'habits', icon: '✅', label: 'Log habits', href: '/habits' },
-        { id: 'diary', icon: '🎙️', label: 'Voice diary', href: '/diary' },
-        { id: 'checkin', icon: '📋', label: 'Check-in', href: '/survey' },
+        { id: 'diary', label: 'Voice diary', href: '/diary' },
+        { id: 'checkin', label: 'Check-in', href: '/survey' },
     ];
 
     // Close quick actions when clicking outside
@@ -106,7 +105,7 @@ export default function TopNavigation() {
                                         href={action.href}
                                         className="quick-action-item"
                                     >
-                                        <span className="quick-action-icon">{action.icon}</span>
+                                        {/* <span className="quick-action-icon">{action.icon}</span> */}
                                         <span className="quick-action-label">{action.label}</span>
                                     </Link>
                                 ))}
@@ -262,30 +261,28 @@ export default function TopNavigation() {
                 .quick-action-item {
                     display: flex;
                     align-items: center;
+                    justify-content: center; /* Center text */
                     gap: var(--spacing-sm);
-                    padding: 10px 16px;
+                    padding: 12px 20px;
                     border-radius: 9999px;
                     text-decoration: none;
                     color: var(--color-text-primary);
                     background: var(--color-surface-2);
                     border: 1px solid transparent;
                     transition: all var(--transition-fast);
-                    width: 100%; /* Or auto if we want true pills, but 100% fills the centered column */
-                    justify-content: center; /* Center content in the pill */
+                    width: 100%;
+                    font-weight: 600;
                 }
 
                 .quick-action-item:hover {
                     background: var(--color-surface-hover);
                     border-color: var(--color-primary-light);
-                    transform: translateX(2px);
-                }
-
-                .quick-action-item:hover {
-                    background: var(--color-surface-hover);
+                    transform: translateY(-2px);
+                    box-shadow: var(--shadow-sm);
                 }
 
                 .quick-action-icon {
-                    font-size: 1rem;
+                    display: none;
                 }
 
                 .quick-action-label {

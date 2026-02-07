@@ -42,7 +42,11 @@ const SUGGESTED_TOPICS = [
     "✨ Celebrate a recent win"
 ];
 
-export default function ExpertChat() {
+interface ExpertChatProps {
+    onBack?: () => void;
+}
+
+export default function ExpertChat({ onBack }: ExpertChatProps) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -609,6 +613,11 @@ export default function ExpertChat() {
             {/* Header with Coach Selector */}
             <div className="chat-header">
                 <div className="header-row">
+                    {onBack && (
+                        <button onClick={onBack} className="btn-icon" style={{ marginRight: '8px' }}>
+                            ←
+                        </button>
+                    )}
                     <button
                         className="coach-selector-btn"
                         onClick={() => setShowCoachSelector(!showCoachSelector)}

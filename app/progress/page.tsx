@@ -780,17 +780,10 @@ export default function ProgressPage() {
             {/* Section Separator */}
             <hr className="section-separator-subtle" />
 
-            {/* Quick Actions */}
-            <section style={{ marginTop: 'var(--spacing-2xl)', marginBottom: 'var(--spacing-lg)' }}>
-                <div className="flex gap-md">
-                    <Link href="/survey" className="btn btn-primary" style={{ flex: 1 }}>
-                        📝 Daily Check-in
-                    </Link>
-                    <Link href="/" className="btn btn-secondary" style={{ flex: 1 }}>
-                        🏠 Home
-                    </Link>
-                </div>
-            </section>
+            {/* Section Separator */}
+            <hr className="section-separator-subtle" />
+
+            {/* Bottom Navigation handles navigation now */}
 
             {/* Bottom Navigation */}
 

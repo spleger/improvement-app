@@ -24,69 +24,65 @@ export default function AIConversation({ onBack }: AIConversationProps) {
         setInterviewCompleted(true);
     }, []);
 
+    // If a mode is selected, render it full screen
+    if (selectedMode === 'interview') {
+        return <InterviewChat onComplete={handleInterviewComplete} onBack={handleBackToModeSelection} />;
+    }
+
+    if (selectedMode === 'expert') {
+        return <ExpertChat onBack={handleBackToModeSelection} />;
+    }
+
+    // Otherwise render selection menu
     return (
         <div className="ai-conversation">
-            {/* Back button - goes to mode selection or main survey mode selection */}
+            {/* Back button - goes to main survey mode selection */}
             <button
-                onClick={selectedMode === null ? onBack : handleBackToModeSelection}
+                onClick={onBack}
                 className="btn btn-ghost mb-md text-small"
             >
-                ← {selectedMode === null ? 'Change mode' : 'Back to AI options'}
+                ← Back to options
             </button>
 
             {/* Sub-mode Selection */}
-            {selectedMode === null && (
-                <div className="mode-selection animate-slide-up">
-                    <div className="selection-header">
-                        <h3 className="heading-3">Choose your conversation style</h3>
-                        <p className="text-secondary text-small">
-                            How would you like to talk with your AI coach today?
+            <div className="mode-selection animate-slide-up">
+                <div className="selection-header">
+                    <h3 className="heading-3">Choose your conversation style</h3>
+                    <p className="text-secondary text-small">
+                        How would you like to talk with your AI coach today?
+                    </p>
+                </div>
+
+                <button
+                    onClick={() => setSelectedMode('interview')}
+                    className="mode-card card mb-md"
+                >
+                    <div className="mode-icon interview-icon">
+                        <MessageCircle size={28} />
+                    </div>
+                    <div className="mode-content">
+                        <h3 className="mode-title">Guided Interview</h3>
+                        <p className="mode-description text-secondary text-small">
+                            AI guides you through questions about your goals, challenges, habits, and mood
                         </p>
                     </div>
+                </button>
 
-                    <button
-                        onClick={() => setSelectedMode('interview')}
-                        className="mode-card card mb-md"
-                    >
-                        <div className="mode-icon interview-icon">
-                            <MessageCircle size={28} />
-                        </div>
-                        <div className="mode-content">
-                            <h3 className="mode-title">Guided Interview</h3>
-                            <p className="mode-description text-secondary text-small">
-                                AI guides you through questions about your goals, challenges, habits, and mood
-                            </p>
-                        </div>
-                    </button>
-
-                    <button
-                        onClick={() => setSelectedMode('expert')}
-                        className="mode-card card"
-                    >
-                        <div className="mode-icon expert-icon">
-                            <Sparkles size={28} />
-                        </div>
-                        <div className="mode-content">
-                            <h3 className="mode-title">Expert Chat</h3>
-                            <p className="mode-description text-secondary text-small">
-                                Free-form conversation with your AI coach on any topic
-                            </p>
-                        </div>
-                    </button>
-                </div>
-            )}
-
-            {/* Interview Mode */}
-            {selectedMode === 'interview' && (
-                <InterviewChat onComplete={handleInterviewComplete} />
-            )}
-
-            {/* Expert Chat Mode */}
-            {selectedMode === 'expert' && (
-                <div className="expert-chat-wrapper">
-                    <ExpertChat />
-                </div>
-            )}
+                <button
+                    onClick={() => setSelectedMode('expert')}
+                    className="mode-card card"
+                >
+                    <div className="mode-icon expert-icon">
+                        <Sparkles size={28} />
+                    </div>
+                    <div className="mode-content">
+                        <h3 className="mode-title">Expert Chat</h3>
+                        <p className="mode-description text-secondary text-small">
+                            Free-form conversation with your AI coach on any topic
+                        </p>
+                    </div>
+                </button>
+            </div>
 
             <style jsx>{`
                 .ai-conversation {
@@ -156,10 +152,6 @@ export default function AIConversation({ onBack }: AIConversationProps) {
 
                 .mode-description {
                     line-height: 1.5;
-                }
-
-                .expert-chat-wrapper {
-                    width: 100%;
                 }
             `}</style>
         </div>
