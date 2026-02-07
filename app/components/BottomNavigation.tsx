@@ -44,6 +44,7 @@ export default function BottomNavigation() {
     }, [pathname]);
 
     const trackingSubmenu = [
+        { id: 'habits', label: 'Daily Habits', href: '/habits' },
         { id: 'diary', label: 'Voice Diary', href: '/diary' },
         { id: 'checkin', label: 'Check-in', href: '/survey' },
     ];
@@ -111,6 +112,57 @@ export default function BottomNavigation() {
             </div>
 
             <style jsx>{`
+                .nav-bottom {
+                    position: fixed;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    background: var(--color-surface-solid);
+                    border-top: 1px solid var(--color-border);
+                    z-index: 100;
+                    padding-bottom: env(safe-area-inset-bottom);
+                }
+
+                .nav-bottom-inner {
+                    display: flex;
+                    justify-content: space-around;
+                    align-items: center;
+                    height: 60px;
+                    max-width: 600px;
+                    margin: 0 auto;
+                }
+
+                .nav-item {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    text-decoration: none;
+                    color: var(--color-text-secondary);
+                    font-size: 0.75rem;
+                    gap: 4px;
+                    padding: 4px;
+                    border-radius: 8px;
+                    transition: all var(--transition-fast);
+                    flex: 1;
+                    height: 100%;
+                    background: none;
+                    border: none;
+                    cursor: pointer;
+                }
+
+                .nav-item.active {
+                    color: var(--color-primary);
+                }
+
+                .nav-item-icon {
+                    font-size: 1.25rem;
+                }
+
+                .nav-item-label {
+                    font-weight: 500;
+                }
+
                 .tracking-submenu-container {
                     position: relative;
                 }
@@ -155,14 +207,14 @@ export default function BottomNavigation() {
                     text-decoration: none;
                     color: var(--color-text-primary);
                     background: var(--color-surface-2);
-                    border: 1px solid transparent;
+                    border: 1px solid var(--color-border); /* Explicit border */
                     transition: all var(--transition-fast);
                     font-weight: 600; /* Bolder text */
                 }
 
                 .tracking-submenu-item:hover {
                     background: var(--color-surface-hover);
-                    border-color: var(--color-primary-light);
+                    border-color: var(--color-primary);
                     transform: translateY(-2px); /* Slight lift */
                     box-shadow: var(--shadow-sm);
                 }

@@ -997,26 +997,68 @@ export async function getHabitStats(userId: string, days: number = 7) {
     startDate.setDate(startDate.getDate() - days);
     startDate.setUTCHours(0, 0, 0, 0);
 
+    // Fetch all habits for user
     const habits = await getHabitsByUserId(userId);
-    const logs = await getHabitLogsForRange(userId, startDate, new Date());
 
+    // Fetch logs for streak calculation (last 60 days) IN BULK
+    const streakStartDate = new Date();
+    streakStartDate.setDate(streakStartDate.getDate() - 60);
+    streakStartDate.setUTCHours(0, 0, 0, 0);
+
+    const allLogs = await prisma.habitLog.findMany({
+        where: {
+            habit: { userId },
+            logDate: { gte: streakStartDate }
+        },
+        orderBy: { logDate: 'desc' }
+    });
+
+    // Helper to calculate streak from logs in memory
+    const calculateStreakInMemory = (habitId: string, logs: any[]) => {
+        const habitLogs = logs.filter(l => l.habitId === habitId);
+        let streak = 0;
+        const checkDate = new Date();
+        checkDate.setUTCHours(0, 0, 0, 0);
+
+        for (let i = 0; i < 60; i++) {
+            const dateStr = checkDate.toISOString().split('T')[0];
+            const log = habitLogs.find(l => new Date(l.logDate).toISOString().split('T')[0] === dateStr);
+
+            if (log && log.completed) {
+                streak++;
+                checkDate.setDate(checkDate.getDate() - 1);
+            } else if (i > 0) {
+                break;
+            } else {
+                checkDate.setDate(checkDate.getDate() - 1);
+            }
+        }
+        return streak;
+    };
+
+    // Calculate streaks in memory without extra DB calls
+    const habitsWithStreaks = habits.map(h => ({
+        ...h,
+        streak: calculateStreakInMemory(h.id, allLogs)
+    }));
+
+    // Stats calculation based on requested range (e.g. 7 days)
+    const statsLogs = allLogs.filter(l => new Date(l.logDate) >= startDate);
     const totalPossible = habits.length * days;
-    const completed = logs.filter(l => l.completed).length;
+    const completed = statsLogs.filter(l => l.completed).length;
     const completionRate = totalPossible > 0 ? Math.round((completed / totalPossible) * 100) : 0;
 
-    const habitsWithStreaks = await Promise.all(habits.map(async (h) => ({
-        ...h,
-        streak: await calculateHabitStreak(h.id)
-    })));
+    // Today's completion
+    const todayStr = new Date().toISOString().split('T')[0];
+    const completedToday = allLogs.filter(l => {
+        const logDate = new Date(l.logDate).toISOString().split('T')[0];
+        return logDate === todayStr && l.completed;
+    }).length;
 
     return {
         habits: habitsWithStreaks,
         totalHabits: habits.length,
-        completedToday: logs.filter(l => {
-            const logDate = new Date(l.logDate).toISOString().split('T')[0];
-            const today = new Date().toISOString().split('T')[0];
-            return logDate === today && l.completed;
-        }).length,
+        completedToday,
         weeklyCompletionRate: completionRate
     };
 }

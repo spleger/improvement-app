@@ -40,6 +40,7 @@ export default function TopNavigation() {
     }, []);
 
     const quickActions = [
+        { id: 'habits', label: 'Daily Habits', href: '/habits' },
         { id: 'diary', label: 'Voice diary', href: '/diary' },
         { id: 'checkin', label: 'Check-in', href: '/survey' },
     ];
@@ -268,7 +269,7 @@ export default function TopNavigation() {
                     text-decoration: none;
                     color: var(--color-text-primary);
                     background: var(--color-surface-2);
-                    border: 1px solid transparent;
+                    border: 1px solid var(--color-border); /* Explicit border */
                     transition: all var(--transition-fast);
                     width: 100%;
                     font-weight: 600;
@@ -276,7 +277,7 @@ export default function TopNavigation() {
 
                 .quick-action-item:hover {
                     background: var(--color-surface-hover);
-                    border-color: var(--color-primary-light);
+                    border-color: var(--color-primary);
                     transform: translateY(-2px);
                     box-shadow: var(--shadow-sm);
                 }
