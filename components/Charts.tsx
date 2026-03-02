@@ -192,7 +192,7 @@ export function MoodEnergyChart({ data, visibleMetrics = ['mood', 'energy', 'mot
     }));
 
     return (
-        <div style={{ width: '100%', height: '100%', minHeight: '250px' }}>
+        <div style={{ width: '100%', height: '300px' }}>
             <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                     data={formattedData}

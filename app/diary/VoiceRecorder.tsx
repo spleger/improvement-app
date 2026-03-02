@@ -35,6 +35,8 @@ export default function VoiceRecorder({ onClose, onSaved, autoStart = false }: V
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const hasAutoStartedRef = useRef(false);
+    const stateRef = useRef(state);
+    stateRef.current = state;
 
     // Auto-start recording if requested
     useEffect(() => {
@@ -45,7 +47,7 @@ export default function VoiceRecorder({ onClose, onSaved, autoStart = false }: V
     }, [autoStart]);
 
     useEffect(() => {
-        // Initialize Speech Recognition
+        // Initialize Speech Recognition once on mount
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
             const recognition = new SpeechRecognition();
@@ -80,8 +82,8 @@ export default function VoiceRecorder({ onClose, onSaved, autoStart = false }: V
             };
 
             recognition.onend = () => {
-                // Restart if still recording
-                if (state === 'recording' && recognitionRef.current) {
+                // Restart if still recording (use ref to avoid stale closure)
+                if (stateRef.current === 'recording' && recognitionRef.current) {
                     try {
                         recognitionRef.current.start();
                     } catch (e) {
@@ -104,7 +106,7 @@ export default function VoiceRecorder({ onClose, onSaved, autoStart = false }: V
                 } catch (e) { }
             }
         };
-    }, [state]);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const formatDuration = (seconds: number) => {
         const mins = Math.floor(seconds / 60);

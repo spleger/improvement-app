@@ -153,6 +153,14 @@ export default function BottomNavigation() {
 
                 .nav-item.active {
                     color: var(--color-primary);
+                    background: rgba(var(--color-primary-rgb, 59, 130, 246), 0.12);
+                    border-radius: 12px;
+                    font-weight: 600;
+                }
+
+                .nav-item.active .nav-item-label {
+                    border-bottom: 2px solid var(--color-primary);
+                    padding-bottom: 1px;
                 }
 
                 .nav-item-icon {

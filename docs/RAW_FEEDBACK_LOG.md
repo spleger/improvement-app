@@ -1,5 +1,9 @@
 # Raw Feedback Log
 
+## Mar 2, 2026
+
+"In Progress. Trends at the very bottom don't work. You can choose between mood, energy, and motivation, but the graph below doesn't render. Another UI element: When you click on any of the nav items below, the one that you're currently on is highlighted, but only very slightly. The text in green is highlighted even more with a little line around it. Also, diary voice recordings are still broken. No transcript is captured. Another UI element: currently settings are hidden via the profile top left, and then scrolling all the way down. They should stay there, but they should also be accessible from a cool gear icon that replaces the lightning bolt and the top navigation bar all the way to the right. And one more very important thing to take a look at immediately: Where is your live voice mode implemented? Because I can't find it. Should be in the expert chat panel. And also in the interview type of thing, like the guided interview."
+
 ## Jan 29, 2026
 
 "First element is the challenges, that's one bucket where we need to make sure that the challenges get removed and marked as not done by the end of the day. So every day you get a new set of challenges and the old ones disappear. By default, one challenge per day, but that can be changed in the settings. Additionally for the challenges, when creating a new challenge, it does not appear underneath the goal. So it doesn't get displayed as nested underneath the goal after creation. It needs to be. That is a bug.

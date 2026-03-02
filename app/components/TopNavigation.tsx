@@ -82,8 +82,13 @@ export default function TopNavigation() {
                     <span className="nav-top-quote">Grow Daily</span>
                 </Link>
 
-                {/* Quick actions + Challenge badge - right */}
+                {/* Quick actions + Settings + Challenge badge - right */}
                 <div className="nav-top-right">
+                    {/* Settings shortcut */}
+                    <Link href="/settings" className="nav-top-quick-btn" aria-label="Settings">
+                        <span className="nav-top-quick-icon" style={{ fontSize: '1.1rem' }}>&#9881;</span>
+                    </Link>
+
                     {/* Quick Actions Menu */}
                     <div className="quick-actions-container">
                         <button
@@ -95,7 +100,7 @@ export default function TopNavigation() {
                             aria-label="Quick actions"
                             aria-expanded={showQuickActions}
                         >
-                            <span className="nav-top-quick-icon">⚡</span>
+                            <span className="nav-top-quick-icon">+</span>
                         </button>
 
                         {showQuickActions && (

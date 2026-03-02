@@ -1,6 +1,21 @@
 # Master Feedback & Improvement Checklist
 
-> **Last Updated**: February 7, 2026
+> **Last Updated**: March 2, 2026
+
+---
+
+## Mar 2 - New Feedback
+
+### Bugs
+
+- [ ] **Progress Trends Graph Broken** -- Can choose between mood/energy/motivation but graph does not render below the selector.
+- [ ] **Diary Voice Recording Broken** -- No transcript is captured when recording a voice diary entry.
+- [ ] **Live Voice Mode Not Accessible** -- The live voice chat (VAD-based hands-free mode) is not discoverable. Needs entry points from Expert Chat panel and from the Guided Interview.
+
+### UI/UX
+
+- [ ] **Bottom Nav Active State Too Subtle** -- Current active item highlight is barely visible. Should be more prominent (e.g., match the green highlight with a border/underline).
+- [ ] **Settings Accessibility** -- Settings are buried (Profile -> scroll down). Add a gear icon in the top nav bar (right side, replacing the lightning bolt) as a direct shortcut.
 
 ---
 

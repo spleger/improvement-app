@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { MessageCircle, Sparkles } from 'lucide-react';
+import { MessageCircle, Sparkles, Radio } from 'lucide-react';
+import Link from 'next/link';
 import InterviewChat from './InterviewChat';
 import ExpertChat from '../expert/ExpertChat';
 
@@ -70,7 +71,7 @@ export default function AIConversation({ onBack }: AIConversationProps) {
 
                 <button
                     onClick={() => setSelectedMode('expert')}
-                    className="mode-card card"
+                    className="mode-card card mb-md"
                 >
                     <div className="mode-icon expert-icon">
                         <Sparkles size={28} />
@@ -82,6 +83,22 @@ export default function AIConversation({ onBack }: AIConversationProps) {
                         </p>
                     </div>
                 </button>
+
+                <Link
+                    href="/expert/live"
+                    className="mode-card card"
+                    style={{ textDecoration: 'none', color: 'inherit' }}
+                >
+                    <div className="mode-icon" style={{ background: 'var(--gradient-primary)', color: 'white' }}>
+                        <Radio size={28} />
+                    </div>
+                    <div className="mode-content">
+                        <h3 className="mode-title">Live Voice Mode</h3>
+                        <p className="mode-description text-secondary text-small">
+                            Hands-free conversation -- just speak naturally, the AI listens and responds
+                        </p>
+                    </div>
+                </Link>
             </div>
 
             <style jsx>{`

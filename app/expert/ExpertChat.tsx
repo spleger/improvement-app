@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown, Plus, Trash2, MoreHorizontal, Mic, Volume2, VolumeX, Loader2 } from 'lucide-react';
+import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown, Plus, Trash2, MoreHorizontal, Mic, Volume2, VolumeX, Loader2, Radio } from 'lucide-react';
+import Link from 'next/link';
 import { getIcon } from '@/lib/icons';
 import ChallengeProposal from './widgets/ChallengeProposal';
 import MoodLogWidget from './widgets/MoodLogWidget';
@@ -639,6 +640,14 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
                     >
                         {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
                     </button>
+                    <Link
+                        href="/expert/live"
+                        className="audio-toggle-btn"
+                        title="Live Voice Mode"
+                        style={{ background: 'var(--gradient-primary)', color: 'white' }}
+                    >
+                        <Radio size={20} />
+                    </Link>
                 </div>
 
                 {showCoachSelector && (
