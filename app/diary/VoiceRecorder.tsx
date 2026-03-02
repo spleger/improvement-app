@@ -282,7 +282,13 @@ export default function VoiceRecorder({ onClose, onSaved, autoStart = false }: V
                     {/* RECORDING / PAUSED State */}
                     {(state === 'recording' || state === 'paused') && (
                         <>
-                            <div className={`voice-icon ${state === 'recording' ? 'recording' : 'paused'}`}>
+                            <div
+                                className={`voice-icon ${state === 'recording' ? 'recording' : 'paused'}`}
+                                onClick={state === 'recording' ? stopRecording : resumeRecording}
+                                style={{ cursor: 'pointer' }}
+                                role="button"
+                                aria-label={state === 'recording' ? 'Tap to stop recording' : 'Tap to resume recording'}
+                            >
                                 {state === 'recording' ? <Mic size={48} /> : <Pause size={48} />}
                                 {state === 'recording' && (
                                     <>

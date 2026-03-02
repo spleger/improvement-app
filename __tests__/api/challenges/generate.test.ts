@@ -59,14 +59,16 @@ describe('POST /api/challenges/generate', () => {
         expect(data.error).toBe('Unauthorized');
     });
 
-    it('returns 400 if goalId is missing', async () => {
-        const req = createMockRequest({}); // Missing goalId
+    it('generates general challenges when goalId is missing', async () => {
+        const req = createMockRequest({}); // No goalId = general challenge
 
         const res = await POST(req);
         const data = await res.json();
 
-        expect(res.status).toBe(400);
-        expect(data.error).toBe('Goal ID is required');
+        expect(res.status).toBe(200);
+        expect(data.success).toBe(true);
+        // Should call with null goal for general challenges
+        expect(generateMultipleChallenges).toHaveBeenCalledWith(1, expect.anything(), null, [], undefined);
     });
 
     it('returns 404 if goal is not found or does not belong to user', async () => {

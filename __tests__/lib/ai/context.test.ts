@@ -11,6 +11,7 @@
 // Mock dependencies before imports
 jest.mock('@/lib/db', () => ({
     getActiveGoalByUserId: jest.fn(),
+    getGoalsByUserId: jest.fn(),
     getChallengesByUserId: jest.fn(),
     getTodayChallenge: jest.fn(),
     calculateStreak: jest.fn(),
@@ -125,6 +126,7 @@ describe('AI Context Module', () => {
         ];
 
         beforeEach(() => {
+            (db.getGoalsByUserId as jest.Mock).mockResolvedValue([mockGoal]);
             (db.getActiveGoalByUserId as jest.Mock).mockResolvedValue(mockGoal);
             (db.getChallengesByUserId as jest.Mock).mockResolvedValue(mockChallenges);
             (db.getTodayChallenge as jest.Mock).mockResolvedValue(mockChallenges[1]);
@@ -141,6 +143,7 @@ describe('AI Context Module', () => {
 
             expect(context).not.toBeNull();
             expect(context!.activeGoal).toEqual(mockGoal);
+            expect(context!.allActiveGoals).toEqual([mockGoal]);
             expect(context!.todayChallenge).toEqual(mockChallenges[1]);
             expect(context!.completedChallengesCount).toBe(2);
             expect(context!.totalChallenges).toBe(3);
@@ -150,7 +153,7 @@ describe('AI Context Module', () => {
         });
 
         it('handles missing goal gracefully', async () => {
-            (db.getActiveGoalByUserId as jest.Mock).mockResolvedValue(null);
+            (db.getGoalsByUserId as jest.Mock).mockResolvedValue([]);
 
             const context = await getUserContext('user-123');
 
@@ -199,7 +202,7 @@ describe('AI Context Module', () => {
         });
 
         it('returns null on database error', async () => {
-            (db.getActiveGoalByUserId as jest.Mock).mockRejectedValue(new Error('DB Error'));
+            (db.getGoalsByUserId as jest.Mock).mockRejectedValue(new Error('DB Error'));
 
             const context = await getUserContext('user-123');
 
@@ -210,10 +213,8 @@ describe('AI Context Module', () => {
             // Set startedAt to 10 days ago
             const tenDaysAgo = new Date();
             tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
-            (db.getActiveGoalByUserId as jest.Mock).mockResolvedValue({
-                ...mockGoal,
-                startedAt: tenDaysAgo,
-            });
+            const goalWithDate = { ...mockGoal, startedAt: tenDaysAgo };
+            (db.getGoalsByUserId as jest.Mock).mockResolvedValue([goalWithDate]);
 
             const context = await getUserContext('user-123');
 
@@ -255,6 +256,7 @@ describe('AI Context Module', () => {
         it('returns settings from context when available', () => {
             const context: UserContext = {
                 activeGoal: null,
+                allActiveGoals: [],
                 todayChallenge: null,
                 completedChallengesCount: 0,
                 totalChallenges: 0,
@@ -294,6 +296,7 @@ describe('AI Context Module', () => {
         it('returns defaults when preferences are null', () => {
             const context: UserContext = {
                 activeGoal: null,
+                allActiveGoals: [],
                 todayChallenge: null,
                 completedChallengesCount: 0,
                 totalChallenges: 0,
@@ -319,6 +322,7 @@ describe('AI Context Module', () => {
         it('validates and corrects invalid voiceId', () => {
             const context: UserContext = {
                 activeGoal: null,
+                allActiveGoals: [],
                 todayChallenge: null,
                 completedChallengesCount: 0,
                 totalChallenges: 0,
@@ -362,6 +366,7 @@ describe('AI Context Module', () => {
         it('uses custom AI name when available', () => {
             const context: UserContext = {
                 activeGoal: null,
+                allActiveGoals: [],
                 todayChallenge: null,
                 completedChallengesCount: 0,
                 totalChallenges: 0,
@@ -386,6 +391,7 @@ describe('AI Context Module', () => {
         it('uses default Coach name when aiCustomName is empty', () => {
             const context: UserContext = {
                 activeGoal: null,
+                allActiveGoals: [],
                 todayChallenge: null,
                 completedChallengesCount: 0,
                 totalChallenges: 0,
@@ -410,6 +416,7 @@ describe('AI Context Module', () => {
         it('includes rude mode instructions when enabled', () => {
             const context: UserContext = {
                 activeGoal: null,
+                allActiveGoals: [],
                 todayChallenge: null,
                 completedChallengesCount: 0,
                 totalChallenges: 0,
@@ -436,6 +443,7 @@ describe('AI Context Module', () => {
         it('excludes rude mode instructions when disabled', () => {
             const context: UserContext = {
                 activeGoal: null,
+                allActiveGoals: [],
                 todayChallenge: null,
                 completedChallengesCount: 0,
                 totalChallenges: 0,
@@ -466,8 +474,19 @@ describe('AI Context Module', () => {
                     desiredState: 'Fluent',
                     difficultyLevel: 5,
                     realityShiftEnabled: false,
+                    startedAt: new Date('2024-01-01'),
                     domain: { name: 'Languages' },
                 },
+                allActiveGoals: [{
+                    id: 'goal-1',
+                    title: 'Learn Spanish',
+                    currentState: 'Beginner',
+                    desiredState: 'Fluent',
+                    difficultyLevel: 5,
+                    realityShiftEnabled: false,
+                    startedAt: new Date('2024-01-01'),
+                    domain: { name: 'Languages' },
+                }],
                 todayChallenge: {
                     title: 'Practice verbs',
                     difficulty: 4,
@@ -494,7 +513,7 @@ describe('AI Context Module', () => {
 
             expect(prompt).toContain('USER\'S CURRENT CONTEXT');
             expect(prompt).toContain('Learn Spanish');
-            expect(prompt).toContain('Day 14 of 30-day journey');
+            expect(prompt).toContain('ALL ACTIVE GOALS');
             expect(prompt).toContain('Current streak: 7 days');
             expect(prompt).toContain('Challenges completed: 10');
             expect(prompt).toContain('Practice verbs');
@@ -504,6 +523,7 @@ describe('AI Context Module', () => {
         it('encourages goal creation when no active goal', () => {
             const context: UserContext = {
                 activeGoal: null,
+                allActiveGoals: [],
                 todayChallenge: null,
                 completedChallengesCount: 0,
                 totalChallenges: 0,
@@ -527,6 +547,7 @@ describe('AI Context Module', () => {
         it('applies different coach specializations', () => {
             const context: UserContext = {
                 activeGoal: null,
+                allActiveGoals: [],
                 todayChallenge: null,
                 completedChallengesCount: 0,
                 totalChallenges: 0,
@@ -556,6 +577,7 @@ describe('AI Context Module', () => {
         it('applies tone preference', () => {
             const createContextWithTone = (tone: string): UserContext => ({
                 activeGoal: null,
+                allActiveGoals: [],
                 todayChallenge: null,
                 completedChallengesCount: 0,
                 totalChallenges: 0,

@@ -12,6 +12,7 @@ import { getDailyFocus, FocusTheme } from './rotation';
 
 export interface UserContext {
     activeGoal: any;
+    allActiveGoals: any[];
     todayChallenge: any;
     completedChallengesCount: number;
     totalChallenges: number;
@@ -51,8 +52,10 @@ export type VoiceId = typeof VALID_VOICE_IDS[number];
  */
 export async function getUserContext(userId: string): Promise<UserContext | null> {
     try {
-        // Get active goal
-        const activeGoal = await db.getActiveGoalByUserId(userId);
+        // Get ALL active goals (not just one)
+        const allGoals = await db.getGoalsByUserId(userId);
+        const allActiveGoals = allGoals.filter((g: any) => g.status === 'active');
+        const activeGoal = allActiveGoals[0] || null;
 
         // Get recent challenges
         const challenges = await db.getChallengesByUserId(userId, { limit: 10 });
@@ -82,6 +85,7 @@ export async function getUserContext(userId: string): Promise<UserContext | null
 
         return {
             activeGoal,
+            allActiveGoals,
             todayChallenge,
             completedChallengesCount: completedChallenges.length,
             totalChallenges: challenges.length,
@@ -288,18 +292,22 @@ Guidelines:
             prompt += `User's Preferred Difficulty: ${context.preferences.preferredDifficulty}/10\n`;
         }
 
-        if (context.activeGoal) {
-            prompt += `\n📎 ACTIVE GOAL:
-- Title: "${context.activeGoal.title}"
-- Domain: ${context.activeGoal.domain?.name || 'General'}
-- Day ${context.dayInJourney} of 30-day journey
-- Current state: "${context.activeGoal.currentState || 'Not specified'}"
-- Desired state: "${context.activeGoal.desiredState || 'Not specified'}"
-- Difficulty preference: ${context.activeGoal.difficultyLevel}/10
-- Reality Shift mode: ${context.activeGoal.realityShiftEnabled ? 'ON (wants extreme challenges)' : 'OFF'}
-`;
+        if (context.allActiveGoals && context.allActiveGoals.length > 0) {
+            prompt += `\n📎 ALL ACTIVE GOALS (${context.allActiveGoals.length}):\n`;
+            context.allActiveGoals.forEach((goal: any, index: number) => {
+                const dayInJourney = Math.ceil((Date.now() - new Date(goal.startedAt).getTime()) / (1000 * 60 * 60 * 24));
+                prompt += `\n${index + 1}. "${goal.title}"`;
+                prompt += `\n   - Domain: ${goal.domain?.name || 'General'}`;
+                prompt += `\n   - Day ${dayInJourney} of 30-day journey`;
+                prompt += `\n   - Current state: "${goal.currentState || 'Not specified'}"`;
+                prompt += `\n   - Desired state: "${goal.desiredState || 'Not specified'}"`;
+                prompt += `\n   - Difficulty preference: ${goal.difficultyLevel}/10`;
+                prompt += `\n   - Reality Shift mode: ${goal.realityShiftEnabled ? 'ON' : 'OFF'}`;
+            });
+            prompt += `\n\nPrimary goal (most recent): "${context.activeGoal?.title || context.allActiveGoals[0].title}"\n`;
+            prompt += `(Reference ALL goals when relevant. The user is working on multiple areas simultaneously.)\n`;
         } else {
-            prompt += `\n⚠️ User has no active goal set yet. Encourage them to set one using the create_goal widget!\n`;
+            prompt += `\n-- User has no active goal set yet. Encourage them to set one using the create_goal widget!\n`;
         }
 
         prompt += `\n📊 PROGRESS:

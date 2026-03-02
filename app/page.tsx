@@ -114,10 +114,7 @@ export default async function DashboardPage() {
             )}
 
             {/* Challenge Summary Section */}
-            <div className="card-glass mb-lg" style={{
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
-            }}>
+            <div className="card-glass mb-lg">
                 <div className="flex items-center gap-md mb-sm">
                     <span style={{ fontSize: '1.5rem' }}>📋</span>
                     <span className="heading-5">Challenge Summary</span>
@@ -207,10 +204,7 @@ export default async function DashboardPage() {
                             return (
                                 <div key={goal.id}>
                                     {/* Goal Card */}
-                                    <div className="card-glass" style={{
-                                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
-                                    }}>
+                                    <div className="card-glass">
                                         <div className="flex items-center gap-md" style={{ flexWrap: 'wrap' }}>
                                             <div style={{
                                                 width: '48px',
