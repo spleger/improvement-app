@@ -132,11 +132,8 @@ export async function POST(request: NextRequest) {
 
         } catch (apiError) {
             console.error('Claude API call failed:', apiError);
-            const errorMsg = apiError instanceof Error ? apiError.message : String(apiError);
-            const apiKey = process.env.ANTHROPIC_API_KEY?.replace(/^["']|["']$/g, '').trim();
-            const keyInfo = apiKey ? `Key present (len: ${apiKey.length}, start: ${apiKey.slice(0, 5)})` : 'Key is MISSING in Vercel env';
 
-            const reply = getFallbackResponse(message, context, `${errorMsg} | ${keyInfo}`);
+            const reply = getFallbackResponse(message, context);
 
             // Even on error fallback, we want to save interaction to the correct context
             const targetCoachId = coachId || 'general';
@@ -223,39 +220,39 @@ export async function GET(request: NextRequest) {
     }
 }
 
-// Fallback responses with context
-function getFallbackResponse(message: string, context: any, errorMsg?: string): string {
+// Fallback responses with context (used when AI API is unavailable)
+function getFallbackResponse(message: string, context: any): string {
     const goalName = context?.activeGoal?.title || 'your goal';
     const streak = context?.streak || 0;
 
     const lowerMessage = message.toLowerCase();
 
     if (lowerMessage.includes('motivation') || lowerMessage.includes('struggling')) {
-        return `I see you're working on "${goalName}" and you're on day ${context?.dayInJourney || 1}. That's real commitment! 💪
+        return `I see you're working on "${goalName}" and you're on day ${context?.dayInJourney || 1}. That's real commitment!
 
 When motivation dips, remember why you started. What was the spark that made you want this change?
 
 ${streak > 0 ? `You've got a ${streak}-day streak going - that's not nothing! Let's protect it.` : 'Every day is a chance to start fresh.'}
 
-What specific part feels hardest right now? (Debug: ${errorMsg || 'No detail'})`;
+What specific part feels hardest right now?`;
     }
 
     if (lowerMessage.includes('progress') || lowerMessage.includes('how am i doing')) {
-        return `Let me check your stats! 📊
+        return `Let me check your stats!
 
 ${context?.activeGoal ? `You're on Day ${context.dayInJourney} of your "${goalName}" journey.` : ''}
 ${context?.completedChallengesCount ? `You've completed ${context.completedChallengesCount} challenges.` : ''}
-${streak > 0 ? `Current streak: ${streak} days! 🔥` : ''}
+${streak > 0 ? `Current streak: ${streak} days!` : ''}
 ${context?.avgMood ? `Your average mood this week: ${context.avgMood}/10` : ''}
 
 ${context?.completedChallengesCount > 5 ? "You're building real momentum!" : "Every completed challenge builds the foundation."}
 
-What would you like to focus on next? (Debug: ${errorMsg || 'No detail'})`;
+What would you like to focus on next?`;
     }
 
-    return `I'm here to help with your journey toward "${goalName}". 
+    return `I'm here to help with your journey toward "${goalName}".
 
 ${context?.todayChallenge ? `I see today's challenge is "${context.todayChallenge.title}" - how's that going?` : ''}
 
-What's on your mind? (Debug Error: ${errorMsg || 'Unknown error'})`;
+What's on your mind?`;
 }

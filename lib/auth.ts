@@ -2,7 +2,15 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 
-const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || 'fallback-secret-key';
+function getJwtSecret(): string {
+    const secret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET;
+    if (!secret) {
+        throw new Error(
+            'JWT_SECRET or NEXTAUTH_SECRET environment variable is required.'
+        );
+    }
+    return secret;
+}
 
 // Password Hashing
 export async function hashPassword(password: string): Promise<string> {
@@ -16,12 +24,12 @@ export async function comparePassword(password: string, hash: string): Promise<b
 
 // JWT Token Management
 export function signToken(payload: any): string {
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+    return jwt.sign(payload, getJwtSecret(), { expiresIn: '7d' });
 }
 
 export function verifyToken(token: string): any {
     try {
-        return jwt.verify(token, JWT_SECRET);
+        return jwt.verify(token, getJwtSecret());
     } catch (error) {
         return null;
     }

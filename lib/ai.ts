@@ -1,10 +1,18 @@
 import OpenAI from 'openai';
 import { Goal, Challenge, UserPrefs, Message, ShiftSuggestion, GeneratedChallenge } from './types';
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY || 'dummy-key', // Fallback for build time/test without env
-    dangerouslyAllowBrowser: true, // In case this runs client side, but it should be server
-});
+let _openai: OpenAI | null = null;
+
+function getOpenAIClient(): OpenAI {
+    if (!_openai) {
+        const apiKey = process.env.OPENAI_API_KEY;
+        if (!apiKey) {
+            throw new Error('OPENAI_API_KEY environment variable is required.');
+        }
+        _openai = new OpenAI({ apiKey });
+    }
+    return _openai;
+}
 
 export const SYSTEM_PROMPTS = {
     TOUGH_LOVE: "You are a drill sergeant. No excuses. Push the user beyond their limits.",
@@ -91,7 +99,7 @@ IMPORTANT:
 - "tips" must be specific to THIS challenge, not generic advice like "stay focused" or "be consistent"
 `;
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAIClient().chat.completions.create({
         messages: [
             { role: 'system', content: 'You are a challenge generator specialized in creating actionable, specific personal development challenges. You NEVER create vague challenges that just restate goals. You always include specific tips tailored to the exact challenge. Output JSON only.' },
             { role: 'user', content: prompt }
@@ -235,7 +243,7 @@ IMPORTANT:
 - Progress difficulty slightly (easiest challenge first, hardest last)
 `;
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAIClient().chat.completions.create({
         messages: [
             { role: 'system', content: 'You are a challenge generator specialized in creating actionable, specific personal development challenges. You NEVER create vague challenges that just restate goals. You create DIVERSE challenges with different types and always include specific tips tailored to each exact challenge. Output JSON only.' },
             { role: 'user', content: prompt }
@@ -271,7 +279,7 @@ IMPORTANT:
 }
 
 export async function transcribeAudio(audioFile: Blob | File): Promise<string> {
-    const transcription = await openai.audio.transcriptions.create({
+    const transcription = await getOpenAIClient().audio.transcriptions.create({
         file: audioFile as any, // OpenAI SDK expects a File-like object
         model: 'whisper-1',
     });
@@ -284,7 +292,7 @@ export async function chatWithExpert(messages: Message[], persona: UserPrefs['ai
     if (persona === 'tough_love') systemPrompt = SYSTEM_PROMPTS.TOUGH_LOVE;
     if (persona === 'scientific') systemPrompt = SYSTEM_PROMPTS.SCIENTIFIC;
 
-    const stream = await openai.chat.completions.create({
+    const stream = await getOpenAIClient().chat.completions.create({
         messages: [
             { role: 'system', content: systemPrompt },
             ...messages
@@ -298,7 +306,7 @@ export async function chatWithExpert(messages: Message[], persona: UserPrefs['ai
 
 export async function analyzeRealityShift(userProfile: any): Promise<ShiftSuggestion> {
     // Placeholder implementation for roadmap item 1
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAIClient().chat.completions.create({
         messages: [
             { role: 'system', content: 'Analyze user for reality shift. Return JSON.' },
             { role: 'user', content: JSON.stringify(userProfile) }
