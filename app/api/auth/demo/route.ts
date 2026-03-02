@@ -85,7 +85,6 @@ export async function POST(request: NextRequest) {
         }
 
         // Create session token
-        const { signToken } = require('@/lib/auth');
         const token = signToken({ userId: user.id, email: user.email, isDemo: true });
         // Set cookie
         cookies().set('auth_token', token, {
