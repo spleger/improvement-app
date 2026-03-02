@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
         const { goalId, count, focusArea } = parsed.data;
 
         // Clamp count to valid range
-        const clampedCount = Math.min(Math.max(count, 1), 5);
+        const clampedCount = Math.min(Math.max(count ?? 1, 1), 5);
 
         let goal = null;
         if (goalId) {
