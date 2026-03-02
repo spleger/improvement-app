@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
         );
 
         // Build conversation history for Claude
-        const messages: Anthropic.MessageParam[] = [];
+        const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
         if (history && Array.isArray(history)) {
             for (const msg of history.slice(-10)) {
                 if (msg.content && typeof msg.content === 'string' && msg.content.trim().length > 0) {
