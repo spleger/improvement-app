@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import BottomNavigation from '../components/BottomNavigation';
 import PageHeader from '../components/PageHeader';
+import AvatarUpload from './AvatarUpload';
 
 export default async function ProfilePage() {
     const user = await getCurrentUser();
@@ -12,6 +13,7 @@ export default async function ProfilePage() {
     }
 
     // Get all user data
+    const userData = await db.getUserById(user.userId);
     const goals = await db.getGoalsByUserId(user.userId);
     const challenges = await db.getChallengesByUserId(user.userId, { limit: 100 });
     const streak = await db.calculateStreak(user.userId);
@@ -44,6 +46,12 @@ export default async function ProfilePage() {
                 icon="👤"
                 title="My Profile"
                 subtitle={`${stats.daysOnPlatform} days on your transformation journey`}
+            />
+
+            {/* Profile Picture */}
+            <AvatarUpload
+                initialUrl={userData?.avatarUrl || null}
+                displayName={userData?.displayName || null}
             />
 
             {/* Stats Grid */}

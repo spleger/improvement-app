@@ -1,17 +1,14 @@
 // Database client using Prisma
 // Replaces node-postgres (pg) to support cross-db compatibility (SQLite/Postgres)
 
+import { randomUUID } from 'node:crypto';
 import { prisma } from './prisma';
 import { Prisma } from '@prisma/client';
 
 // Keep generateId for compatibility if imported elsewhere,
 // though Prisma handles IDs automatically now.
 export function generateId(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-        const r = Math.random() * 16 | 0;
-        const v = c === 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-    });
+    return randomUUID();
 }
 
 // ==================== USER OPERATIONS ====================
@@ -35,6 +32,13 @@ export async function createUser(data: {
             passwordHash: data.passwordHash,
             displayName: data.displayName,
         },
+    });
+}
+
+export async function updateUserAvatar(userId: string, avatarUrl: string | null): Promise<void> {
+    await prisma.user.update({
+        where: { id: userId },
+        data: { avatarUrl },
     });
 }
 
