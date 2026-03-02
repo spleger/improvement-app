@@ -873,25 +873,49 @@ button {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 8px;
-  background: var(--color-surface-solid);
+  height: 12px;
+  background: var(--color-surface-2);
   border-radius: var(--radius-full);
   outline: none;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.slider::-webkit-slider-runnable-track {
+  height: 12px;
+  border-radius: var(--radius-full);
 }
 
 .slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 24px;
-  height: 24px;
+  width: 36px;
+  height: 36px;
   background: var(--gradient-primary);
   border-radius: 50%;
   cursor: pointer;
   box-shadow: var(--shadow-md);
   transition: transform var(--transition-fast);
+  margin-top: -12px;
 }
 
 .slider::-webkit-slider-thumb:hover {
-  transform: scale(1.1);
+  transform: scale(1.15);
+}
+
+.slider::-moz-range-thumb {
+  width: 36px;
+  height: 36px;
+  background: var(--gradient-primary);
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+}
+
+.slider::-moz-range-track {
+  height: 12px;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-full);
 }
 
 .slider-labels {

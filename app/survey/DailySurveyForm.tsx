@@ -80,15 +80,27 @@ export default function DailySurveyForm() {
                     type="range"
                     min="1"
                     max="10"
+                    step="1"
                     value={value}
-                    onChange={e => onChange(parseInt(e.target.value))}
+                    onChange={e => onChange(Math.round(parseFloat(e.target.value)))}
                     className="slider"
+                    style={{ padding: '12px 0' }}
                 />
                 <div className="slider-labels">
                     <span>{leftEmoji}</span>
+                    <span>1</span>
+                    <span>2</span>
+                    <span>3</span>
+                    <span>4</span>
+                    <span>5</span>
+                    <span>6</span>
+                    <span>7</span>
+                    <span>8</span>
+                    <span>9</span>
+                    <span>10</span>
                     <span>{rightEmoji}</span>
                 </div>
-                <div className="slider-value">{value}</div>
+                <div className="slider-value">{value}/10</div>
             </div>
         </div>
     );

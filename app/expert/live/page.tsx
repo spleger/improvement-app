@@ -242,8 +242,8 @@ export default function LiveVoiceChat() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    message: text,
-                    history: currentHistory.slice(-10),
+                    message: `[LIVE VOICE MODE - Reply in 2-3 short sentences MAX. Be conversational and concise, like a real voice conversation.] ${text}`,
+                    history: currentHistory.slice(-6),
                     coachId: selectedCoach.id
                 }),
                 signal: controller.signal

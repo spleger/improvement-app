@@ -4,18 +4,29 @@
 
 ---
 
-## Mar 2 - New Feedback
+## Mar 2 - Feedback (Round 2)
 
 ### Bugs
 
-- [ ] **Progress Trends Graph Broken** -- Can choose between mood/energy/motivation but graph does not render below the selector.
-- [ ] **Diary Voice Recording Broken** -- No transcript is captured when recording a voice diary entry.
-- [ ] **Live Voice Mode Not Accessible** -- The live voice chat (VAD-based hands-free mode) is not discoverable. Needs entry points from Expert Chat panel and from the Guided Interview.
+- [ ] **Diary Voice Transcript Still Not Capturing** -- SpeechRecognition fix may not work on mobile Chrome (deployed). Needs server-side Whisper fallback.
+- [ ] **Live Voice Chat Responses Too Long** -- AI gives very long responses; should be 2-3 sentences max for live conversational flow.
+- [ ] **Live Voice Chat Slow TTS Start** -- 5-10+ seconds before voice starts after AI responds.
 
 ### UI/UX
 
-- [ ] **Bottom Nav Active State Too Subtle** -- Current active item highlight is barely visible. Should be more prominent (e.g., match the green highlight with a border/underline).
-- [ ] **Settings Accessibility** -- Settings are buried (Profile -> scroll down). Add a gear icon in the top nav bar (right side, replacing the lightning bolt) as a direct shortcut.
+- [ ] **Challenge Completion Sliders Too Small** -- Difficulty/satisfaction sliders on challenge complete screen are tiny on mobile; needs larger track and thumb.
+- [ ] **Daily Check-in Slider Not Smooth** -- Energy/motivation sliders snap to discrete steps; should slide continuously with a visible track.
+- [ ] **Live Voice Chat UI Broken on Mobile** -- Layout overlap issues visible in screenshot.
+
+---
+
+## Mar 2 - Feedback (Round 1) - Addressed
+
+- [x] **Progress Trends Graph Broken** -- Fixed: explicit 300px height for ResponsiveContainer.
+- [x] **Diary Voice Recording Broken** -- Fixed: SpeechRecognition init moved to mount-once. (Still broken on mobile -- see Round 2.)
+- [x] **Live Voice Mode Not Accessible** -- Fixed: added entry points in Expert Chat header and AI Conversation selector.
+- [x] **Bottom Nav Active State Too Subtle** -- Fixed: background highlight + underline.
+- [x] **Settings Accessibility** -- Fixed: gear icon added to top nav bar.
 
 ---
 

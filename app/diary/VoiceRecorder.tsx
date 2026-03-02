@@ -231,13 +231,31 @@ export default function VoiceRecorder({ onClose, onSaved, autoStart = false }: V
     const saveRecording = async () => {
         setState('processing');
 
+        // If SpeechRecognition didn't capture a transcript, use Whisper as fallback
+        let finalTranscript = transcript.trim();
+        if (!finalTranscript && chunksRef.current.length > 0) {
+            try {
+                const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
+                const formData = new FormData();
+                formData.append('file', audioBlob, 'recording.webm');
+                const transRes = await fetch('/api/transcribe', { method: 'POST', body: formData });
+                const transData = await transRes.json();
+                if (transData.data?.text) {
+                    finalTranscript = transData.data.text;
+                    setTranscript(finalTranscript);
+                }
+            } catch (err) {
+                console.error('Whisper transcription fallback failed:', err);
+            }
+        }
+
         // Save to API
         try {
             const response = await fetch('/api/diary', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    transcript: transcript.trim() || 'No transcript captured',
+                    transcript: finalTranscript || 'No transcript captured',
                     audioDurationSeconds: duration,
                     moodScore
                 })

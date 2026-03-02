@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { Settings } from 'lucide-react';
 
 interface OngoingChallenge {
     title: string;
@@ -82,44 +83,12 @@ export default function TopNavigation() {
                     <span className="nav-top-quote">Grow Daily</span>
                 </Link>
 
-                {/* Quick actions + Settings + Challenge badge - right */}
+                {/* Settings + Challenge badge - right */}
                 <div className="nav-top-right">
-                    {/* Settings shortcut */}
-                    <Link href="/settings" className="nav-top-quick-btn" aria-label="Settings">
-                        <span className="nav-top-quick-icon" style={{ fontSize: '1.1rem' }}>&#9881;</span>
+                    <Link href="/settings" className="nav-top-settings" aria-label="Settings">
+                        <Settings size={22} />
                     </Link>
 
-                    {/* Quick Actions Menu */}
-                    <div className="quick-actions-container">
-                        <button
-                            className="nav-top-quick-btn"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setShowQuickActions(!showQuickActions);
-                            }}
-                            aria-label="Quick actions"
-                            aria-expanded={showQuickActions}
-                        >
-                            <span className="nav-top-quick-icon">+</span>
-                        </button>
-
-                        {showQuickActions && (
-                            <div className="quick-actions-dropdown">
-                                {quickActions.map(action => (
-                                    <Link
-                                        key={action.id}
-                                        href={action.href}
-                                        className="quick-action-item"
-                                    >
-                                        {/* <span className="quick-action-icon">{action.icon}</span> */}
-                                        <span className="quick-action-label">{action.label}</span>
-                                    </Link>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Ongoing challenge badge */}
                     {challenge && (
                         <Link href="/progress" className="nav-top-challenge">
                             <span className="challenge-day">Day {challenge.day}</span>
@@ -213,25 +182,21 @@ export default function TopNavigation() {
                     position: relative;
                 }
 
-                .nav-top-quick-btn {
+                .nav-top-settings {
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    width: 36px;
-                    height: 36px;
+                    width: 38px;
+                    height: 38px;
                     border-radius: var(--radius-full);
-                    background: transparent;
-                    border: none;
-                    cursor: pointer;
+                    color: var(--color-text-secondary);
+                    text-decoration: none;
                     transition: all var(--transition-fast);
                 }
 
-                .nav-top-quick-btn:hover {
+                .nav-top-settings:hover {
                     background: var(--color-surface-hover);
-                }
-
-                .nav-top-quick-icon {
-                    font-size: 1.125rem;
+                    color: var(--color-text);
                 }
 
                 .quick-actions-dropdown {

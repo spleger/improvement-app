@@ -1,6 +1,10 @@
 # Raw Feedback Log
 
-## Mar 2, 2026
+## Mar 2, 2026 (Round 2)
+
+"Voice diary entry did not capture any transcript. When completing a challenge, the screen real estate is not used well. The sliders for how difficult and how satisfied are very small, and the nodes as well. That field to interact with is very small; it should be a lot bigger. Also, when doing a daily check-in, the point that you're moving for energy and motivation, the slider doesn't slide smoothly. It can only go one step at a time. It should slide smoothly, and you should be able to see a line behind it to figure out where you are. And as for the Live Voice Chat, it works kinda well, but the UI is very broken and the responses are super long. They should be a lot shorter, and it takes a long time for the voice to start, like between 5 and 10 seconds, maybe more."
+
+## Mar 2, 2026 (Round 1)
 
 "In Progress. Trends at the very bottom don't work. You can choose between mood, energy, and motivation, but the graph below doesn't render. Another UI element: When you click on any of the nav items below, the one that you're currently on is highlighted, but only very slightly. The text in green is highlighted even more with a little line around it. Also, diary voice recordings are still broken. No transcript is captured. Another UI element: currently settings are hidden via the profile top left, and then scrolling all the way down. They should stay there, but they should also be accessible from a cool gear icon that replaces the lightning bolt and the top navigation bar all the way to the right. And one more very important thing to take a look at immediately: Where is your live voice mode implemented? Because I can't find it. Should be in the expert chat panel. And also in the interview type of thing, like the guided interview."
 
