@@ -31,12 +31,13 @@ export async function POST(request: NextRequest) {
         }
 
         // 2. Fetch User Context (Preferences)
-        let userPrefs: UserPrefs = {
-            preferredDifficulty: 5,
-            focusAreas: [],
-            avoidAreas: [],
-            realityShiftEnabled: false,
-            aiPersonality: 'empathetic'
+        const dbPrefs = await db.getUserPreferences(user.userId);
+        const userPrefs: UserPrefs = {
+            preferredDifficulty: dbPrefs?.preferredDifficulty ?? 5,
+            focusAreas: dbPrefs?.focusAreas ?? [],
+            avoidAreas: dbPrefs?.avoidAreas ?? [],
+            realityShiftEnabled: dbPrefs?.realityShiftEnabled ?? false,
+            aiPersonality: (dbPrefs?.aiPersonality as UserPrefs['aiPersonality']) || 'empathetic',
         };
 
         // 3. Fetch Recent History

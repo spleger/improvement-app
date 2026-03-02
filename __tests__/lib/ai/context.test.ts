@@ -12,6 +12,7 @@
 jest.mock('@/lib/db', () => ({
     getActiveGoalByUserId: jest.fn(),
     getGoalsByUserId: jest.fn(),
+    getUserById: jest.fn(),
     getChallengesByUserId: jest.fn(),
     getTodayChallenge: jest.fn(),
     calculateStreak: jest.fn(),
@@ -128,6 +129,7 @@ describe('AI Context Module', () => {
         beforeEach(() => {
             (db.getGoalsByUserId as jest.Mock).mockResolvedValue([mockGoal]);
             (db.getActiveGoalByUserId as jest.Mock).mockResolvedValue(mockGoal);
+            (db.getUserById as jest.Mock).mockResolvedValue({ onboardingData: null });
             (db.getChallengesByUserId as jest.Mock).mockResolvedValue(mockChallenges);
             (db.getTodayChallenge as jest.Mock).mockResolvedValue(mockChallenges[1]);
             (db.calculateStreak as jest.Mock).mockResolvedValue(5);
@@ -274,6 +276,7 @@ describe('AI Context Module', () => {
                 recentSurveys: [],
                 habitStats: null,
                 todayHabitLogs: [],
+                onboardingAnswers: null,
             };
 
             const settings = getPersonalizationSettings(context);
@@ -309,6 +312,7 @@ describe('AI Context Module', () => {
                 recentSurveys: [],
                 habitStats: null,
                 todayHabitLogs: [],
+                onboardingAnswers: null,
             };
 
             const settings = getPersonalizationSettings(context);
@@ -337,6 +341,7 @@ describe('AI Context Module', () => {
                 recentSurveys: [],
                 habitStats: null,
                 todayHabitLogs: [],
+                onboardingAnswers: null,
             };
 
             const settings = getPersonalizationSettings(context);
@@ -381,6 +386,7 @@ describe('AI Context Module', () => {
                 recentSurveys: [],
                 habitStats: null,
                 todayHabitLogs: [],
+                onboardingAnswers: null,
             };
 
             const prompt = buildEnhancedSystemPrompt(context);
@@ -406,6 +412,7 @@ describe('AI Context Module', () => {
                 recentSurveys: [],
                 habitStats: null,
                 todayHabitLogs: [],
+                onboardingAnswers: null,
             };
 
             const prompt = buildEnhancedSystemPrompt(context);
@@ -431,6 +438,7 @@ describe('AI Context Module', () => {
                 recentSurveys: [],
                 habitStats: null,
                 todayHabitLogs: [],
+                onboardingAnswers: null,
             };
 
             const prompt = buildEnhancedSystemPrompt(context);
@@ -458,6 +466,7 @@ describe('AI Context Module', () => {
                 recentSurveys: [],
                 habitStats: null,
                 todayHabitLogs: [],
+                onboardingAnswers: null,
             };
 
             const prompt = buildEnhancedSystemPrompt(context);
@@ -507,6 +516,7 @@ describe('AI Context Module', () => {
                 recentSurveys: [],
                 habitStats: { totalHabits: 0, habits: [] },
                 todayHabitLogs: [],
+                onboardingAnswers: null,
             };
 
             const prompt = buildEnhancedSystemPrompt(context);
@@ -536,6 +546,7 @@ describe('AI Context Module', () => {
                 recentSurveys: [],
                 habitStats: null,
                 todayHabitLogs: [],
+                onboardingAnswers: null,
             };
 
             const prompt = buildEnhancedSystemPrompt(context);
@@ -560,6 +571,7 @@ describe('AI Context Module', () => {
                 recentSurveys: [],
                 habitStats: null,
                 todayHabitLogs: [],
+                onboardingAnswers: null,
             };
 
             const languagesPrompt = buildEnhancedSystemPrompt(context, 'languages');
@@ -590,6 +602,7 @@ describe('AI Context Module', () => {
                 recentSurveys: [],
                 habitStats: null,
                 todayHabitLogs: [],
+                onboardingAnswers: null,
             });
 
             const professionalPrompt = buildEnhancedSystemPrompt(createContextWithTone('professional'));

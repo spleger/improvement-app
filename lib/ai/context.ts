@@ -25,6 +25,7 @@ export interface UserContext {
     recentSurveys: any[];
     habitStats: any;
     todayHabitLogs: any[];
+    onboardingAnswers: { motivation?: string; currentSituation?: string; biggestChallenge?: string } | null;
 }
 
 export interface PersonalizationSettings {
@@ -78,6 +79,16 @@ export async function getUserContext(userId: string): Promise<UserContext | null
         const habitStats = await db.getHabitStats(userId, 7);
         const todayHabitLogs = await db.getHabitLogsForDate(userId, new Date());
 
+        // Get onboarding answers for AI context
+        const userData = await db.getUserById(userId);
+        let onboardingAnswers = null;
+        if (userData?.onboardingData) {
+            try {
+                const parsed = JSON.parse(userData.onboardingData);
+                onboardingAnswers = parsed?.answers || null;
+            } catch { /* ignore malformed JSON */ }
+        }
+
         // Calculate day in journey
         const dayInJourney = activeGoal
             ? Math.ceil((Date.now() - new Date(activeGoal.startedAt).getTime()) / (1000 * 60 * 60 * 24))
@@ -97,7 +108,8 @@ export async function getUserContext(userId: string): Promise<UserContext | null
             recentDiary: await db.getDiaryEntriesByUserId(userId, 3),
             recentSurveys: surveys.slice(0, 3),
             habitStats,
-            todayHabitLogs
+            todayHabitLogs,
+            onboardingAnswers
         };
     } catch (error) {
         console.error('Error fetching user context:', error);
@@ -308,6 +320,20 @@ Guidelines:
             prompt += `(Reference ALL goals when relevant. The user is working on multiple areas simultaneously.)\n`;
         } else {
             prompt += `\n-- User has no active goal set yet. Encourage them to set one using the create_goal widget!\n`;
+        }
+
+        if (context.onboardingAnswers) {
+            prompt += `\nUSER BACKGROUND (from onboarding):\n`;
+            if (context.onboardingAnswers.motivation) {
+                prompt += `- Motivation: "${context.onboardingAnswers.motivation}"\n`;
+            }
+            if (context.onboardingAnswers.currentSituation) {
+                prompt += `- Starting point: "${context.onboardingAnswers.currentSituation}"\n`;
+            }
+            if (context.onboardingAnswers.biggestChallenge) {
+                prompt += `- Biggest challenge: "${context.onboardingAnswers.biggestChallenge}"\n`;
+            }
+            prompt += `(Use this background to personalize your coaching. Reference their motivation when encouraging them.)\n`;
         }
 
         prompt += `\n📊 PROGRESS:

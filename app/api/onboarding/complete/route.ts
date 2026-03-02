@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
+import * as db from '@/lib/db';
 
 import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
@@ -39,7 +40,6 @@ export async function POST(request: NextRequest) {
         const { surveyData } = body;
 
         // Update user's onboarding status
-        // Update user's onboarding status
         const { prisma } = require('@/lib/prisma');
         await prisma.user.update({
             where: { id: userId },
@@ -47,6 +47,39 @@ export async function POST(request: NextRequest) {
                 onboardingCompleted: true,
                 onboardingData: JSON.stringify(surveyData || {}),
             }
+        });
+
+        // Map onboarding answers to UserPreferences so they drive
+        // challenge generation, AI coaching, and difficulty scaling
+        const answers = surveyData?.answers || {};
+        const selectedGoal = surveyData?.selectedGoal || {};
+
+        const difficultyFromTime: Record<string, number> = {
+            '15-30 minutes': 3,
+            '30-60 minutes': 5,
+            '1-2 hours': 7,
+            '2+ hours': 9,
+        };
+
+        const lengthFromTime: Record<string, string> = {
+            '15-30 minutes': 'quick',
+            '30-60 minutes': 'medium',
+            '1-2 hours': 'long',
+            '2+ hours': 'long',
+        };
+
+        const focusFromChallenge: Record<string, string[]> = {
+            'Getting started': ['action', 'momentum'],
+            'Staying consistent': ['habits', 'routine'],
+            'Staying motivated': ['motivation', 'rewards'],
+            'Knowing what to do': ['guidance', 'structure'],
+        };
+
+        await db.saveUserPreferences(userId, {
+            preferredDifficulty: selectedGoal.difficulty || difficultyFromTime[answers.timeAvailable] || 5,
+            challengeLengthPreference: lengthFromTime[answers.timeAvailable] || 'medium',
+            focusAreas: focusFromChallenge[answers.biggestChallenge] || [],
+            aiPersonality: 'empathetic',
         });
 
         return NextResponse.json({
