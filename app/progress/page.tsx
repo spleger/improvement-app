@@ -877,16 +877,6 @@ export default function ProgressPage() {
                 </section>
             </>
 
-            {/* Section Separator */}
-            <hr className="section-separator-subtle" />
-
-            {/* Section Separator */}
-            <hr className="section-separator-subtle" />
-
-            {/* Bottom Navigation handles navigation now */}
-
-            {/* Bottom Navigation */}
-
             {/* Visual Polish Styles */}
             <style jsx>{`
                 /* Stat Card Interactive Styles */

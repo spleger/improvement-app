@@ -500,7 +500,6 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
         } finally {
             setIsLoading(false);
             setIsStreaming(false);
-            setIsStreaming(false);
             // Force blur to close keyboard on mobile
             inputRef.current?.blur();
         }

@@ -209,42 +209,44 @@ export default function ChallengeDetailClient({ challengeId, isCompleted, challe
                             {/* Difficulty Felt */}
                             <div className="form-group">
                                 <label className="form-label">How difficult did it feel?</label>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                    <span>😌</span>
+                                <div className="slider-container">
                                     <input
                                         type="range"
                                         min="1"
                                         max="10"
+                                        step="1"
                                         value={formData.difficultyFelt}
                                         onChange={e => setFormData(prev => ({ ...prev, difficultyFelt: parseInt(e.target.value) }))}
                                         className="slider"
-                                        style={{ flex: 1 }}
+                                        style={{ padding: '12px 0' }}
                                     />
-                                    <span>😓</span>
-                                    <span className="heading-5" style={{ width: '40px', textAlign: 'center' }}>
-                                        {formData.difficultyFelt}
-                                    </span>
+                                    <div className="slider-labels">
+                                        <span>Easy</span>
+                                        <span>Hard</span>
+                                    </div>
+                                    <div className="slider-value">{formData.difficultyFelt}/10</div>
                                 </div>
                             </div>
 
                             {/* Satisfaction */}
                             <div className="form-group">
                                 <label className="form-label">How satisfied are you?</label>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                    <span>😕</span>
+                                <div className="slider-container">
                                     <input
                                         type="range"
                                         min="1"
                                         max="10"
+                                        step="1"
                                         value={formData.satisfaction}
                                         onChange={e => setFormData(prev => ({ ...prev, satisfaction: parseInt(e.target.value) }))}
                                         className="slider"
-                                        style={{ flex: 1 }}
+                                        style={{ padding: '12px 0' }}
                                     />
-                                    <span>🤩</span>
-                                    <span className="heading-5" style={{ width: '40px', textAlign: 'center' }}>
-                                        {formData.satisfaction}
-                                    </span>
+                                    <div className="slider-labels">
+                                        <span>Not happy</span>
+                                        <span>Very happy</span>
+                                    </div>
+                                    <div className="slider-value">{formData.satisfaction}/10</div>
                                 </div>
                             </div>
 

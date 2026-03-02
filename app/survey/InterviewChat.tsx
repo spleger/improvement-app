@@ -979,7 +979,6 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
                     flex: 1;
                     overflow-y: auto;
                     padding: 20px;
-                    overflow-y: auto;
                     display: flex;
                     flex-direction: column;
                     gap: 16px;

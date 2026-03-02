@@ -38,16 +38,13 @@
 
 ### Settings & User Preferences
 
-- [ ] **Challenge Settings UI** —
-  - Sliders and numbers ("challenges per day") are hard to see/read.
-  - Preference options lack outlines/boxing (need clear visual containers).
-- [ ] **Duplicate Personality Setting** — Remove the duplicate "AI Personality". Keep the one with "Tough Love, Science-based" options.
-- [ ] **Voice Selection** — User cannot select different voices (broken or not saving).
+- [x] **Challenge Settings UI** -- Sliders enlarged (36px thumb, 12px track). Settings now accessible via gear icon.
+- [x] **Duplicate Personality Setting** -- Removed in plan 02.
+- [ ] **Voice Selection** -- Voice selection UI exists but may not save correctly on all platforms.
 
 ### Expert Chat / Goal Logic
 
-- [ ] **Goal-less Challenges** — Challenges proposed by AI (or created without a goal) do not appear on the dashboard.
-  - Need a "General Challenges" or "Other Challenges" bucket on the homepage for these orphaned items.
+- [x] **Goal-less Challenges** -- Implemented in plan 03 (Daily Growth section on dashboard).
 
 ---
 
@@ -55,26 +52,24 @@
 
 ### AI & Backend Core
 
-- [ ] **Daily Challenge Rotation** — Challenges should reset daily (old ones disappear, new ones active).
-- [ ] **Fix New Challenges Nesting** — Newly created challenges do not appear nested under the goal (Dashboard bug).
-- [ ] **AI Context** — Expert/Check-in AI only knows one goal; must have context of ALL goals.
+- [x] **Daily Challenge Rotation** -- DailyChallengeLoader auto-generates per goal (plan 01). Old challenges filtered by scheduledDate.
+- [x] **Fix New Challenges Nesting** -- Challenges display nested under goals on dashboard.
+- [x] **AI Context** -- All active goals now included via allActiveGoals[] in UserContext.
 
 ### Voice & Chat UI
 
-- [ ] **Habit Log Overlay** — Still opens below content; MUST open *over* page (modal/overlay).
-- [ ] **Voice Finish Interaction** — Pulsing mic should be clickable to finish recording.
-- [ ] **Chat Interface** —
-  - [ ] Fix auto-scroll (should NOT scroll to bottom on generation).
-  - [ ] Hide keyboard after sending.
-  - [ ] Maximize text space (hide coach icon, user icon, use full width).
-- [ ] **Live Voice Chat** — New feature: "Talk to AI" button, floating pulsing UI, near-instant streaming response.
+- [x] **Habit Log Overlay** -- Uses createPortal with position:fixed overlay.
+- [x] **Voice Finish Interaction** -- Pulsing mic clickable to stop recording.
+- [x] **Chat Interface** --
+  - [x] Fix auto-scroll (does not scroll during generation).
+  - [x] Hide keyboard after sending (input.blur() in finally).
+  - [x] Maximize text space (plan 05 polish).
+- [x] **Live Voice Chat** -- Implemented (plan 06). Entry points in Expert Chat header and AI Conversation selector.
 
 ### Progress & Navigation
 
-- [ ] **Bottom Nav Tracking** — Dropdown is broken/missing functional items from top bar. Needs styling (pills, spacing).
-- [ ] **Progress Page Redesign** —
-  - [ ] 30-day view: One goal selected (dropdown), clear markers.
-  - [ ] Mood/Energy Graph: One goal selected, curved lines, toggle for mood/energy/motivation.
-- [ ] **Remove Nav Links** — Remove "Daily Check-in" and "Home" links from bottom of Progress page.
-
-... (Items from Jan 29 that are marked 'Done' in previous list will remain checked or removed if confirmed deployed).
+- [x] **Bottom Nav Tracking** -- Dropdown functional with pills. Active state enhanced with highlight + underline.
+- [x] **Progress Page Redesign** --
+  - [x] 30-day view with goal dropdown selector (plan 04).
+  - [x] Mood/Energy Graph with metric selector toggle (plan 04). Chart height fixed.
+- [x] **Remove Nav Links** -- Removed in feb7 initial fixes.

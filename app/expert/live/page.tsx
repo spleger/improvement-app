@@ -557,28 +557,28 @@ export default function LiveVoiceChat() {
 
             <style jsx>{`
                 .live-voice-chat {
-                    height: 100vh;
+                    height: 100dvh;
                     display: flex;
                     flex-direction: column;
                     align-items: center;
-                    justify-content: center;
                     background: #0f172a;
                     color: white;
                     position: relative;
                     overflow: hidden;
+                    padding: env(safe-area-inset-top, 0) 0 env(safe-area-inset-bottom, 0) 0;
                 }
                 .back-button {
                     position: absolute;
-                    top: 20px;
-                    left: 20px;
+                    top: 16px;
+                    left: 16px;
                     color: white;
                     opacity: 0.7;
                     z-index: 10;
                 }
                 .mute-toggle-btn {
                     position: absolute;
-                    top: 20px;
-                    right: 20px;
+                    top: 16px;
+                    right: 16px;
                     background: rgba(255,255,255,0.1);
                     border: none;
                     border-radius: 50%;
@@ -592,9 +592,9 @@ export default function LiveVoiceChat() {
                     z-index: 10;
                 }
                 .coach-selector-container {
-                    position: absolute;
-                    top: 80px;
+                    margin-top: 70px;
                     z-index: 20;
+                    flex-shrink: 0;
                 }
                 .coach-selector-btn {
                     background: rgba(255, 255, 255, 0.1);
@@ -618,45 +618,49 @@ export default function LiveVoiceChat() {
                     font-size: 14px;
                 }
                 .orb-container {
-                     display: flex;
-                     flex-direction: column;
-                     align-items: center;
-                     gap: 30px;
-                     margin-top: -50px;
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 20px;
                 }
                 .orb {
-                    width: 150px;
-                    height: 150px;
+                    width: 140px;
+                    height: 140px;
                     border-radius: 50%;
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     transition: transform 0.1s ease-out, background-color 0.3s ease;
                 }
-                .orb-icon { font-size: 4rem; }
+                .orb-icon { font-size: 3.5rem; }
                 .status-text {
-                    font-size: 1.2rem;
+                    font-size: 1.1rem;
                     opacity: 0.8;
-                    min-height: 30px;
+                    min-height: 24px;
                     text-align: center;
                 }
                 .transcript {
-                    position: absolute;
-                    bottom: 40px;
                     width: 90%;
                     max-width: 600px;
+                    max-height: 30vh;
+                    overflow-y: auto;
                     text-align: center;
-                    opacity: 0.7;
-                    font-size: 0.95rem;
+                    opacity: 0.8;
+                    font-size: 0.9rem;
                     display: flex;
                     flex-direction: column;
-                    gap: 8px;
+                    gap: 6px;
+                    padding-bottom: 16px;
+                    flex-shrink: 0;
                 }
-                .transcript p { 
-                    margin: 0; 
+                .transcript p {
+                    margin: 0;
                     padding: 8px 12px;
                     background: rgba(0,0,0,0.3);
                     border-radius: 12px;
+                    line-height: 1.4;
                 }
                 .coach-dropdown {
                     position: absolute;
