@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
         // Create the goal
         const goal = await db.createGoal({
             userId: user.userId,
-            domainId: finalDomainId || null,
+            domainId: finalDomainId as number,
             title,
             currentState,
             desiredState,
