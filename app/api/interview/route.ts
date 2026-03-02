@@ -1,62 +1,11 @@
 import { NextRequest } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { getUserContext } from '@/lib/ai/context';
+import { getAnthropicClient } from '@/lib/anthropic';
 
 // Interview stages following the spec framework
 type InterviewStage = 'mood' | 'goals' | 'challenges' | 'habits' | 'general' | 'open';
-
-async function getUserContext(userId: string) {
-    try {
-        // Get active goal
-        const activeGoal = await db.getActiveGoalByUserId(userId);
-
-        // Get recent challenges
-        const challenges = await db.getChallengesByUserId(userId, { limit: 10 });
-        const completedChallenges = challenges.filter(c => c.status === 'completed');
-        const todayChallenge = await db.getTodayChallenge(userId);
-
-        // Get streak
-        const streak = await db.calculateStreak(userId);
-
-        // Get user preferences
-        const preferences = await db.getUserPreferences(userId);
-
-        // Get recent surveys for mood data
-        const surveys = await db.getSurveysByUserId(userId, 7);
-        const avgMood = surveys.length > 0
-            ? Math.round(surveys.reduce((sum, s) => sum + s.overallMood, 0) / surveys.length * 10) / 10
-            : null;
-
-        // Get habit stats
-        const habitStats = await db.getHabitStats(userId, 7);
-        const todayHabitLogs = await db.getHabitLogsForDate(userId, new Date());
-
-        // Calculate day in journey
-        const dayInJourney = activeGoal
-            ? Math.ceil((Date.now() - new Date(activeGoal.startedAt).getTime()) / (1000 * 60 * 60 * 24))
-            : 0;
-
-        return {
-            activeGoal,
-            todayChallenge,
-            completedChallengesCount: completedChallenges.length,
-            totalChallenges: challenges.length,
-            streak,
-            avgMood,
-            dayInJourney,
-            recentChallenges: challenges.slice(0, 5),
-            preferences,
-            recentDiary: await db.getDiaryEntriesByUserId(userId, 3),
-            recentSurveys: surveys.slice(0, 3),
-            habitStats,
-            todayHabitLogs
-        };
-    } catch (error) {
-        console.error('Error fetching user context:', error);
-        return null;
-    }
-}
 
 function buildInterviewSystemPrompt(
     context: any,
@@ -264,17 +213,8 @@ export async function POST(request: NextRequest) {
             : message.trim();
         messages.push({ role: 'user', content: userMessage });
 
-        // Initialize Anthropic client
-        const apiKey = process.env.ANTHROPIC_API_KEY?.replace(/^["']|["']$/g, '').trim();
-        if (!apiKey) {
-            return new Response(JSON.stringify({ error: 'Server configuration error: Missing Anthropic Key' }), {
-                status: 500,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-        const anthropic = new Anthropic({ apiKey });
-
         // Create streaming response
+        const anthropic = getAnthropicClient();
         const encoder = new TextEncoder();
         let fullResponse = '';
 

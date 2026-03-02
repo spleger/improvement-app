@@ -1,8 +1,9 @@
 import { NextRequest } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { getUserContext, buildEnhancedSystemPrompt } from '@/lib/ai/context';
+import { getAnthropicClient } from '@/lib/anthropic';
+import { ChatMessageSchema, validateBody } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,14 +18,14 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { message, history, coachId } = body;
-
-        if (!message) {
-            return new Response(JSON.stringify({ success: false, error: 'Message is required' }), {
+        const parsed = validateBody(ChatMessageSchema, body);
+        if (!parsed.success) {
+            return new Response(JSON.stringify({ success: false, error: parsed.error }), {
                 status: 400,
                 headers: { 'Content-Type': 'application/json' }
             });
         }
+        const { message, history, coachId } = parsed.data;
 
         // Get user context (now includes ALL active goals)
         const context = await getUserContext(user.userId);
@@ -65,17 +66,8 @@ export async function POST(request: NextRequest) {
         // Add current message
         messages.push({ role: 'user', content: message.trim() });
 
-        // Initialize Anthropic client
-        const apiKey = process.env.ANTHROPIC_API_KEY?.replace(/^["']|["']$/g, '').trim();
-        if (!apiKey) {
-            return new Response(JSON.stringify({ error: 'Server configuration error: Missing Anthropic Key' }), {
-                status: 500,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-        const anthropic = new Anthropic({ apiKey });
-
         // Create streaming response
+        const anthropic = getAnthropicClient();
         const encoder = new TextEncoder();
         let fullResponse = '';
 

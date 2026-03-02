@@ -5,6 +5,7 @@ import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { generateMultipleChallenges } from '@/lib/ai';
 import { UserPrefs } from '@/lib/types';
+import { ChallengeGenerateSchema, validateBody } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
     try {
@@ -14,10 +15,14 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { goalId, count = 1, focusArea } = body;
+        const parsed = validateBody(ChallengeGenerateSchema, body);
+        if (!parsed.success) {
+            return NextResponse.json({ success: false, error: parsed.error }, { status: 400 });
+        }
+        const { goalId, count, focusArea } = parsed.data;
 
         // Clamp count to valid range
-        const clampedCount = Math.min(Math.max(Number(count) || 1, 1), 5);
+        const clampedCount = Math.min(Math.max(count, 1), 5);
 
         let goal = null;
         if (goalId) {

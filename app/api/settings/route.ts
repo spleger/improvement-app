@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { SettingsSchema, validateBody } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
     try {
@@ -22,8 +23,12 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
         const body = await request.json();
+        const parsed = validateBody(SettingsSchema, body);
+        if (!parsed.success) {
+            return NextResponse.json({ success: false, error: parsed.error }, { status: 400 });
+        }
 
-        const prefs = await db.saveUserPreferences(user.userId, body);
+        const prefs = await db.saveUserPreferences(user.userId, parsed.data);
 
         return NextResponse.json({
             success: true,

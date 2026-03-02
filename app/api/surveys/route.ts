@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { SurveySchema, validateBody } from '@/lib/validation';
 
 // POST /api/surveys - Create a new survey entry
 export async function POST(request: NextRequest) {
@@ -10,14 +11,20 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
         const body = await request.json();
+        const parsed = validateBody(SurveySchema, body);
+        if (!parsed.success) {
+            return NextResponse.json({ success: false, error: parsed.error }, { status: 400 });
+        }
 
         const survey = await db.createOrUpdateDailySurvey({
             userId: user.userId,
             surveyDate: new Date(),
-            overallMood: body.overallMood,
-            energyLevel: body.energyLevel,
-            motivationLevel: body.motivationLevel,
-            gratitudeNote: body.notes // Mapping notes to a valid field
+            overallMood: parsed.data.overallMood,
+            energyLevel: parsed.data.energyLevel,
+            motivationLevel: parsed.data.motivationLevel,
+            gratitudeNote: parsed.data.notes || parsed.data.gratitudeNote,
+            biggestWin: parsed.data.biggestWin,
+            biggestBlocker: parsed.data.biggestBlocker,
         });
 
         return NextResponse.json({

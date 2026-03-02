@@ -158,27 +158,15 @@ export async function updateGoalStatus(id: string, status: string) {
 }
 
 export async function deleteGoal(id: string) {
-    // Prisma handles cascade delete if configured in schema.
-    // Schema says: user User @relation(..., onDelete: Cascade)
-    // BUT the Goal -> Challenge relation in schema?
-    // User -> Goal is Cascade. Goal -> Challenge?
-    // model Goal { challenges Challenge[] ... }
-    // model Challenge { goal Goal? @relation(onDelete: Cascade) ... }
-    // model DiaryEntry { goal Goal? @relation(onDelete: SetNull) ... }
-    // model Conversation { goal Goal? @relation(onDelete: SetNull) ... }
-
-    // The previous manual code deleted related items manually.
-    // Prisma should handle Cascade for Challenge.
-    // Diary and Conversation are SetNull, so no need to delete manually unless we want to clean them up.
-    // The previous code did DELETE DiaryEntry and Conversation where goalId. 
-    // IF we want to match behavior strictly:
-
-    await prisma.challenge.deleteMany({ where: { goalId: id } });
-    await prisma.conversation.deleteMany({ where: { goalId: id } });
-    await prisma.diaryEntry.deleteMany({ where: { goalId: id } });
-
-    return await prisma.goal.delete({
-        where: { id },
+    // Challenge has onDelete: Cascade (auto-deleted by Prisma).
+    // DiaryEntry and Conversation have onDelete: SetNull.
+    // We explicitly delete related records for a clean removal,
+    // wrapped in a transaction to prevent partial state on failure.
+    return await prisma.$transaction(async (tx) => {
+        await tx.challenge.deleteMany({ where: { goalId: id } });
+        await tx.conversation.deleteMany({ where: { goalId: id } });
+        await tx.diaryEntry.deleteMany({ where: { goalId: id } });
+        return await tx.goal.delete({ where: { id } });
     });
 }
 

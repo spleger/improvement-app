@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { HabitCreateSchema, HabitUpdateSchema, validateBody } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,20 +51,19 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { name, description, icon, frequency, targetDays, goalId } = body;
-
-        if (!name || typeof name !== 'string' || name.trim().length === 0) {
-            return NextResponse.json({ success: false, error: 'Name is required' }, { status: 400 });
+        const parsed = validateBody(HabitCreateSchema, body);
+        if (!parsed.success) {
+            return NextResponse.json({ success: false, error: parsed.error }, { status: 400 });
         }
 
         const habit = await db.createHabit({
             userId: user.userId,
-            name: name.trim(),
-            description,
-            icon,
-            frequency,
-            targetDays,
-            goalId
+            name: parsed.data.name.trim(),
+            description: parsed.data.description,
+            icon: parsed.data.icon,
+            frequency: parsed.data.frequency,
+            targetDays: parsed.data.targetDays,
+            goalId: parsed.data.goalId
         });
 
         return NextResponse.json({

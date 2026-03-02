@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { GoalCreateSchema, validateBody } from '@/lib/validation';
 
 // GET /api/goals - Get all goals for user
 export async function GET(request: NextRequest) {
@@ -32,23 +33,11 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
         const body = await request.json();
-        const {
-            title,
-            domainId,
-            domainName,
-            currentState,
-            desiredState,
-            description,
-            difficultyLevel = 5, // Default to moderate
-            realityShiftEnabled = false
-        } = body;
-
-        if (!title) {
-            return NextResponse.json(
-                { success: false, error: 'Title is required' },
-                { status: 400 }
-            );
+        const parsed = validateBody(GoalCreateSchema, body);
+        if (!parsed.success) {
+            return NextResponse.json({ success: false, error: parsed.error }, { status: 400 });
         }
+        const { title, domainId, domainName, currentState, desiredState, description, difficultyLevel, realityShiftEnabled } = parsed.data;
 
         // Resolve domainId from domainName if needed
         let finalDomainId = domainId;

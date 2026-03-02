@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { DiaryCreateSchema, validateBody } from '@/lib/validation';
 
 // POST /api/diary - Create diary entry
 export async function POST(request: NextRequest) {
@@ -10,7 +11,11 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
         const body = await request.json();
-        const { transcript, audioDurationSeconds, moodScore } = body;
+        const parsed = validateBody(DiaryCreateSchema, body);
+        if (!parsed.success) {
+            return NextResponse.json({ success: false, error: parsed.error }, { status: 400 });
+        }
+        const { transcript, audioDurationSeconds, moodScore } = parsed.data;
 
         let aiSummary = '';
         let aiInsights = '{}';

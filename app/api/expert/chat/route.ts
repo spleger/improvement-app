@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { getUserContext, buildEnhancedSystemPrompt } from '@/lib/ai/context';
+import { getAnthropicClient } from '@/lib/anthropic';
+import { ChatMessageSchema, validateBody } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,14 +15,11 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { message, history, coachId } = body;
-
-        if (!message) {
-            return NextResponse.json(
-                { success: false, error: 'Message is required' },
-                { status: 400 }
-            );
+        const parsed = validateBody(ChatMessageSchema, body);
+        if (!parsed.success) {
+            return NextResponse.json({ success: false, error: parsed.error }, { status: 400 });
         }
+        const { message, history, coachId } = parsed.data;
 
         // Get user context
         const context = await getUserContext(user.userId);
@@ -93,19 +91,13 @@ export async function POST(request: NextRequest) {
             };
             conversationMessages.push(userMsgObj);
 
-            // Initialize Anthropic client
-            const apiKey = process.env.ANTHROPIC_API_KEY?.replace(/^["']|["']$/g, '').trim();
-            if (!apiKey) {
-                throw new Error('Server configuration error: Missing Anthropic Key');
-            }
-            const anthropic = new Anthropic({ apiKey });
-
-            // Call Claude API using Anthropic SDK
+            // Call Claude API
+            const anthropic = getAnthropicClient();
             const response = await anthropic.messages.create({
                 model: 'claude-3-haiku-20240307',
                 max_tokens: 1000,
                 system: systemPrompt,
-                messages: messages as Anthropic.MessageParam[]
+                messages: messages as any[]
             });
 
             // Extract text from response
