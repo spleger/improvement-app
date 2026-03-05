@@ -2,7 +2,6 @@ import Link from 'next/link';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import BottomNavigation from '../components/BottomNavigation';
 import PageHeader from '../components/PageHeader';
 import AvatarUpload from './AvatarUpload';
 
@@ -130,8 +129,6 @@ export default async function ProfilePage() {
                 </div>
             </section>
 
-            {/* Bottom Navigation */}
-            <BottomNavigation />
         </div>
     );
 }

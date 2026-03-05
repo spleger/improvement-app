@@ -538,7 +538,7 @@ export default function ProgressPage() {
                                                 gap: '1px',
                                                 visibility: day.isEmpty ? 'hidden' : 'visible',
                                                 background: getBackground(),
-                                                color: ['completed', 'skipped'].includes(day.status) ? 'white' : 'var(--color-text-muted)',
+                                                color: ['completed', 'skipped'].includes(day.status) ? 'white' : 'var(--color-text-secondary)',
                                                 border: isToday
                                                     ? '2px solid var(--color-accent)'
                                                     : 'none',

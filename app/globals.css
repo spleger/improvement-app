@@ -70,11 +70,11 @@
   --color-surface-solid: #1e1e28;
   --color-surface-2: rgba(40, 40, 55, 0.7);
   --color-surface-hover: rgba(50, 50, 65, 0.8);
-  --color-border: rgba(255, 255, 255, 0.1);
+  --color-border: rgba(255, 255, 255, 0.12);
   --color-text: #f0f0f5;
   --color-text-primary: #f0f0f5;
   --color-text-secondary: #a0a0b0;
-  --color-text-muted: #6c6c80;
+  --color-text-muted: #8888a0;
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-error: #ef4444;
@@ -87,7 +87,7 @@
 
   /* Glassmorphism */
   --glass-blur: blur(12px);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.15);
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 
   /* Shadows for dark mode */
@@ -331,7 +331,7 @@ button {
   border-radius: var(--radius-lg);
   border: var(--glass-border);
   padding: var(--spacing-lg);
-  box-shadow: var(--glass-shadow);
+  box-shadow: var(--glass-shadow), 0 0 0 1px rgba(255, 255, 255, 0.07);
 }
 
 .card-glass-subtle {
@@ -339,7 +339,7 @@ button {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   padding: var(--spacing-md);
 }
 
@@ -839,7 +839,7 @@ button {
 .form-input {
   width: 100%;
   padding: var(--spacing-md);
-  border: 2px solid var(--color-surface);
+  border: 2px solid rgba(255, 255, 255, 0.15);
   border-radius: var(--radius-md);
   font-size: 1rem;
   transition: border-color var(--transition-fast);
@@ -960,11 +960,13 @@ button {
   bottom: 0;
   left: 0;
   right: 0;
-  background: var(--color-surface-solid);
-  border-top: 1px solid var(--color-border);
+  background: rgba(12, 12, 20, 0.95);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
   padding: var(--spacing-sm) 0;
   z-index: 100;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   /* Safe Area for Bottom Nav */
   padding-bottom: calc(var(--spacing-sm) + env(safe-area-inset-bottom));
 }
@@ -982,7 +984,7 @@ button {
   align-items: center;
   gap: var(--spacing-xs);
   padding: var(--spacing-sm) var(--spacing-md);
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   transition: all var(--transition-fast);
   border-radius: var(--radius-sm);
   min-width: 64px;

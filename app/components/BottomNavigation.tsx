@@ -117,10 +117,12 @@ export default function BottomNavigation() {
                     bottom: 0;
                     left: 0;
                     right: 0;
-                    background: var(--color-surface-solid);
-                    border-top: 1px solid var(--color-border);
+                    background: rgba(12, 12, 20, 0.95);
+                    border-top: 1px solid rgba(255, 255, 255, 0.06);
                     z-index: 100;
                     padding-bottom: env(safe-area-inset-bottom);
+                    backdrop-filter: blur(12px);
+                    -webkit-backdrop-filter: blur(12px);
                 }
 
                 .nav-bottom-inner {
@@ -152,14 +154,14 @@ export default function BottomNavigation() {
                 }
 
                 .nav-item.active {
-                    color: var(--color-primary);
-                    background: rgba(var(--color-primary-rgb, 59, 130, 246), 0.12);
+                    color: var(--color-accent);
+                    background: rgba(13, 148, 136, 0.12);
                     border-radius: 12px;
                     font-weight: 600;
                 }
 
                 .nav-item.active .nav-item-label {
-                    border-bottom: 2px solid var(--color-primary);
+                    border-bottom: 2px solid var(--color-accent);
                     padding-bottom: 1px;
                 }
 
@@ -180,9 +182,9 @@ export default function BottomNavigation() {
                     bottom: 100%;
                     left: 50%;
                     transform: translateX(-50%);
-                    margin-bottom: var(--spacing-md); /* Increased spacing */
-                    background: var(--color-surface-solid);
-                    border: 1px solid var(--color-border);
+                    margin-bottom: var(--spacing-md);
+                    background: rgba(18, 18, 30, 0.95);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
                     border-radius: 20px; /* More rounded container */
                     padding: var(--spacing-sm);
                     min-width: 180px;

@@ -104,10 +104,12 @@ export default function TopNavigation() {
                     top: 0;
                     left: 0;
                     right: 0;
-                    background: var(--color-surface-solid);
-                    border-bottom: 1px solid var(--color-border);
+                    background: rgba(12, 12, 20, 0.95);
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
                     padding: var(--spacing-sm) var(--spacing-md);
                     z-index: 100;
+                    backdrop-filter: blur(12px);
+                    -webkit-backdrop-filter: blur(12px);
                     /* Safe area for top notch */
                     padding-top: calc(var(--spacing-sm) + env(safe-area-inset-top));
                 }
@@ -128,8 +130,8 @@ export default function TopNavigation() {
                     width: 40px;
                     height: 40px;
                     border-radius: var(--radius-full);
-                    background: var(--color-surface);
-                    border: 1px solid var(--color-border);
+                    background: rgba(255, 255, 255, 0.08);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
                     transition: all var(--transition-fast);
                 }
 

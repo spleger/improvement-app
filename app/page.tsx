@@ -56,7 +56,6 @@ function getGreeting() {
     return { text: 'Good evening', emoji: '🌙' };
 }
 
-import ThemeToggle from './ThemeToggle';
 import GoalCelebrationWrapper from './components/GoalCelebrationWrapper';
 import GoalActions from './components/GoalActions';
 import DailyChallengeLoader from './components/DailyChallengeLoader';

@@ -32,16 +32,6 @@ export default async function BrowseChallengesPage() {
 
             <ChallengeBrowser domains={domains} />
 
-            {/* Bottom Navigation */}
-            <nav className="nav-bottom">
-                <div className="nav-bottom-inner">
-                    <Link href="/" className="nav-item"><span className="nav-item-icon">🏠</span><span className="nav-item-label">Home</span></Link>
-                    <Link href="/progress" className="nav-item"><span className="nav-item-icon">📊</span><span className="nav-item-label">Progress</span></Link>
-                    <Link href="/diary" className="nav-item"><span className="nav-item-icon">🎙️</span><span className="nav-item-label">Diary</span></Link>
-                    <Link href="/expert" className="nav-item"><span className="nav-item-icon">💬</span><span className="nav-item-label">Expert</span></Link>
-                    <Link href="/profile" className="nav-item"><span className="nav-item-icon">👤</span><span className="nav-item-label">Profile</span></Link>
-                </div>
-            </nav>
         </div>
     );
 }

@@ -1,7 +1,6 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import * as db from '@/lib/db';
 
 const ACCENT_COLORS = [
     { id: 'teal', name: 'Teal', primary: '#0d9488', secondary: '#06b6d4' },
@@ -11,12 +10,12 @@ const ACCENT_COLORS = [
     { id: 'rose', name: 'Rose', primary: '#e11d48', secondary: '#f43f5e' },
 ];
 
-type Theme = 'light' | 'dark' | 'system';
+type Theme = 'dark';
 
 interface ThemeContextType {
     theme: Theme;
     setTheme: (theme: Theme) => void;
-    currentTheme: 'light' | 'dark';
+    currentTheme: 'dark';
     accentColor: string;
     setAccentColor: (color: string) => void;
 }
@@ -24,17 +23,12 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-    const [theme, setTheme] = useState<Theme>('system');
     const [accentColor, setAccentColor] = useState('teal');
-    const [currentTheme, setCurrentTheme] = useState<'light' | 'dark'>('light');
     const [mounted, setMounted] = useState(false);
 
-    // Initialize theme and accent from local storage
+    // Always apply dark mode on mount
     useEffect(() => {
-        const savedTheme = localStorage.getItem('theme') as Theme;
-        if (savedTheme) {
-            setTheme(savedTheme);
-        }
+        document.documentElement.setAttribute('data-theme', 'dark');
         const savedAccent = localStorage.getItem('accentColor');
         if (savedAccent) {
             setAccentColor(savedAccent);
@@ -42,49 +36,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         setMounted(true);
     }, []);
 
-    // Update effect to handle theme changes
-    useEffect(() => {
-        if (!mounted) return;
-
-        const root = document.documentElement;
-        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-
-        const applyTheme = () => {
-            let resolvedTheme: 'light' | 'dark' = 'light';
-
-            if (theme === 'system') {
-                resolvedTheme = mediaQuery.matches ? 'dark' : 'light';
-            } else {
-                resolvedTheme = theme;
-            }
-
-            setCurrentTheme(resolvedTheme);
-
-            if (resolvedTheme === 'dark') {
-                root.setAttribute('data-theme', 'dark');
-            } else {
-                root.removeAttribute('data-theme');
-            }
-
-            localStorage.setItem('theme', theme);
-        };
-
-        applyTheme();
-
-        const handleChange = () => applyTheme();
-        mediaQuery.addEventListener('change', handleChange);
-
-        return () => mediaQuery.removeEventListener('change', handleChange);
-    }, [theme, mounted]);
-
     // Apply accent color
     useEffect(() => {
         if (!mounted) return;
 
         const root = document.documentElement;
-        const colors = ACCENT_COLORS.find(c => c.id === accentColor) || ACCENT_COLORS[0]; // Default to Teal
+        const colors = ACCENT_COLORS.find(c => c.id === accentColor) || ACCENT_COLORS[0];
 
-        // Set CSS Variables
         root.style.setProperty('--color-accent', colors.primary);
         root.style.setProperty('--color-highlight', colors.primary);
         root.style.setProperty('--gradient-primary', `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`);
@@ -93,13 +51,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('accentColor', accentColor);
     }, [accentColor, mounted]);
 
-    // Sync with user preferences if logged in (optional enhancement)
-    // This could fetch from API and update context, but starting simple
-
-
-
     return (
-        <ThemeContext.Provider value={{ theme, setTheme, currentTheme, accentColor, setAccentColor }}>
+        <ThemeContext.Provider value={{
+            theme: 'dark',
+            setTheme: () => {},
+            currentTheme: 'dark',
+            accentColor,
+            setAccentColor,
+        }}>
             {children}
         </ThemeContext.Provider>
     );
