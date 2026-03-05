@@ -86,7 +86,7 @@ function ChallengeGeneratorContent() {
     };
 
     return (
-        <div className="page animate-fade-in">
+        <div className="page animate-fade-in" style={{ paddingBottom: '100px' }}>
             <Link href="/" className="btn btn-ghost mb-lg">
                 ← Back to Dashboard
             </Link>

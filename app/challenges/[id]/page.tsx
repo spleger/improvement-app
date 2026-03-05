@@ -38,7 +38,7 @@ export default async function ChallengeDetailPage({ params }: PageProps) {
     }
 
     return (
-        <div className="page animate-fade-in">
+        <div className="page animate-fade-in" style={{ paddingBottom: '100px' }}>
             {/* Back button */}
             <Link href="/" className="btn btn-ghost mb-lg">
                 ← Back to Dashboard

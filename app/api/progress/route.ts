@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/progress - Get progress page data
 export async function GET() {
     try {

@@ -1614,6 +1614,7 @@ button {
   padding: var(--spacing-xl) var(--spacing-md);
   margin-bottom: var(--spacing-lg);
   animation: fadeIn var(--transition-normal) ease-out;
+  background: transparent;
 }
 
 .page-header-icon {
