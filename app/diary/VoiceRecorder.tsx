@@ -120,13 +120,6 @@ export default function VoiceRecorder({ onClose, onSaved, autoStart = false }: V
             setTranscript('');
             setInterimTranscript('');
 
-            // Check if Speech Recognition is supported
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRecognition) {
-                setError('Speech recognition is not supported in this browser. Try Chrome or Edge.');
-                return;
-            }
-
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             streamRef.current = stream;
 
@@ -149,7 +142,7 @@ export default function VoiceRecorder({ onClose, onSaved, autoStart = false }: V
             // Start audio recording
             mediaRecorder.start(1000);
 
-            // Start speech recognition
+            // Start speech recognition if available (optional -- Whisper fallback handles transcription)
             if (recognitionRef.current) {
                 try {
                     recognitionRef.current.start();
@@ -288,7 +281,7 @@ export default function VoiceRecorder({ onClose, onSaved, autoStart = false }: V
                             </div>
                             <h2>Voice Diary Entry</h2>
                             <p>Record your thoughts and reflections</p>
-                            <p className="hint">Speak naturally - your words will be transcribed in real-time</p>
+                            <p className="hint">Speak naturally - your recording will be transcribed automatically</p>
 
                             {error && <div className="error">{error}</div>}
 
@@ -373,7 +366,7 @@ export default function VoiceRecorder({ onClose, onSaved, autoStart = false }: V
                             <div className="transcript-section">
                                 <label className="section-label">Transcript</label>
                                 <div className="transcript-preview">
-                                    {transcript || 'No transcript captured. Try speaking louder or check your microphone.'}
+                                    {transcript || 'Transcript will be generated when you save (server-side processing).'}
                                 </div>
                                 <p className="duration-text">Duration: {formatDuration(duration)}</p>
                             </div>

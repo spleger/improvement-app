@@ -71,7 +71,11 @@ export default function ChallengeDetailClient({ challengeId, isCompleted, challe
             const response = await fetch(`/api/challenges/${challengeId}/complete`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({
+                    ...formData,
+                    difficultyFelt: Math.round(formData.difficultyFelt),
+                    satisfaction: Math.round(formData.satisfaction)
+                })
             });
 
             if (response.ok) {
@@ -214,17 +218,17 @@ export default function ChallengeDetailClient({ challengeId, isCompleted, challe
                                         type="range"
                                         min="1"
                                         max="10"
-                                        step="1"
+                                        step="any"
                                         value={formData.difficultyFelt}
-                                        onChange={e => setFormData(prev => ({ ...prev, difficultyFelt: parseInt(e.target.value) }))}
+                                        onChange={e => setFormData(prev => ({ ...prev, difficultyFelt: parseFloat(e.target.value) }))}
                                         className="slider"
-                                        style={{ padding: '12px 0' }}
+                                        style={{ '--slider-progress': `${((formData.difficultyFelt - 1) / 9) * 100}%`, padding: '16px 0' } as React.CSSProperties}
                                     />
                                     <div className="slider-labels">
                                         <span>Easy</span>
                                         <span>Hard</span>
                                     </div>
-                                    <div className="slider-value">{formData.difficultyFelt}/10</div>
+                                    <div className="slider-value">{Math.round(formData.difficultyFelt)}/10</div>
                                 </div>
                             </div>
 
@@ -236,17 +240,17 @@ export default function ChallengeDetailClient({ challengeId, isCompleted, challe
                                         type="range"
                                         min="1"
                                         max="10"
-                                        step="1"
+                                        step="any"
                                         value={formData.satisfaction}
-                                        onChange={e => setFormData(prev => ({ ...prev, satisfaction: parseInt(e.target.value) }))}
+                                        onChange={e => setFormData(prev => ({ ...prev, satisfaction: parseFloat(e.target.value) }))}
                                         className="slider"
-                                        style={{ padding: '12px 0' }}
+                                        style={{ '--slider-progress': `${((formData.satisfaction - 1) / 9) * 100}%`, padding: '16px 0' } as React.CSSProperties}
                                     />
                                     <div className="slider-labels">
                                         <span>Not happy</span>
                                         <span>Very happy</span>
                                     </div>
-                                    <div className="slider-value">{formData.satisfaction}/10</div>
+                                    <div className="slider-value">{Math.round(formData.satisfaction)}/10</div>
                                 </div>
                             </div>
 

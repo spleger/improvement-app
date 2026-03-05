@@ -200,6 +200,7 @@ export default function NewGoalForm({ domains }: Props) {
                                 value={formData.difficultyLevel}
                                 onChange={e => setFormData(prev => ({ ...prev, difficultyLevel: parseInt(e.target.value) }))}
                                 className="slider"
+                                style={{ '--slider-progress': `${((formData.difficultyLevel - 1) / 9) * 100}%` } as React.CSSProperties}
                             />
                             <div className="slider-labels">
                                 <span>Gentle</span>

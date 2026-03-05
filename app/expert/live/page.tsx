@@ -147,31 +147,36 @@ export default function LiveVoiceChat() {
         };
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Play TTS
-    const playTTSAudio = useCallback(async (text: string) => {
-        if (isMuted || !text.trim()) {
-            setOrbState('idle');
+    // TTS queue for chunked playback
+    const ttsQueueRef = useRef<string[]>([]);
+    const ttsPlayingRef = useRef(false);
+
+    const playNextTTSChunk = useCallback(async () => {
+        if (ttsPlayingRef.current || ttsQueueRef.current.length === 0) return;
+
+        const text = ttsQueueRef.current.shift();
+        if (!text || isMuted) {
+            if (ttsQueueRef.current.length === 0) setOrbState('idle');
             return;
         }
 
-        const cleanText = text.replace(/<<<\{.*?\}>>>/g, '').trim();
-        if (!cleanText) {
-            setOrbState('idle');
-            return;
-        }
-
-        const truncatedText = cleanText.length > 4096 ? cleanText.slice(0, 4096) : cleanText;
+        ttsPlayingRef.current = true;
+        setOrbState('speaking');
 
         try {
-            setOrbState('speaking');
             const response = await fetch('/api/tts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: truncatedText })
+                body: JSON.stringify({ text })
             });
 
             if (!response.ok) {
-                setOrbState('idle');
+                ttsPlayingRef.current = false;
+                if (ttsQueueRef.current.length > 0) {
+                    playNextTTSChunk();
+                } else {
+                    setOrbState('idle');
+                }
                 return;
             }
 
@@ -187,29 +192,67 @@ export default function LiveVoiceChat() {
             audioRef.current = audio;
 
             audio.onended = () => {
-                setOrbState('idle');
                 URL.revokeObjectURL(audioUrl);
                 audioRef.current = null;
+                ttsPlayingRef.current = false;
+                if (ttsQueueRef.current.length > 0) {
+                    playNextTTSChunk();
+                } else {
+                    setOrbState('idle');
+                }
             };
 
             audio.onerror = () => {
-                setOrbState('idle');
                 URL.revokeObjectURL(audioUrl);
                 audioRef.current = null;
+                ttsPlayingRef.current = false;
+                if (ttsQueueRef.current.length > 0) {
+                    playNextTTSChunk();
+                } else {
+                    setOrbState('idle');
+                }
             };
 
             await audio.play().catch(() => {
-                setOrbState('idle');
                 URL.revokeObjectURL(audioUrl);
                 audioRef.current = null;
+                ttsPlayingRef.current = false;
+                if (ttsQueueRef.current.length > 0) {
+                    playNextTTSChunk();
+                } else {
+                    setOrbState('idle');
+                }
             });
 
         } catch {
-            setOrbState('idle');
+            ttsPlayingRef.current = false;
+            if (ttsQueueRef.current.length > 0) {
+                playNextTTSChunk();
+            } else {
+                setOrbState('idle');
+            }
         }
     }, [isMuted]);
 
+    const enqueueTTSChunk = useCallback((text: string) => {
+        const cleanText = text.replace(/<<<\{.*?\}>>>/g, '').trim();
+        if (!cleanText || isMuted) return;
+        ttsQueueRef.current.push(cleanText);
+        playNextTTSChunk();
+    }, [isMuted, playNextTTSChunk]);
+
+    // Play TTS (full text fallback)
+    const playTTSAudio = useCallback(async (text: string) => {
+        if (isMuted || !text.trim()) {
+            setOrbState('idle');
+            return;
+        }
+        enqueueTTSChunk(text);
+    }, [isMuted, enqueueTTSChunk]);
+
     const stopTTSPlayback = useCallback(() => {
+        ttsQueueRef.current = [];
+        ttsPlayingRef.current = false;
         if (audioRef.current) {
             audioRef.current.pause();
             if (audioRef.current.src) URL.revokeObjectURL(audioRef.current.src);
@@ -260,7 +303,9 @@ export default function LiveVoiceChat() {
 
             const decoder = new TextDecoder();
             let accumulatedText = '';
+            let sentenceBuffer = '';
             let buffer = '';
+            const sentenceEndRegex = /[.!?]\s/;
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -279,11 +324,22 @@ export default function LiveVoiceChat() {
                             const parsed = JSON.parse(data);
                             if (parsed.text) {
                                 accumulatedText += parsed.text;
+                                sentenceBuffer += parsed.text;
                                 setMessages(prev => prev.map(msg =>
                                     msg.id === assistantMessageId
                                         ? { ...msg, content: msg.content + parsed.text }
                                         : msg
                                 ));
+
+                                // Send complete sentences to TTS immediately
+                                let match;
+                                while ((match = sentenceEndRegex.exec(sentenceBuffer)) !== null) {
+                                    const sentence = sentenceBuffer.slice(0, match.index + 1).trim();
+                                    sentenceBuffer = sentenceBuffer.slice(match.index + match[0].length);
+                                    if (sentence.length > 5) {
+                                        enqueueTTSChunk(sentence);
+                                    }
+                                }
                             } else if (parsed.error) {
                                 setMessages(prev => prev.map(msg =>
                                     msg.id === assistantMessageId
@@ -296,10 +352,12 @@ export default function LiveVoiceChat() {
                 }
             }
 
+            // Send any remaining text to TTS
             chatAbortControllerRef.current = null;
-            if (accumulatedText) {
-                await playTTSAudio(accumulatedText);
-            } else {
+            const remaining = sentenceBuffer.trim();
+            if (remaining.length > 5) {
+                enqueueTTSChunk(remaining);
+            } else if (!accumulatedText) {
                 setOrbState('idle');
             }
 
@@ -317,7 +375,7 @@ export default function LiveVoiceChat() {
                     : msg
             ));
         }
-    }, [playTTSAudio, selectedCoach.id, setErrorWithType]);
+    }, [enqueueTTSChunk, selectedCoach.id, setErrorWithType]);
 
     const stopRecordingAndSend = useCallback(async () => {
         if (!mediaRecorderRef.current || mediaRecorderRef.current.state === 'inactive') return;
@@ -565,19 +623,28 @@ export default function LiveVoiceChat() {
                     color: white;
                     position: relative;
                     overflow: hidden;
-                    padding: env(safe-area-inset-top, 0) 0 env(safe-area-inset-bottom, 0) 0;
+                    padding-top: max(env(safe-area-inset-top, 16px), 16px);
+                    padding-bottom: max(env(safe-area-inset-bottom, 16px), 16px);
+                    padding-left: env(safe-area-inset-left, 0);
+                    padding-right: env(safe-area-inset-right, 0);
+                    box-sizing: border-box;
                 }
                 .back-button {
                     position: absolute;
-                    top: 16px;
+                    top: max(env(safe-area-inset-top, 16px), 16px);
                     left: 16px;
                     color: white;
                     opacity: 0.7;
                     z-index: 10;
+                    width: 44px;
+                    height: 44px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
                 }
                 .mute-toggle-btn {
                     position: absolute;
-                    top: 16px;
+                    top: max(env(safe-area-inset-top, 16px), 16px);
                     right: 16px;
                     background: rgba(255,255,255,0.1);
                     border: none;
@@ -592,9 +659,10 @@ export default function LiveVoiceChat() {
                     z-index: 10;
                 }
                 .coach-selector-container {
-                    margin-top: 70px;
+                    margin-top: 48px;
                     z-index: 20;
                     flex-shrink: 0;
+                    position: relative;
                 }
                 .coach-selector-btn {
                     background: rgba(255, 255, 255, 0.1);
@@ -624,15 +692,17 @@ export default function LiveVoiceChat() {
                     align-items: center;
                     justify-content: center;
                     gap: 20px;
+                    min-height: 0;
                 }
                 .orb {
-                    width: 140px;
-                    height: 140px;
+                    width: min(140px, 30vw);
+                    height: min(140px, 30vw);
                     border-radius: 50%;
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     transition: transform 0.1s ease-out, background-color 0.3s ease;
+                    flex-shrink: 0;
                 }
                 .orb-icon { font-size: 3.5rem; }
                 .status-text {
@@ -640,11 +710,12 @@ export default function LiveVoiceChat() {
                     opacity: 0.8;
                     min-height: 24px;
                     text-align: center;
+                    padding: 0 16px;
                 }
                 .transcript {
                     width: 90%;
                     max-width: 600px;
-                    max-height: 30vh;
+                    max-height: min(30vh, 200px);
                     overflow-y: auto;
                     text-align: center;
                     opacity: 0.8;
@@ -661,19 +732,21 @@ export default function LiveVoiceChat() {
                     background: rgba(0,0,0,0.3);
                     border-radius: 12px;
                     line-height: 1.4;
+                    word-break: break-word;
                 }
                 .coach-dropdown {
                     position: absolute;
-                    top: 50px;
+                    top: 100%;
                     left: 50%;
                     transform: translateX(-50%);
+                    margin-top: 8px;
                     background: #1e293b;
                     border-radius: 16px;
                     padding: 8px;
                     width: 280px;
                     border: 1px solid rgba(255,255,255,0.1);
                     box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-                    max-height: 400px;
+                    max-height: min(400px, 50vh);
                     overflow-y: auto;
                 }
                 .coach-option {

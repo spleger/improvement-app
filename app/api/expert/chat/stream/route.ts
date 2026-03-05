@@ -64,7 +64,13 @@ export async function POST(request: NextRequest) {
         }
 
         // Add current message
+        const isLiveMode = message.trim().startsWith('[LIVE VOICE MODE');
         messages.push({ role: 'user', content: message.trim() });
+
+        // In live voice mode, constrain responses to be short and conversational
+        if (isLiveMode) {
+            systemPrompt += '\n\nCRITICAL: You are in live voice conversation mode. Keep ALL responses to 2-3 sentences maximum. Be direct, warm, and conversational. Never use lists, bullet points, or long explanations. Respond as if speaking face-to-face.';
+        }
 
         // Create streaming response
         const anthropic = getAnthropicClient();
@@ -76,7 +82,7 @@ export async function POST(request: NextRequest) {
                 try {
                     const streamResponse = await anthropic.messages.stream({
                         model: 'claude-3-haiku-20240307',
-                        max_tokens: 1000,
+                        max_tokens: isLiveMode ? 200 : 1000,
                         system: systemPrompt,
                         messages: messages
                     });
