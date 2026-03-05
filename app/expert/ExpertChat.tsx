@@ -380,11 +380,16 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
     }, [selectedCoach]);
 
     useEffect(() => {
-        // Auto-scroll when not streaming (after AI response completes)
-        if (!isStreaming) {
-            scrollToBottom();
+        // Only scroll on initial load or if explicitly requested
+        // We DO NOT scroll on every message update to allow user to read previous text
+        if (messages.length > 0 && !isStreaming) {
+            // Check if it was a user message just sent (last message is user)
+            const lastMsg = messages[messages.length - 1];
+            if (lastMsg.role === 'user') {
+                scrollToBottom();
+            }
         }
-    }, [messages, isStreaming]);
+    }, [messages.length, isStreaming]);
 
     const sendMessage = async (content: string) => {
         if (!content.trim()) return;
