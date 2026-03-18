@@ -51,3 +51,10 @@ prisma/*.db-journal
 .worktrees/
 .security-key
 logs/security/
+
+# Claude Code
+.claude/
+.playwright-mcp/
+
+# Test screenshots
+screenshots/
