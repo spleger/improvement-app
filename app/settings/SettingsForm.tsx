@@ -213,42 +213,23 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                 {/* Preferred Difficulty */}
                 <div className="form-group">
                     <label className="form-label">Default Difficulty Level</label>
-                    <div
-                        className="slider-container"
-                        style={{
-                            padding: 'var(--spacing-lg) var(--spacing-md)',
-                            background: 'var(--color-surface)',
-                            borderRadius: 'var(--radius-md)',
-                            marginTop: 'var(--spacing-sm)',
-                            border: '1px solid var(--color-border)'
-                        }}
-                    >
-                        <div className="flex items-center gap-lg">
-                            <input
-                                type="range"
-                                min="1"
-                                max="10"
-                                value={prefs.preferredDifficulty}
-                                onChange={e => updatePref('preferredDifficulty', parseInt(e.target.value))}
-                                className="custom-slider"
-                                style={{
-                                    flex: 1,
-                                    cursor: 'pointer'
-                                }}
-                            />
-                            <span
-                                className="heading-4"
-                                style={{
-                                    width: '48px',
-                                    textAlign: 'center',
-                                    fontWeight: 600,
-                                    color: 'var(--color-accent)'
-                                }}
-                            >
-                                {prefs.preferredDifficulty}
-                            </span>
+                    <div className="slider-container">
+                        <input
+                            type="range"
+                            min="1"
+                            max="10"
+                            step="any"
+                            value={prefs.preferredDifficulty}
+                            onChange={e => updatePref('preferredDifficulty', Math.round(parseFloat(e.target.value)))}
+                            className="slider"
+                            style={{ '--slider-progress': `${((prefs.preferredDifficulty! - 1) / 9) * 100}%`, padding: '16px 0' } as React.CSSProperties}
+                        />
+                        <div className="slider-labels">
+                            <span>Easy</span>
+                            <span>Hard</span>
                         </div>
-                        <p className="text-tiny text-muted" style={{ marginTop: 'var(--spacing-md)' }}>
+                        <div className="slider-value">{prefs.preferredDifficulty}/10</div>
+                        <p className="text-tiny text-muted" style={{ marginTop: 'var(--spacing-xs)' }}>
                             {prefs.preferredDifficulty! <= 3 ? 'Gentle start - building momentum' :
                                 prefs.preferredDifficulty! <= 6 ? 'Moderate - balanced challenge' :
                                     prefs.preferredDifficulty! <= 8 ? 'Intense - pushing boundaries' :

@@ -885,7 +885,7 @@ button {
   border-radius: var(--radius-full);
   outline: none;
   cursor: pointer;
-  touch-action: none;
+  touch-action: manipulation;
 }
 
 .slider::-webkit-slider-runnable-track {

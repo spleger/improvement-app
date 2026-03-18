@@ -639,14 +639,6 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
                     >
                         {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
                     </button>
-                    <Link
-                        href="/expert/live"
-                        className="audio-toggle-btn"
-                        title="Live Voice Mode"
-                        style={{ background: 'var(--gradient-primary)', color: 'white' }}
-                    >
-                        <Radio size={20} />
-                    </Link>
                 </div>
 
                 {showCoachSelector && (
@@ -798,6 +790,9 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
                 >
                     {isTranscribing ? <Loader2 size={20} className="spin-icon" /> : <Mic size={20} />}
                 </button>
+                <Link href="/expert/live" className="mic-btn" title="Live Voice Mode">
+                    <Radio size={20} />
+                </Link>
                 <textarea
                     ref={inputRef}
                     value={input}

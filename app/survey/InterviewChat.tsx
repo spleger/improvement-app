@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Mic, Volume2, VolumeX, User, MessageCircle, Loader2 } from 'lucide-react';
+import { Send, Mic, Volume2, VolumeX, User, MessageCircle, Loader2, Radio } from 'lucide-react';
+import Link from 'next/link';
 
 interface Message {
     id: string;
@@ -793,6 +794,9 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
                 >
                     <Mic size={20} />
                 </button>
+                <Link href="/expert/live" className="mic-btn" title="Live Voice Mode">
+                    <Radio size={20} />
+                </Link>
                 <input
                     ref={inputRef}
                     type="text"
