@@ -147,9 +147,35 @@ export default function LiveVoiceChat() {
         };
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // TTS queue for chunked playback
+    // TTS queue for chunked playback with prefetch
     const ttsQueueRef = useRef<string[]>([]);
     const ttsPlayingRef = useRef(false);
+    const prefetchedAudioRef = useRef<{ text: string; blob: Blob } | null>(null);
+
+    const fetchTTSAudio = useCallback(async (text: string): Promise<Blob | null> => {
+        try {
+            const response = await fetch('/api/tts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text })
+            });
+            if (!response.ok) return null;
+            return await response.blob();
+        } catch {
+            return null;
+        }
+    }, []);
+
+    const prefetchNext = useCallback(() => {
+        if (ttsQueueRef.current.length === 0) return;
+        const nextText = ttsQueueRef.current[0];
+        if (prefetchedAudioRef.current?.text === nextText) return;
+        fetchTTSAudio(nextText).then(blob => {
+            if (blob && ttsQueueRef.current[0] === nextText) {
+                prefetchedAudioRef.current = { text: nextText, blob };
+            }
+        });
+    }, [fetchTTSAudio]);
 
     const playNextTTSChunk = useCallback(async () => {
         if (ttsPlayingRef.current || ttsQueueRef.current.length === 0) return;
@@ -164,13 +190,17 @@ export default function LiveVoiceChat() {
         setOrbState('speaking');
 
         try {
-            const response = await fetch('/api/tts', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text })
-            });
+            let audioBlob: Blob | null = null;
 
-            if (!response.ok) {
+            // Use prefetched audio if available for this chunk
+            if (prefetchedAudioRef.current?.text === text) {
+                audioBlob = prefetchedAudioRef.current.blob;
+                prefetchedAudioRef.current = null;
+            } else {
+                audioBlob = await fetchTTSAudio(text);
+            }
+
+            if (!audioBlob) {
                 ttsPlayingRef.current = false;
                 if (ttsQueueRef.current.length > 0) {
                     playNextTTSChunk();
@@ -180,7 +210,6 @@ export default function LiveVoiceChat() {
                 return;
             }
 
-            const audioBlob = await response.blob();
             const audioUrl = URL.createObjectURL(audioBlob);
 
             if (audioRef.current) {
@@ -190,6 +219,9 @@ export default function LiveVoiceChat() {
 
             const audio = new Audio(audioUrl);
             audioRef.current = audio;
+
+            // Start prefetching the next chunk while this one plays
+            prefetchNext();
 
             audio.onended = () => {
                 URL.revokeObjectURL(audioUrl);
@@ -232,7 +264,7 @@ export default function LiveVoiceChat() {
                 setOrbState('idle');
             }
         }
-    }, [isMuted]);
+    }, [isMuted, fetchTTSAudio, prefetchNext]);
 
     const enqueueTTSChunk = useCallback((text: string) => {
         const cleanText = text.replace(/<<<\{.*?\}>>>/g, '').trim();
@@ -253,6 +285,7 @@ export default function LiveVoiceChat() {
     const stopTTSPlayback = useCallback(() => {
         ttsQueueRef.current = [];
         ttsPlayingRef.current = false;
+        prefetchedAudioRef.current = null;
         if (audioRef.current) {
             audioRef.current.pause();
             if (audioRef.current.src) URL.revokeObjectURL(audioRef.current.src);
@@ -285,7 +318,7 @@ export default function LiveVoiceChat() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    message: `[LIVE VOICE MODE - Reply in 2-3 short sentences MAX. Be conversational and concise, like a real voice conversation.] ${text}`,
+                    message: `[LIVE VOICE MODE - Aim for ~5 sentences, up to 10 if needed. Be conversational and natural, like a real voice conversation. No lists or formatting.] ${text}`,
                     history: currentHistory.slice(-6),
                     coachId: selectedCoach.id
                 }),
@@ -306,6 +339,7 @@ export default function LiveVoiceChat() {
             let sentenceBuffer = '';
             let buffer = '';
             const sentenceEndRegex = /[.!?]\s/;
+            const clauseBreakRegex = /[,;:\u2014]\s/;
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -338,6 +372,19 @@ export default function LiveVoiceChat() {
                                     sentenceBuffer = sentenceBuffer.slice(match.index + match[0].length);
                                     if (sentence.length > 5) {
                                         enqueueTTSChunk(sentence);
+                                    }
+                                }
+
+                                // Also split on clause boundaries when buffer is long enough
+                                // This reduces time-to-first-audio for longer sentences
+                                if (sentenceBuffer.length > 40) {
+                                    let clauseMatch;
+                                    while ((clauseMatch = clauseBreakRegex.exec(sentenceBuffer)) !== null) {
+                                        const clause = sentenceBuffer.slice(0, clauseMatch.index + 1).trim();
+                                        sentenceBuffer = sentenceBuffer.slice(clauseMatch.index + clauseMatch[0].length);
+                                        if (clause.length > 20) {
+                                            enqueueTTSChunk(clause);
+                                        }
                                     }
                                 }
                             } else if (parsed.error) {

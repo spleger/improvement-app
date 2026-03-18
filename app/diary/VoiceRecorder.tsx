@@ -28,6 +28,7 @@ export default function VoiceRecorder({ onClose, onSaved, autoStart = false }: V
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [moodScore, setMoodScore] = useState(5);
+    const [hasSpeechRecognition, setHasSpeechRecognition] = useState(true);
 
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const recognitionRef = useRef<any>(null);
@@ -49,6 +50,9 @@ export default function VoiceRecorder({ onClose, onSaved, autoStart = false }: V
     useEffect(() => {
         // Initialize Speech Recognition once on mount
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            setHasSpeechRecognition(false);
+        }
         if (SpeechRecognition) {
             const recognition = new SpeechRecognition();
             recognition.continuous = true;
@@ -226,19 +230,27 @@ export default function VoiceRecorder({ onClose, onSaved, autoStart = false }: V
 
         // If SpeechRecognition didn't capture a transcript, use Whisper as fallback
         let finalTranscript = transcript.trim();
-        if (!finalTranscript && chunksRef.current.length > 0) {
+        if ((!finalTranscript || finalTranscript.length === 0) && chunksRef.current.length > 0) {
             try {
                 const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
                 const formData = new FormData();
                 formData.append('file', audioBlob, 'recording.webm');
                 const transRes = await fetch('/api/transcribe', { method: 'POST', body: formData });
                 const transData = await transRes.json();
-                if (transData.data?.text) {
-                    finalTranscript = transData.data.text;
+                if (transData.data?.text && transData.data.text.trim().length > 0) {
+                    finalTranscript = transData.data.text.trim();
+                    setTranscript(finalTranscript);
+                } else if (chunksRef.current.length > 0) {
+                    // Whisper returned empty but audio chunks exist
+                    finalTranscript = 'No speech detected in recording';
                     setTranscript(finalTranscript);
                 }
             } catch (err) {
                 console.error('Whisper transcription fallback failed:', err);
+                if (chunksRef.current.length > 0) {
+                    finalTranscript = 'No speech detected in recording';
+                    setTranscript(finalTranscript);
+                }
             }
         }
 
@@ -325,6 +337,10 @@ export default function VoiceRecorder({ onClose, onSaved, autoStart = false }: V
                                         {transcript}
                                         <span className="interim-text">{interimTranscript}</span>
                                     </>
+                                ) : !hasSpeechRecognition ? (
+                                    <span className="server-transcript-info">
+                                        Transcript will be generated when you save (server-side processing)
+                                    </span>
                                 ) : (
                                     <span className="breathing-text">Start speaking...</span>
                                 )}
@@ -599,6 +615,12 @@ export default function VoiceRecorder({ onClose, onSaved, autoStart = false }: V
 
                     .breathing-text {
                         color: var(--color-text-secondary);
+                    }
+
+                    .server-transcript-info {
+                        color: var(--color-text-muted);
+                        font-size: 0.85rem;
+                        font-style: italic;
                     }
 
                     .record-btn, .stop-btn {

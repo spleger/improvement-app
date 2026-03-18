@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '../ThemeContext';
 
 interface Preferences {
@@ -77,7 +77,10 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [focusInput, setFocusInput] = useState('');
+    const [voiceSaved, setVoiceSaved] = useState(false);
     const { setAccentColor } = useTheme();
+    const initialLoadRef = useRef(true);
+    const voiceSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const updatePref = (key: keyof Preferences, value: any) => {
         setPrefs(prev => ({ ...prev, [key]: value }));
@@ -88,6 +91,40 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
             setAccentColor(value);
         }
     };
+
+    // Auto-save when voiceId changes (skip initial load)
+    useEffect(() => {
+        if (initialLoadRef.current) {
+            initialLoadRef.current = false;
+            return;
+        }
+
+        if (voiceSaveTimeoutRef.current) {
+            clearTimeout(voiceSaveTimeoutRef.current);
+        }
+
+        voiceSaveTimeoutRef.current = setTimeout(async () => {
+            try {
+                const response = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(prefs)
+                });
+                if (response.ok) {
+                    setVoiceSaved(true);
+                    setTimeout(() => setVoiceSaved(false), 2000);
+                }
+            } catch (error) {
+                console.error('Error auto-saving voice selection:', error);
+            }
+        }, 500);
+
+        return () => {
+            if (voiceSaveTimeoutRef.current) {
+                clearTimeout(voiceSaveTimeoutRef.current);
+            }
+        };
+    }, [prefs.voiceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const addFocusArea = () => {
         if (focusInput.trim() && !prefs.focusAreas?.includes(focusInput.trim())) {
@@ -425,7 +462,14 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
 
             {/* AI Voice Selection Section */}
             <section className="card mb-lg">
-                <h2 className="heading-4 mb-md">🎙️ AI Voice</h2>
+                <div className="flex items-center gap-sm mb-md" style={{ justifyContent: 'space-between' }}>
+                    <h2 className="heading-4" style={{ margin: 0 }}>🎙️ AI Voice</h2>
+                    {voiceSaved && (
+                        <span className="text-small" style={{ color: 'var(--color-success)', fontWeight: 600 }}>
+                            Saved
+                        </span>
+                    )}
+                </div>
                 <p className="text-small text-muted mb-md">
                     Choose the voice for audio responses
                 </p>

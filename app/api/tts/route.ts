@@ -32,19 +32,19 @@ export async function POST(request: NextRequest) {
 
         const openai = new OpenAI({ apiKey });
 
-        // Use tts-1 model for low latency, wav format for fastest response times
+        // Use tts-1 model for low latency, opus format for smallest size / fastest transfer
         const audioResponse = await openai.audio.speech.create({
             model: 'tts-1',
             voice: voice as 'alloy' | 'ash' | 'coral' | 'echo' | 'fable' | 'onyx' | 'nova' | 'sage' | 'shimmer',
             input: text,
-            response_format: 'wav',
+            response_format: 'opus',
         });
 
         const buffer = Buffer.from(await audioResponse.arrayBuffer());
 
         return new Response(buffer, {
             headers: {
-                'Content-Type': 'audio/wav',
+                'Content-Type': 'audio/ogg',
                 'Content-Length': buffer.length.toString(),
             },
         });
