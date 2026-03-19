@@ -20,6 +20,7 @@ export function useVAD(options: VADOptions = {}) {
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [volume, setVolume] = useState(0);
     const [error, setError] = useState<string | null>(null);
+    const [isCalibrating, setIsCalibrating] = useState(false);
 
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyserRef = useRef<AnalyserNode | null>(null);
@@ -30,6 +31,13 @@ export function useVAD(options: VADOptions = {}) {
     const speechStartTime = useRef<number | null>(null);
     const silenceStartTime = useRef<number | null>(null);
     const isInternallySpeaking = useRef(false);
+
+    // Adaptive calibration refs
+    const calibratingRef = useRef(true);
+    const calibrationStartRef = useRef<number>(0);
+    const calibrationSamplesRef = useRef<number[]>([]);
+    const effectiveSpeechThresholdRef = useRef(speechThreshold);
+    const effectiveSilenceThresholdRef = useRef(silenceThreshold);
 
     const startVAD = useCallback(async () => {
         try {
@@ -57,6 +65,14 @@ export function useVAD(options: VADOptions = {}) {
             const bufferLength = analyser.frequencyBinCount;
             const dataArray = new Uint8Array(bufferLength);
 
+            // Initialize calibration state
+            calibratingRef.current = true;
+            calibrationStartRef.current = 0;
+            calibrationSamplesRef.current = [];
+            effectiveSpeechThresholdRef.current = speechThreshold;
+            effectiveSilenceThresholdRef.current = silenceThreshold;
+            setIsCalibrating(true);
+
             const analyze = () => {
                 if (!analyserRef.current) return;
 
@@ -73,8 +89,33 @@ export function useVAD(options: VADOptions = {}) {
 
                 const now = Date.now();
 
+                // Calibration phase: collect RMS samples for the first 2000ms
+                if (calibratingRef.current) {
+                    if (calibrationStartRef.current === 0) {
+                        calibrationStartRef.current = now;
+                    }
+
+                    calibrationSamplesRef.current.push(rms);
+
+                    if (now - calibrationStartRef.current >= 2000) {
+                        // Compute noise floor as mean of samples
+                        const samples = calibrationSamplesRef.current;
+                        const noiseFloor = samples.reduce((a, b) => a + b, 0) / samples.length;
+
+                        effectiveSpeechThresholdRef.current = Math.min(Math.max(noiseFloor * 3, 0.015), 0.1);
+                        effectiveSilenceThresholdRef.current = Math.max(noiseFloor * 1.5, 0.008);
+
+                        calibratingRef.current = false;
+                        setIsCalibrating(false);
+                    }
+
+                    frameIdRef.current = requestAnimationFrame(analyze);
+                    return;
+                }
+
+                // Normal VAD phase using effective thresholds
                 if (isInternallySpeaking.current) {
-                    if (rms < silenceThreshold) {
+                    if (rms < effectiveSilenceThresholdRef.current) {
                         if (!silenceStartTime.current) {
                             silenceStartTime.current = now;
                         } else if (now - silenceStartTime.current > endWindow) {
@@ -86,7 +127,7 @@ export function useVAD(options: VADOptions = {}) {
                         silenceStartTime.current = null;
                     }
                 } else {
-                    if (rms > speechThreshold) {
+                    if (rms > effectiveSpeechThresholdRef.current) {
                         if (!speechStartTime.current) {
                             speechStartTime.current = now;
                         } else if (now - speechStartTime.current > startWindow) {
@@ -121,9 +162,18 @@ export function useVAD(options: VADOptions = {}) {
         audioContextRef.current = null;
         analyserRef.current = null;
         sourceRef.current = null;
+
+        // Reset calibration refs
+        calibratingRef.current = true;
+        calibrationStartRef.current = 0;
+        calibrationSamplesRef.current = [];
+        effectiveSpeechThresholdRef.current = speechThreshold;
+        effectiveSilenceThresholdRef.current = silenceThreshold;
+        setIsCalibrating(false);
+
         setIsSpeaking(false);
         setVolume(0);
-    }, []);
+    }, [speechThreshold, silenceThreshold]);
 
     // Restart VAD if stream changes
     useEffect(() => {
@@ -135,5 +185,5 @@ export function useVAD(options: VADOptions = {}) {
         };
     }, [stream, startVAD, stopVAD]);
 
-    return { startVAD, stopVAD, isSpeaking, volume, error };
+    return { startVAD, stopVAD, isSpeaking, volume, error, isCalibrating };
 }

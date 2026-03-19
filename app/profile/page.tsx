@@ -26,8 +26,8 @@ export default async function ProfilePage() {
     // Calculate total days in journey
     const firstGoal = goals[goals.length - 1];
     const daysOnPlatform = firstGoal
-        ? Math.ceil((Date.now() - new Date(firstGoal.createdAt).getTime()) / (1000 * 60 * 60 * 24))
-        : 0;
+        ? Math.max(1, Math.ceil((Date.now() - new Date(firstGoal.createdAt).getTime()) / (1000 * 60 * 60 * 24)))
+        : 1;
 
     const stats = {
         streak,

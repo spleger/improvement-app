@@ -59,6 +59,7 @@ interface ProgressData {
 export default function ProgressPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [data, setData] = useState<ProgressData | null>(null);
+    const [error, setError] = useState<string | null>(null);
     // New state for filters
     const [selectedGoalId, setSelectedGoalId] = useState<string | 'all'>('all');
     const [selectedMetric, setSelectedMetric] = useState<'mood' | 'energy' | 'motivation'>('mood');
@@ -67,6 +68,10 @@ export default function ProgressPage() {
         async function fetchData() {
             try {
                 const res = await fetch('/api/progress');
+                if (!res.ok) {
+                    setError('Failed to load progress data. Please try again.');
+                    return;
+                }
                 const result = await res.json();
                 if (result.success) {
                     setData(result.data);
@@ -79,9 +84,11 @@ export default function ProgressPage() {
                         if (firstActive) setSelectedGoalId(firstActive.id);
                         else setSelectedGoalId(result.data.allGoals[0].id);
                     }
+                } else {
+                    setError(result.error || 'Failed to load progress data.');
                 }
-            } catch (error) {
-                // Error fetching progress data - show empty state
+            } catch {
+                setError('Network error. Please check your connection.');
             } finally {
                 setIsLoading(false);
             }
@@ -329,6 +336,19 @@ export default function ProgressPage() {
 
     return (
         <div className="page animate-fade-in">
+            {error && (
+                <div className="card" style={{
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid var(--color-error)',
+                    color: 'var(--color-error)',
+                    padding: 'var(--spacing-md)',
+                    marginBottom: 'var(--spacing-lg)',
+                    borderRadius: 'var(--radius-md)',
+                    textAlign: 'center'
+                }}>
+                    {error}
+                </div>
+            )}
             {/* Header */}
             <PageHeader
                 icon="📊"

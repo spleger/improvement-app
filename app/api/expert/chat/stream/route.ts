@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
 
         // In live voice mode, constrain responses to be short and conversational
         if (isLiveMode) {
-            systemPrompt += '\n\nCRITICAL: You are in live voice conversation mode. Your responses will be spoken aloud via text-to-speech. Aim for around 5 sentences. You can go up to 10 sentences if the topic genuinely requires depth, but prefer the lower end. Never use lists, bullet points, markdown formatting, or special characters. Respond naturally as if speaking face-to-face.';
+            systemPrompt += '\n\nCRITICAL: You are in live voice conversation mode. Your responses will be spoken aloud via text-to-speech. Keep responses to 2-3 sentences maximum. Be brief and conversational. Never use lists, bullet points, markdown formatting, or special characters. Respond naturally as if speaking face-to-face.';
         }
 
         // Create streaming response
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
                 try {
                     const streamResponse = await anthropic.messages.stream({
                         model: ANTHROPIC_MODEL,
-                        max_tokens: isLiveMode ? 800 : 1000,
+                        max_tokens: isLiveMode ? 300 : 1000,
                         system: systemPrompt,
                         messages: messages
                     });

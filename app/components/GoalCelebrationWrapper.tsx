@@ -54,12 +54,16 @@ export default function GoalCelebrationWrapper({ goals }: { goals: any[] }) {
 
     if (!celebratingGoal) return null;
 
+    const actualDays = Math.ceil(
+        (Date.now() - new Date(celebratingGoal.startedAt).getTime()) / (1000 * 60 * 60 * 24)
+    );
+
     return (
         <GoalCompletionModal
             goal={{
                 ...celebratingGoal,
-                currentDays: 30, // calculated
-                totalDays: 30
+                currentDays: actualDays,
+                totalDays: actualDays
             }}
             onClose={handleClose}
         />

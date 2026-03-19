@@ -73,7 +73,7 @@ export default function GoalCompletionModal({ goal, onClose }: Props) {
                 <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🏆</div>
                 <h2 className="heading-2 mb-sm">Goal Mastered!</h2>
                 <p className="text-body text-secondary mb-lg">
-                    Incredible work! You've completed <strong>30 days</strong> of <br />
+                    Incredible work! You've completed <strong>{goal.totalDays} {goal.totalDays === 1 ? 'day' : 'days'}</strong> of <br />
                     <span style={{
                         color: goal.domain?.color || 'var(--color-primary)',
                         fontWeight: 'bold',

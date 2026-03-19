@@ -74,12 +74,15 @@ export default function LiveVoiceChat() {
     const [activeStream, setActiveStream] = useState<MediaStream | null>(null);
 
     // VAD
-    const { isSpeaking, volume } = useVAD({
+    const { isSpeaking, volume, isCalibrating } = useVAD({
         stream: activeStream,
         speechThreshold: 0.03,
         startWindow: 300,
-        endWindow: 1200
+        endWindow: 800
     });
+
+    // Transcript auto-scroll
+    const transcriptRef = useRef<HTMLDivElement>(null);
 
     // Recording
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -96,6 +99,7 @@ export default function LiveVoiceChat() {
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const [isMuted, setIsMuted] = useState(false);
     const chatAbortControllerRef = useRef<AbortController | null>(null);
+    const bargeInAbortRef = useRef(false);
 
     // Helper to set error
     const setErrorWithType = useCallback((type: ErrorType, customMessage?: string) => {
@@ -104,6 +108,16 @@ export default function LiveVoiceChat() {
         setError(customMessage || title);
         setOrbState('error');
     }, []);
+
+    // Auto-dismiss errors after 3 seconds
+    useEffect(() => {
+        if (orbState !== 'error') return;
+        const timer = setTimeout(() => {
+            setOrbState('idle');
+            setError('');
+        }, 3000);
+        return () => clearTimeout(timer);
+    }, [orbState]);
 
     // Initialization
     useEffect(() => {
@@ -153,17 +167,25 @@ export default function LiveVoiceChat() {
     const prefetchedAudioRef = useRef<{ text: string; blob: Blob } | null>(null);
 
     const fetchTTSAudio = useCallback(async (text: string): Promise<Blob | null> => {
-        try {
-            const response = await fetch('/api/tts', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text })
-            });
-            if (!response.ok) return null;
-            return await response.blob();
-        } catch {
-            return null;
+        const MAX_RETRIES = 2;
+        const DELAYS = [500, 1500];
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                const response = await fetch('/api/tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+                if (response.ok) return await response.blob();
+                if (response.status >= 400 && response.status < 500) return null;
+            } catch {
+                // Network error, will retry
+            }
+            if (attempt < MAX_RETRIES) {
+                await new Promise(resolve => setTimeout(resolve, DELAYS[attempt]));
+            }
         }
+        return null;
     }, []);
 
     const prefetchNext = useCallback(() => {
@@ -318,7 +340,7 @@ export default function LiveVoiceChat() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    message: `[LIVE VOICE MODE - Aim for ~5 sentences, up to 10 if needed. Be conversational and natural, like a real voice conversation. No lists or formatting.] ${text}`,
+                    message: `[LIVE VOICE MODE - 2-3 sentences max. Be brief and conversational, like a real voice conversation. No lists or formatting.] ${text}`,
                     history: currentHistory.slice(-6),
                     coachId: selectedCoach.id
                 }),
@@ -377,13 +399,27 @@ export default function LiveVoiceChat() {
 
                                 // Also split on clause boundaries when buffer is long enough
                                 // This reduces time-to-first-audio for longer sentences
-                                if (sentenceBuffer.length > 40) {
+                                if (sentenceBuffer.length > 25) {
                                     let clauseMatch;
                                     while ((clauseMatch = clauseBreakRegex.exec(sentenceBuffer)) !== null) {
                                         const clause = sentenceBuffer.slice(0, clauseMatch.index + 1).trim();
                                         sentenceBuffer = sentenceBuffer.slice(clauseMatch.index + clauseMatch[0].length);
-                                        if (clause.length > 20) {
+                                        if (clause.length > 12) {
                                             enqueueTTSChunk(clause);
+                                        }
+                                    }
+                                }
+
+                                // Word-count fallback: flush buffer if 6+ words with no punctuation
+                                if (sentenceBuffer.length > 0) {
+                                    const wordCount = sentenceBuffer.trim().split(/\s+/).length;
+                                    if (wordCount >= 6) {
+                                        const words = sentenceBuffer.trim().split(/\s+/);
+                                        const flushText = words.slice(0, 6).join(' ');
+                                        const remaining = words.slice(6).join(' ');
+                                        if (flushText.length > 10) {
+                                            enqueueTTSChunk(flushText);
+                                            sentenceBuffer = remaining ? ' ' + remaining : '';
                                         }
                                     }
                                 }
@@ -412,15 +448,22 @@ export default function LiveVoiceChat() {
             clearTimeout(timeoutId);
             chatAbortControllerRef.current = null;
             if (err instanceof Error && err.name === 'AbortError') {
-                setErrorWithType('chat_timeout', 'Response timed out.');
+                if (bargeInAbortRef.current) {
+                    bargeInAbortRef.current = false;
+                    // Intentional barge-in, don't show error
+                } else {
+                    setErrorWithType('chat_timeout', 'Response timed out.');
+                }
             } else {
                 setErrorWithType('chat_failed', 'Connection failed.');
             }
-            setMessages(prev => prev.map(msg =>
-                msg.id === assistantMessageId
-                    ? { ...msg, content: "Connection error." }
-                    : msg
-            ));
+            if (!bargeInAbortRef.current) {
+                setMessages(prev => prev.map(msg =>
+                    msg.id === assistantMessageId
+                        ? { ...msg, content: "Connection error." }
+                        : msg
+                ));
+            }
         }
     }, [enqueueTTSChunk, selectedCoach.id, setErrorWithType]);
 
@@ -461,7 +504,6 @@ export default function LiveVoiceChat() {
         } catch (e) {
             console.error("Transcription error:", e);
             setErrorWithType('transcription_failed');
-            setTimeout(() => setOrbState('idle'), 3000);
         }
     }, [messages, sendMessage, setErrorWithType]);
 
@@ -469,6 +511,11 @@ export default function LiveVoiceChat() {
         if (!activeStream) return;
         setError('');
         setErrorType('generic');
+        if (chatAbortControllerRef.current) {
+            bargeInAbortRef.current = true;
+            chatAbortControllerRef.current.abort();
+            chatAbortControllerRef.current = null;
+        }
         stopTTSPlayback();
 
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
@@ -490,7 +537,7 @@ export default function LiveVoiceChat() {
 
     // VAD Effect
     useEffect(() => {
-        if (!activeStream || orbState === 'processing' || orbState === 'error') return;
+        if (!activeStream || orbState === 'processing' || orbState === 'error' || isCalibrating) return;
 
         if (isSpeaking) {
             if (orbState === 'idle' || orbState === 'speaking') {
@@ -501,7 +548,7 @@ export default function LiveVoiceChat() {
                 stopRecordingAndSend();
             }
         }
-    }, [isSpeaking, activeStream, orbState, startRecording, stopRecordingAndSend]);
+    }, [isSpeaking, activeStream, orbState, startRecording, stopRecordingAndSend, isCalibrating]);
 
     // Coaches loading
     useEffect(() => {
@@ -577,6 +624,13 @@ export default function LiveVoiceChat() {
         fetchHistory();
     }, [selectedCoach]);
 
+    // Transcript auto-scroll
+    useEffect(() => {
+        if (transcriptRef.current) {
+            transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight;
+        }
+    }, [messages]);
+
     // UI Helpers
     const toggleMute = () => {
         const newMuted = !isMuted;
@@ -631,10 +685,12 @@ export default function LiveVoiceChat() {
             </div>
 
             <div className="orb-container">
-                <div className="orb" style={{
+                <div className={`orb ${orbState === 'processing' ? 'orb-processing' : ''}`} style={{
                     backgroundColor: getOrbColor(),
-                    transform: `scale(${orbScale})`,
-                    boxShadow: `0 0 ${Math.max(20, volume * 100)}px ${getOrbColor()}`
+                    ...(orbState !== 'processing' ? {
+                        transform: `scale(${orbScale})`,
+                        boxShadow: `0 0 ${Math.max(20, volume * 100)}px ${getOrbColor()}`
+                    } : {})
                 }}>
                     {orbState === 'processing' && <Loader2 className="animate-spin" color="white" size={40} />}
                     {orbState === 'idle' && <span className="orb-icon">{selectedCoach.icon}</span>}
@@ -644,7 +700,7 @@ export default function LiveVoiceChat() {
                 </div>
 
                 <h2 className="status-text">
-                    {orbState === 'idle' && "Listening... (Hands-Free)"}
+                    {orbState === 'idle' && (isCalibrating ? "Calibrating microphone..." : "Listening... (Hands-Free)")}
                     {orbState === 'listening' && "I hear you..."}
                     {orbState === 'processing' && "Thinking..."}
                     {orbState === 'speaking' && "Speaking..."}
@@ -652,7 +708,7 @@ export default function LiveVoiceChat() {
                 </h2>
             </div>
 
-            <div className="transcript">
+            <div className="transcript" ref={transcriptRef}>
                 {messages.slice(-2).map(m => (
                     <p key={m.id} className={m.role}>
                         <strong>{m.role === 'user' ? 'You' : selectedCoach.name}:</strong> {m.content}
@@ -750,6 +806,13 @@ export default function LiveVoiceChat() {
                     justify-content: center;
                     transition: transform 0.1s ease-out, background-color 0.3s ease;
                     flex-shrink: 0;
+                }
+                .orb-processing {
+                    animation: pulse-processing 1.5s ease-in-out infinite;
+                }
+                @keyframes pulse-processing {
+                    0%, 100% { box-shadow: 0 0 20px #a855f7; transform: scale(1); }
+                    50% { box-shadow: 0 0 60px #a855f7, 0 0 100px rgba(168, 85, 247, 0.4); transform: scale(1.08); }
                 }
                 .orb-icon { font-size: 3.5rem; }
                 .status-text {
