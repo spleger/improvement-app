@@ -1055,7 +1055,96 @@ export async function getHabitStats(userId: string, days: number = 7) {
     };
 }
 
-// Export pool? NO, we deleted it.
-// If any external file attempts to import 'pool', it will break.
-// I should search for 'import { pool }' usage elsewhere to be safe.
-// But first, let's fix this file.
+// ==================== API USAGE OPERATIONS ====================
+
+export async function getApiUsageTotals(userId: string) {
+    const [total, last7Days] = await Promise.all([
+        prisma.apiUsage.aggregate({
+            where: { userId },
+            _sum: { costCents: true },
+            _count: true,
+        }),
+        prisma.apiUsage.aggregate({
+            where: {
+                userId,
+                createdAt: {
+                    gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+                },
+            },
+            _sum: { costCents: true },
+            _count: true,
+        }),
+    ]);
+
+    return {
+        totalCostCents: total._sum.costCents || 0,
+        totalRequests: total._count,
+        last7DaysCostCents: last7Days._sum.costCents || 0,
+        last7DaysRequests: last7Days._count,
+    };
+}
+
+// ==================== COACH MEMORY OPERATIONS ====================
+
+export async function getCoachMemory(userId: string, coachId: string) {
+    const record = await prisma.coachMemory.findUnique({
+        where: {
+            userId_coachId: { userId, coachId },
+        },
+    });
+
+    if (!record) return null;
+
+    return {
+        ...record,
+        memories: JSON.parse(record.memories),
+    };
+}
+
+export async function upsertCoachMemory(userId: string, coachId: string, memories: any[]) {
+    return await prisma.coachMemory.upsert({
+        where: {
+            userId_coachId: { userId, coachId },
+        },
+        create: {
+            userId,
+            coachId,
+            memories: JSON.stringify(memories),
+        },
+        update: {
+            memories: JSON.stringify(memories),
+        },
+    });
+}
+
+export async function clearConversationMessages(conversationId: string) {
+    return await prisma.conversation.update({
+        where: { id: conversationId },
+        data: {
+            messages: JSON.stringify([]),
+        },
+    });
+}
+
+// ==================== CHALLENGE LOG OPERATIONS ====================
+
+export async function getRecentChallengeLogs(userId: string, limit: number = 20) {
+    const logs = await prisma.challengeLog.findMany({
+        where: {
+            userId,
+        },
+        orderBy: { completedAt: 'desc' },
+        take: limit,
+        include: {
+            challenge: {
+                select: {
+                    title: true,
+                    difficulty: true,
+                    personalizationNotes: true,
+                },
+            },
+        },
+    });
+
+    return logs;
+}

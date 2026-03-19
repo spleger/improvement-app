@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { getCurrentUser } from '@/lib/auth';
 import * as db from '@/lib/db';
+import { logTTSUsage } from '@/lib/ai/costs';
 
 export async function POST(request: NextRequest) {
     try {
@@ -41,6 +42,9 @@ export async function POST(request: NextRequest) {
         });
 
         const buffer = Buffer.from(await audioResponse.arrayBuffer());
+
+        // Log TTS usage
+        logTTSUsage(user.userId, text.length);
 
         return new Response(buffer, {
             headers: {

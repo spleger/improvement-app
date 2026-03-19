@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { ANTHROPIC_MODEL } from '@/lib/anthropic';
+import { logApiUsage } from '@/lib/ai/costs';
 
 const ANTHROPIC_API_KEY_RAW = process.env.ANTHROPIC_API_KEY;
 const ANTHROPIC_API_KEY = ANTHROPIC_API_KEY_RAW?.replace(/^["']|["']$/g, '').trim();
@@ -74,7 +76,7 @@ Output ONLY valid JSON, no markdown, no explanation. Format:
                     'anthropic-version': '2023-06-01'
                 },
                 body: JSON.stringify({
-                    model: 'claude-3-haiku-20240307',
+                    model: ANTHROPIC_MODEL,
                     max_tokens: 1000,
                     system: systemPrompt,
                     messages: [{ role: 'user', content: userMessage }]
@@ -91,6 +93,19 @@ Output ONLY valid JSON, no markdown, no explanation. Format:
             }
 
             const data = await response.json();
+
+            // Log API usage
+            if (data.usage) {
+                logApiUsage({
+                    userId: user.userId,
+                    route: 'habits/interpret',
+                    provider: 'anthropic',
+                    model: ANTHROPIC_MODEL,
+                    inputTokens: data.usage.input_tokens,
+                    outputTokens: data.usage.output_tokens,
+                });
+            }
+
             const aiResponse = data.content[0]?.text || '[]';
 
             // Parse the AI response

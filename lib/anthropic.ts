@@ -1,5 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 
+export const ANTHROPIC_MODEL = 'claude-sonnet-4-6';
+
 let _client: Anthropic | null = null;
 
 export function getAnthropicClient(): Anthropic {

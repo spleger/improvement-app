@@ -1,6 +1,11 @@
 import OpenAI from 'openai';
 import { Goal, Challenge, UserPrefs, Message, ShiftSuggestion, GeneratedChallenge } from './types';
 
+export interface GenerationResult {
+    challenges: GeneratedChallenge[];
+    usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+}
+
 let _openai: OpenAI | null = null;
 
 function getOpenAIClient(): OpenAI {
@@ -20,7 +25,7 @@ export const SYSTEM_PROMPTS = {
     EMPATHETIC: "Be understanding and supportive. Focus on emotional well-being and steady progress."
 };
 
-export async function generateChallenge(userPrefs: UserPrefs, goal: Goal, recentChallenges: Challenge[] = [], focusArea?: string): Promise<GeneratedChallenge> {
+export async function generateChallenge(userPrefs: UserPrefs, goal: Goal, recentChallenges: Challenge[] = [], focusArea?: string, feedbackContext?: string): Promise<GeneratedChallenge> {
     const historyText = recentChallenges.length > 0
         ? recentChallenges.map(c => `- ${c.title} (Difficulty: ${c.difficulty}, Type: ${c.personalizationNotes || 'general'})`).join('\n')
         : 'No recent history.';
@@ -48,7 +53,7 @@ ${focusAreaInstructions}
 
 RECENT COMPLETED CHALLENGES (avoid repeating these types/approaches):
 ${historyText}
-
+${feedbackContext || ''}
 ===== CRITICAL RULES =====
 1. NEVER just rephrase the goal as "start doing X" or "work on Y" - that's lazy and unhelpful
 2. Create a SPECIFIC, MEASURABLE action with concrete steps, numbers, or timeframes
@@ -139,7 +144,8 @@ export async function generateMultipleChallenges(
     userPrefs: UserPrefs,
     goal: Goal | null,
     recentChallenges: Challenge[] = [],
-    focusArea?: string
+    focusArea?: string,
+    feedbackContext?: string
 ): Promise<GeneratedChallenge[]> {
     const clampedCount = Math.min(Math.max(count, 1), 5);
 
@@ -183,7 +189,7 @@ ${focusAreaInstructions}
 
 RECENT COMPLETED CHALLENGES (avoid repeating these types/approaches):
 ${historyText}
-
+${feedbackContext || ''}
 ===== CRITICAL RULES =====
 1. NEVER just rephrase the goal as "start doing X" or "work on Y" - that's lazy and unhelpful
 2. Create ${clampedCount} SPECIFIC, MEASURABLE challenges with concrete steps, numbers, or timeframes
@@ -258,7 +264,7 @@ IMPORTANT:
     const data = JSON.parse(content);
     const challenges = data.challenges || [data]; // Handle both array and single object
 
-    return challenges.map((c: any): GeneratedChallenge => {
+    const result = challenges.map((c: any): GeneratedChallenge => {
         // Parse tips - handle both array and string formats
         let tips: string | null = null;
         if (c.tips) {
@@ -276,6 +282,15 @@ IMPORTANT:
             isRealityShift: c.isRealityShift || false,
         };
     });
+
+    // Attach usage data for cost tracking
+    (result as any).__usage = completion.usage ? {
+        prompt_tokens: completion.usage.prompt_tokens,
+        completion_tokens: completion.usage.completion_tokens,
+        total_tokens: completion.usage.total_tokens,
+    } : undefined;
+
+    return result;
 }
 
 export async function transcribeAudio(audioFile: Blob | File): Promise<string> {

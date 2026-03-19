@@ -18,11 +18,20 @@ jest.mock('@/lib/ai', () => ({
     generateMultipleChallenges: jest.fn(),
 }));
 
+jest.mock('@/lib/ai/costs', () => ({
+    logApiUsage: jest.fn(),
+}));
+
+jest.mock('@/lib/ai/context', () => ({
+    buildChallengeFeedbackContext: jest.fn().mockReturnValue(''),
+}));
+
 jest.mock('@/lib/db', () => ({
     getGoalsByUserId: jest.fn(),
     createChallenge: jest.fn(),
-    getUserPreferences: jest.fn(), // If used
+    getUserPreferences: jest.fn(),
     getRecentCompletedChallenges: jest.fn(),
+    getRecentChallengeLogs: jest.fn(),
 }));
 
 import { getCurrentUser } from '@/lib/auth';
@@ -39,6 +48,7 @@ describe('POST /api/challenges/generate', () => {
         (db.getGoalsByUserId as jest.Mock).mockResolvedValue([mockGoal]);
         (db.createChallenge as jest.Mock).mockImplementation((data) => Promise.resolve({ ...data, id: `challenge-${Date.now()}` }));
         (db.getRecentCompletedChallenges as jest.Mock).mockResolvedValue([]);
+        (db.getRecentChallengeLogs as jest.Mock).mockResolvedValue([]);
         (generateMultipleChallenges as jest.Mock).mockResolvedValue([{
             title: 'Walk 5k',
             description: 'Go for a walk',
@@ -68,7 +78,7 @@ describe('POST /api/challenges/generate', () => {
         expect(res.status).toBe(200);
         expect(data.success).toBe(true);
         // Should call with null goal for general challenges
-        expect(generateMultipleChallenges).toHaveBeenCalledWith(1, expect.anything(), null, [], undefined);
+        expect(generateMultipleChallenges).toHaveBeenCalledWith(1, expect.anything(), null, [], undefined, expect.anything());
     });
 
     it('returns 404 if goal is not found or does not belong to user', async () => {
@@ -94,7 +104,7 @@ describe('POST /api/challenges/generate', () => {
 
         expect(res.status).toBe(200);
         expect(db.getRecentCompletedChallenges).toHaveBeenCalledWith('user-123', 5);
-        expect(generateMultipleChallenges).toHaveBeenCalledWith(1, expect.anything(), expect.anything(), mockHistory, undefined);
+        expect(generateMultipleChallenges).toHaveBeenCalledWith(1, expect.anything(), expect.anything(), mockHistory, undefined, expect.anything());
     });
 
     it('successfully creates a challenge', async () => {
@@ -105,7 +115,7 @@ describe('POST /api/challenges/generate', () => {
 
         expect(res.status).toBe(200);
         expect(data.success).toBe(true);
-        expect(generateMultipleChallenges).toHaveBeenCalledWith(1, expect.anything(), mockGoal, [], undefined);
+        expect(generateMultipleChallenges).toHaveBeenCalledWith(1, expect.anything(), mockGoal, [], undefined, expect.anything());
         expect(db.createChallenge).toHaveBeenCalledWith(expect.objectContaining({
             userId: 'user-123',
             goalId: 'goal-1',
@@ -129,7 +139,7 @@ describe('POST /api/challenges/generate', () => {
         expect(data.success).toBe(true);
         expect(data.data.challenges).toHaveLength(3);
         expect(data.data.context.totalGenerated).toBe(3);
-        expect(generateMultipleChallenges).toHaveBeenCalledWith(3, expect.anything(), mockGoal, [], 'morning routine');
+        expect(generateMultipleChallenges).toHaveBeenCalledWith(3, expect.anything(), mockGoal, [], 'morning routine', expect.anything());
         expect(db.createChallenge).toHaveBeenCalledTimes(3);
     });
 

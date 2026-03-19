@@ -21,6 +21,7 @@ export default async function ProfilePage() {
     const completedChallenges = challenges.filter(c => c.status === 'completed').length;
     const activeGoals = goals.filter(g => g.status === 'active').length;
     const completedGoals = goals.filter(g => g.status === 'completed').length;
+    const apiUsage = await db.getApiUsageTotals(user.userId);
 
     // Calculate total days in journey
     const firstGoal = goals[goals.length - 1];
@@ -72,6 +73,29 @@ export default async function ProfilePage() {
                     <div className="stat-card">
                         <div className="stat-value">{stats.diaryCount}</div>
                         <div className="stat-label">Diary Entries</div>
+                    </div>
+                </div>
+            </section>
+
+            {/* API Usage */}
+            <section className="mb-lg">
+                <h2 className="heading-4 mb-md">AI Usage</h2>
+                <div className="stats-grid">
+                    <div className="stat-card">
+                        <div className="stat-value">${(apiUsage.totalCostCents / 100).toFixed(2)}</div>
+                        <div className="stat-label">Total Cost</div>
+                    </div>
+                    <div className="stat-card">
+                        <div className="stat-value">${(apiUsage.last7DaysCostCents / 100).toFixed(2)}</div>
+                        <div className="stat-label">Last 7 Days</div>
+                    </div>
+                    <div className="stat-card">
+                        <div className="stat-value">{apiUsage.totalRequests}</div>
+                        <div className="stat-label">Total Requests</div>
+                    </div>
+                    <div className="stat-card">
+                        <div className="stat-value">{apiUsage.last7DaysRequests}</div>
+                        <div className="stat-label">7-Day Requests</div>
                     </div>
                 </div>
             </section>

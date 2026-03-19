@@ -2,7 +2,8 @@ import { NextRequest } from 'next/server';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { getUserContext, buildEnhancedSystemPrompt } from '@/lib/ai/context';
-import { getAnthropicClient } from '@/lib/anthropic';
+import { getAnthropicClient, ANTHROPIC_MODEL } from '@/lib/anthropic';
+import { logApiUsage } from '@/lib/ai/costs';
 import { ChatMessageSchema, validateBody } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
@@ -27,8 +28,11 @@ export async function POST(request: NextRequest) {
         }
         const { message, history, coachId } = parsed.data;
 
-        // Get user context (now includes ALL active goals)
+        // Get user context and coach memory
         const context = await getUserContext(user.userId);
+        const targetCoachId = coachId || 'general';
+        const coachMemory = await db.getCoachMemory(user.userId, targetCoachId);
+        const memories = coachMemory?.memories || [];
         let systemPrompt = '';
 
         // Check if using a custom coach
@@ -39,14 +43,14 @@ export async function POST(request: NextRequest) {
             const customCoach = coaches.find((c: any) => c.id === coachId);
 
             if (customCoach) {
-                const basePrompt = buildEnhancedSystemPrompt(context, 'general');
+                const basePrompt = buildEnhancedSystemPrompt(context, 'general', undefined, memories);
                 const promptPrefix = `You are ${customCoach.name}. ${customCoach.systemPrompt}\n\n`;
                 systemPrompt = promptPrefix + basePrompt.replace(/^You are [^,]+,[\s\S]*?\n\n/, '');
             } else {
-                systemPrompt = buildEnhancedSystemPrompt(context, coachId);
+                systemPrompt = buildEnhancedSystemPrompt(context, coachId, undefined, memories);
             }
         } else {
-            systemPrompt = buildEnhancedSystemPrompt(context, coachId);
+            systemPrompt = buildEnhancedSystemPrompt(context, coachId, undefined, memories);
         }
 
         // Build conversation history for Claude
@@ -81,7 +85,7 @@ export async function POST(request: NextRequest) {
             async start(controller) {
                 try {
                     const streamResponse = await anthropic.messages.stream({
-                        model: 'claude-3-haiku-20240307',
+                        model: ANTHROPIC_MODEL,
                         max_tokens: isLiveMode ? 800 : 1000,
                         system: systemPrompt,
                         messages: messages
@@ -96,6 +100,19 @@ export async function POST(request: NextRequest) {
                                 controller.enqueue(encoder.encode(`data: ${data}\n\n`));
                             }
                         }
+                    }
+
+                    // Log API usage
+                    const finalMessage = await streamResponse.finalMessage();
+                    if (finalMessage?.usage) {
+                        logApiUsage({
+                            userId: user.userId,
+                            route: 'expert/chat/stream',
+                            provider: 'anthropic',
+                            model: ANTHROPIC_MODEL,
+                            inputTokens: finalMessage.usage.input_tokens,
+                            outputTokens: finalMessage.usage.output_tokens,
+                        });
                     }
 
                     // Send done signal

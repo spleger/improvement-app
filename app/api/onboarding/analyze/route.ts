@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
+import { ANTHROPIC_MODEL } from '@/lib/anthropic';
+import { logApiUsage } from '@/lib/ai/costs';
 
 const ANTHROPIC_API_KEY_RAW = process.env.ANTHROPIC_API_KEY;
 const ANTHROPIC_API_KEY = ANTHROPIC_API_KEY_RAW?.replace(/^["']|["']$/g, '').trim();
@@ -63,7 +65,7 @@ Based on these responses, generate 5 personalized goal suggestions.
                     'anthropic-version': '2023-06-01'
                 },
                 body: JSON.stringify({
-                    model: 'claude-3-haiku-20240307',
+                    model: ANTHROPIC_MODEL,
                     max_tokens: 2000,
                     system: GOAL_SUGGESTION_PROMPT,
                     messages: [{ role: 'user', content: userMessage }]
@@ -72,11 +74,26 @@ Based on these responses, generate 5 personalized goal suggestions.
 
             if (!response.ok) {
                 const errorData = await response.text();
-                throw new Error(`Claud API error: ${response.status} - ${errorData}`);
+                throw new Error(`Claude API error: ${response.status} - ${errorData}`);
             }
 
             const data = await response.json();
             const responseText = data.content[0]?.text || '';
+
+            // Log API usage (best-effort -- no auth required for onboarding)
+            try {
+                const authUser = await getCurrentUser();
+                if (authUser && data.usage) {
+                    logApiUsage({
+                        userId: authUser.userId,
+                        route: 'onboarding/analyze',
+                        provider: 'anthropic',
+                        model: ANTHROPIC_MODEL,
+                        inputTokens: data.usage.input_tokens,
+                        outputTokens: data.usage.output_tokens,
+                    });
+                }
+            } catch { /* ignore auth errors during onboarding */ }
 
             // Parse the JSON response
             let suggestions;

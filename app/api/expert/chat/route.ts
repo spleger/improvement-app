@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { getUserContext, buildEnhancedSystemPrompt } from '@/lib/ai/context';
-import { getAnthropicClient } from '@/lib/anthropic';
+import { getAnthropicClient, ANTHROPIC_MODEL } from '@/lib/anthropic';
+import { logApiUsage } from '@/lib/ai/costs';
 import { ChatMessageSchema, validateBody } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
@@ -21,31 +22,29 @@ export async function POST(request: NextRequest) {
         }
         const { message, history, coachId } = parsed.data;
 
-        // Get user context
+        // Get user context and coach memory
         const context = await getUserContext(user.userId);
+        const targetCoachIdForMemory = coachId || 'general';
+        const coachMemory = await db.getCoachMemory(user.userId, targetCoachIdForMemory);
+        const memories = coachMemory?.memories || [];
         let systemPrompt = '';
 
-        // Check if using a custom coach (ID usually starts with random chars, unlike 'general', 'health')
-        // We'll query DB for custom coach if ID is not in standard list
+        // Check if using a custom coach
         const standardCoachIds = ['general', 'languages', 'mobility', 'emotional', 'relationships', 'health', 'tolerance', 'skills', 'habits'];
 
         if (coachId && !standardCoachIds.includes(coachId)) {
-            // It's likely a custom coach ID - fetch from database
             const coaches = await db.getCustomCoachesByUserId(user.userId);
             const customCoach = coaches.find((c: any) => c.id === coachId);
 
             if (customCoach) {
-                // Build base prompt with enhanced personalization and daily focus
-                const basePrompt = buildEnhancedSystemPrompt(context, 'general');
-                // Inject custom coach role at the beginning
+                const basePrompt = buildEnhancedSystemPrompt(context, 'general', undefined, memories);
                 const promptPrefix = `You are ${customCoach.name}. ${customCoach.systemPrompt}\n\n`;
-                // Replace the default role description with custom coach identity
                 systemPrompt = promptPrefix + basePrompt.replace(/^You are [^,]+,[\s\S]*?\n\n/, '');
             } else {
-                systemPrompt = buildEnhancedSystemPrompt(context, coachId);
+                systemPrompt = buildEnhancedSystemPrompt(context, coachId, undefined, memories);
             }
         } else {
-            systemPrompt = buildEnhancedSystemPrompt(context, coachId);
+            systemPrompt = buildEnhancedSystemPrompt(context, coachId, undefined, memories);
         }
 
         // Build conversation history for Claude
@@ -94,11 +93,23 @@ export async function POST(request: NextRequest) {
             // Call Claude API
             const anthropic = getAnthropicClient();
             const response = await anthropic.messages.create({
-                model: 'claude-3-haiku-20240307',
+                model: ANTHROPIC_MODEL,
                 max_tokens: 1000,
                 system: systemPrompt,
                 messages: messages as any[]
             });
+
+            // Log API usage
+            if (response.usage) {
+                logApiUsage({
+                    userId: user.userId,
+                    route: 'expert/chat',
+                    provider: 'anthropic',
+                    model: ANTHROPIC_MODEL,
+                    inputTokens: response.usage.input_tokens,
+                    outputTokens: response.usage.output_tokens,
+                });
+            }
 
             // Extract text from response
             const textContent = response.content.find(block => block.type === 'text');

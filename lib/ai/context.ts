@@ -189,17 +189,19 @@ The user has enabled "Tough Love" mode. This means:
 // ==================== SYSTEM PROMPT BUILDING ====================
 
 /**
- * Build an enhanced system prompt with daily focus and personalization.
+ * Build an enhanced system prompt with coaching methodology, memory, and personalization.
  *
  * @param context - User context from getUserContext()
  * @param coachId - Optional coach specialization ID
  * @param dailyFocus - Optional daily focus theme (defaults to today's)
+ * @param coachMemories - Optional array of coach memory entries
  * @returns Complete system prompt string
  */
 export function buildEnhancedSystemPrompt(
     context: UserContext | null,
     coachId?: string,
-    dailyFocus?: FocusTheme
+    dailyFocus?: FocusTheme,
+    coachMemories?: any[]
 ): string {
     // Get daily focus if not provided
     const focus = dailyFocus || getDailyFocus();
@@ -213,34 +215,35 @@ export function buildEnhancedSystemPrompt(
     };
 
     const aiName = getAIName(personalization);
+    const userName = context?.preferences?.displayName || 'there';
 
     // Build role description based on coach ID
-    let roleDescription = `You are ${aiName}, a Transformation Coach - an expert in habit formation, goal achievement, and personal development.`;
+    let roleDescription = `You are ${aiName}, a personal development coach specializing in habit formation, goal achievement, and holistic transformation.`;
 
     switch (coachId) {
         case 'languages':
-            roleDescription = `You are ${aiName}, a Language Learning Expert and Polyglot Coach. You focus on immersion strategies, overcoming speaking anxiety, and consistent practice.`;
+            roleDescription = `You are ${aiName}, a Language Learning Expert and Polyglot Coach specializing in immersion strategies, overcoming speaking anxiety, and building consistent practice habits.`;
             break;
         case 'mobility':
-            roleDescription = `You are ${aiName}, a Mobility and Movement Coach. You focus on flexibility, joint health, and building a body that moves without pain.`;
+            roleDescription = `You are ${aiName}, a Mobility and Movement Coach specializing in flexibility, joint health, pain-free movement, and sustainable physical practices.`;
             break;
         case 'emotional':
-            roleDescription = `You are ${aiName}, an Emotional Intelligence Coach. You focus on emotional regulation, self-awareness, and building resilience.`;
+            roleDescription = `You are ${aiName}, an Emotional Intelligence Coach specializing in emotional regulation, self-awareness, cognitive reframing, and building resilience.`;
             break;
         case 'relationships':
-            roleDescription = `You are ${aiName}, a Relationship and Communication Coach. You focus on empathy, active listening, and building deeper connections.`;
+            roleDescription = `You are ${aiName}, a Relationship and Communication Coach specializing in empathy, active listening, conflict resolution, and building deeper connections.`;
             break;
         case 'health':
-            roleDescription = `You are ${aiName}, a Health and Vitality Coach. You focus on sustainable fitness, nutrition habits, and physical energy.`;
+            roleDescription = `You are ${aiName}, a Health and Vitality Coach specializing in sustainable fitness, nutrition habits, sleep optimization, and physical energy.`;
             break;
         case 'tolerance':
-            roleDescription = `You are ${aiName}, a Resilience and Tolerance Coach. You focus on getting comfortable with discomfort, stoicism, and mental toughness.`;
+            roleDescription = `You are ${aiName}, a Resilience and Tolerance Coach specializing in embracing discomfort, stoic practices, cold exposure, and mental toughness training.`;
             break;
         case 'skills':
-            roleDescription = `You are ${aiName}, a Skill Acquisition Expert. You focus on deliberate practice, the 80/20 rule of learning, and overcoming plateaus.`;
+            roleDescription = `You are ${aiName}, a Skill Acquisition Expert specializing in deliberate practice, the 80/20 rule of learning, plateau-breaking, and mastery paths.`;
             break;
         case 'habits':
-            roleDescription = `You are ${aiName}, a Habit Formation Expert. You focus on cue-routine-reward loops, environment design, and small atomic habits.`;
+            roleDescription = `You are ${aiName}, a Habit Formation Expert specializing in cue-routine-reward loops, environment design, atomic habits, and identity-based change.`;
             break;
     }
 
@@ -248,182 +251,220 @@ export function buildEnhancedSystemPrompt(
     const toneDescription = getToneDescription(personalization.tonePreference);
     const rudeModeInstructions = getRudeModeInstructions(personalization.rudeMode);
 
-    // Build base prompt
+    // Build the prompt
     let prompt = `${roleDescription}
 
+== COACHING METHODOLOGY ==
+You practice motivational interviewing and Socratic coaching:
+- Ask questions before giving answers. Help the user discover their own solutions.
+- Reflect the user's own words back to them to show you're listening.
+- Celebrate SPECIFIC progress ("You completed 3 challenges this week" not "Great job!").
+- Match the user's energy level. Brief questions get brief answers. Deep sharing gets thoughtful responses.
+- One clear question or suggestion per message. Don't overwhelm with multiple asks.
+- If the user seems frustrated or stuck, acknowledge the emotion before problem-solving.
+
+== THINGS TO NEVER DO ==
+- Do not lecture or give unsolicited multi-paragraph advice
+- Do not say "That's great!" or "Well done!" without naming what specifically is great
+- Do not list generic tips the user could find on a search engine
+- Do not assume you know how the user feels -- ask instead
+- Do not repeat the same advice if the user hasn't acted on it previously
+- Do not ignore what the user said to push your own agenda or today's focus theme
+- Do not use excessive formatting (keep markdown minimal, prefer natural prose)
+
+== CONVERSATIONAL STYLE ==
 ${toneDescription}
-
-Your role is to help users:
-- Stay motivated on their 30-day transformation journeys
-- Build consistent habits
-- Overcome challenges and setbacks
-- Process emotions around change
-- Celebrate wins (big and small)
-
-IMPORTANT: Stay STRICTLY within your domain of expertise (${coachId || 'General'}). If the user asks about something totally unrelated, gently guide them to the General Coach or the appropriate specialist.
-
-=== TODAY'S FOCUS: ${focus.name.toUpperCase()} ===
-${focus.prompt}
-Naturally weave this theme into your responses where relevant. Don't force it, but let it guide your coaching today.
-=====================================
+- Use ${userName}'s name occasionally, not every message
+- Keep responses to 2-4 paragraphs max unless depth is genuinely needed
+- End with a single focused question or actionable next step when appropriate
 ${rudeModeInstructions}
-=== INTERACTIVE WIDGETS PROTOCOL ===
-You can trigger interactive widgets in the chat to help the user take action.
-To use a widget, output a JSON block formatted exactly like this on a separate line:
+== TODAY'S FOCUS: ${focus.name.toUpperCase()} ==
+${focus.prompt}
+Weave this theme in naturally when relevant. Never force it.
+
+== INTERACTIVE WIDGETS ==
+Trigger widgets for actionable items. Output on a separate line:
 <<<{"type": "WIDGET_TYPE", "payload": { ... }}>>>
 
-Supported Widgets:
-1. Suggest Challenge (Use when user asks for a challenge or needs something to do)
-   <<<{"type": "suggest_challenge", "payload": {"title": "Challenge Title", "difficulty": 5, "isRealityShift": false}}>>>
-
-2. Log Mood (Use when user mentions feeling a certain way or you want to check in)
-   <<<{"type": "log_mood", "payload": {}}>>>
-
-3. Create Goal (Use when user wants to start a new journey or has no active goal)
-   <<<{"type": "create_goal", "payload": {"title": "Suggested Goal Title", "domainId": 1}}>>>
-=====================================
-
-Guidelines:
-- Keep responses concise (2-4 paragraphs max)
-- Use specific, actionable advice
-- Reference their ACTUAL goals and progress when relevant
-- Be empathetic but also gently push users out of comfort zones
-- Use occasional emojis to be warm but not excessive
-- Ask follow-up questions to understand their situation better
+Available:
+1. <<<{"type": "suggest_challenge", "payload": {"title": "...", "difficulty": 5, "isRealityShift": false}}>>>
+2. <<<{"type": "log_mood", "payload": {}}>>>
+3. <<<{"type": "create_goal", "payload": {"title": "...", "domainId": 1}}>>>
+Only use widgets when contextually relevant, not proactively.
 `;
+
+    // Add coach memory if available
+    if (coachMemories && coachMemories.length > 0) {
+        prompt += `\n== COACH MEMORY (from previous conversations) ==\n`;
+        prompt += `You remember these insights from past sessions with ${userName}:\n`;
+        coachMemories.slice(-10).forEach((m: any) => {
+            prompt += `- [${m.type}] ${m.content}\n`;
+        });
+        prompt += `Use these naturally. Reference past insights when relevant. Don't list them back to the user.\n`;
+    }
 
     // Add user context if available
     if (context) {
-        prompt += `\n=== USER'S CURRENT CONTEXT ===\n`;
-
-        if (context.preferences?.displayName) {
-            prompt += `User's Name: ${context.preferences.displayName}\n`;
-        }
-
+        prompt += `\n== USER PROFILE ==\n`;
+        prompt += `Name: ${userName}\n`;
+        prompt += `Day on platform: ${context.dayInJourney}\n`;
+        prompt += `Current streak: ${context.streak} days\n`;
+        prompt += `Challenges completed: ${context.completedChallengesCount} of ${context.totalChallenges}\n`;
+        if (context.avgMood) prompt += `Average mood (7 days): ${context.avgMood}/10\n`;
         if (context.preferences?.preferredDifficulty) {
-            prompt += `User's Preferred Difficulty: ${context.preferences.preferredDifficulty}/10\n`;
-        }
-
-        if (context.allActiveGoals && context.allActiveGoals.length > 0) {
-            prompt += `\n📎 ALL ACTIVE GOALS (${context.allActiveGoals.length}):\n`;
-            context.allActiveGoals.forEach((goal: any, index: number) => {
-                const dayInJourney = Math.ceil((Date.now() - new Date(goal.startedAt).getTime()) / (1000 * 60 * 60 * 24));
-                prompt += `\n${index + 1}. "${goal.title}"`;
-                prompt += `\n   - Domain: ${goal.domain?.name || 'General'}`;
-                prompt += `\n   - Day ${dayInJourney} of 30-day journey`;
-                prompt += `\n   - Current state: "${goal.currentState || 'Not specified'}"`;
-                prompt += `\n   - Desired state: "${goal.desiredState || 'Not specified'}"`;
-                prompt += `\n   - Difficulty preference: ${goal.difficultyLevel}/10`;
-                prompt += `\n   - Reality Shift mode: ${goal.realityShiftEnabled ? 'ON' : 'OFF'}`;
-            });
-            prompt += `\n\nPrimary goal (most recent): "${context.activeGoal?.title || context.allActiveGoals[0].title}"\n`;
-            prompt += `(Reference ALL goals when relevant. The user is working on multiple areas simultaneously.)\n`;
-        } else {
-            prompt += `\n-- User has no active goal set yet. Encourage them to set one using the create_goal widget!\n`;
+            prompt += `Preferred difficulty: ${context.preferences.preferredDifficulty}/10\n`;
         }
 
         if (context.onboardingAnswers) {
-            prompt += `\nUSER BACKGROUND (from onboarding):\n`;
+            prompt += `\n== USER BACKGROUND ==\n`;
             if (context.onboardingAnswers.motivation) {
-                prompt += `- Motivation: "${context.onboardingAnswers.motivation}"\n`;
+                prompt += `Motivation: "${context.onboardingAnswers.motivation}"\n`;
             }
             if (context.onboardingAnswers.currentSituation) {
-                prompt += `- Starting point: "${context.onboardingAnswers.currentSituation}"\n`;
+                prompt += `Starting point: "${context.onboardingAnswers.currentSituation}"\n`;
             }
             if (context.onboardingAnswers.biggestChallenge) {
-                prompt += `- Biggest challenge: "${context.onboardingAnswers.biggestChallenge}"\n`;
+                prompt += `Biggest challenge: "${context.onboardingAnswers.biggestChallenge}"\n`;
             }
-            prompt += `(Use this background to personalize your coaching. Reference their motivation when encouraging them.)\n`;
         }
 
-        prompt += `\n📊 PROGRESS:
-- Current streak: ${context.streak} days
-- Challenges completed: ${context.completedChallengesCount}
-- Total challenges attempted: ${context.totalChallenges}
-${context.avgMood ? `- Average mood (last 7 days): ${context.avgMood}/10` : ''}
-`;
+        if (context.allActiveGoals && context.allActiveGoals.length > 0) {
+            prompt += `\n== ACTIVE GOALS (${context.allActiveGoals.length}) ==\n`;
+            context.allActiveGoals.forEach((goal: any, index: number) => {
+                const dayInJourney = Math.ceil((Date.now() - new Date(goal.startedAt).getTime()) / (1000 * 60 * 60 * 24));
+                prompt += `${index + 1}. "${goal.title}" (${goal.domain?.name || 'General'}, Day ${dayInJourney}/30)\n`;
+                prompt += `   From: "${goal.currentState || 'Not specified'}" -> To: "${goal.desiredState || 'Not specified'}"\n`;
+            });
+            prompt += `Primary: "${context.activeGoal?.title || context.allActiveGoals[0].title}"\n`;
+        } else {
+            prompt += `\nNo active goals. Encourage setting one using the create_goal widget.\n`;
+        }
+
+        // Recent 3 days of context (not all-time)
+        prompt += `\n== RECENT CONTEXT (last 3 days) ==\n`;
 
         if (context.todayChallenge) {
-            prompt += `\n🎯 TODAY'S CHALLENGE:
-- "${context.todayChallenge.title}"
-- Difficulty: ${context.todayChallenge.difficulty}/10
-- Status: ${context.todayChallenge.status}
-${context.todayChallenge.description ? `- Description: ${context.todayChallenge.description}` : ''}
-`;
+            prompt += `Today's challenge: "${context.todayChallenge.title}" (${context.todayChallenge.status}, difficulty ${context.todayChallenge.difficulty}/10)\n`;
         }
 
         if (context.recentChallenges && context.recentChallenges.length > 0) {
-            prompt += `\n📋 RECENT CHALLENGES:\n`;
+            prompt += `Recent challenges:\n`;
             context.recentChallenges.slice(0, 3).forEach((c: any) => {
                 prompt += `- "${c.title}" (${c.status}, difficulty ${c.difficulty}/10)\n`;
             });
         }
 
-        if (context.recentDiary && context.recentDiary.length > 0) {
-            prompt += `\n🎙️ RECENT DIARY ENTRIES (Full Context):\n`;
-            context.recentDiary.slice(0, 3).forEach((e: any) => {
-                const date = new Date(e.createdAt).toLocaleDateString();
-                let insights = '';
-                let title = 'Untitled Entry';
-                try {
-                    const parsed = JSON.parse(e.aiInsights || '{}');
-                    if (parsed.title) title = parsed.title;
-                    if (parsed.sentiment) insights += `Sentiment: ${parsed.sentiment}. `;
-                    if (parsed.distortions?.length) insights += `Distortions: ${parsed.distortions.join(', ')}. `;
-                } catch {
-                    // Ignore JSON parse errors
-                }
-
-                // Include transcript excerpt (first 500 chars) for real context
-                const transcriptExcerpt = e.transcript
-                    ? (e.transcript.length > 500 ? e.transcript.substring(0, 500) + '...' : e.transcript)
-                    : 'No transcript';
-
-                prompt += `- [${date}] "${title}":\n`;
-                prompt += `  Summary: ${e.aiSummary || 'No AI summary'}\n`;
-                prompt += `  ${insights}\n`;
-                prompt += `  Transcript: "${transcriptExcerpt}"\n\n`;
-            });
-            prompt += `(Use these diary insights to be deeply empathetic. Reference what they actually said.)\n`;
-        }
-
         if (context.recentSurveys && context.recentSurveys.length > 0) {
-            prompt += `\n📊 RECENT CHECK-INS (Daily Wellness):\n`;
+            prompt += `Recent check-ins:\n`;
             context.recentSurveys.slice(0, 3).forEach((s: any) => {
                 const date = new Date(s.surveyDate).toLocaleDateString();
                 prompt += `- [${date}] Energy: ${s.energyLevel}/10, Motivation: ${s.motivationLevel}/10, Mood: ${s.overallMood}/10\n`;
                 if (s.biggestWin) prompt += `  Win: "${s.biggestWin}"\n`;
                 if (s.biggestBlocker) prompt += `  Blocker: "${s.biggestBlocker}"\n`;
             });
-            prompt += `(Reference these when discussing their recent state. If energy was low, be understanding.)\n`;
         }
 
-        // Habit tracking context
-        if (context.habitStats && context.habitStats.totalHabits > 0) {
-            prompt += `\n✅ HABIT TRACKING:\n`;
-            prompt += `Active Habits (${context.habitStats.totalHabits}):\n`;
+        if (context.recentDiary && context.recentDiary.length > 0) {
+            prompt += `Recent diary entries:\n`;
+            context.recentDiary.slice(0, 2).forEach((e: any) => {
+                const date = new Date(e.createdAt).toLocaleDateString();
+                let title = 'Untitled';
+                try {
+                    const parsed = JSON.parse(e.aiInsights || '{}');
+                    if (parsed.title) title = parsed.title;
+                } catch { /* ignore */ }
+                const excerpt = e.transcript
+                    ? (e.transcript.length > 300 ? e.transcript.substring(0, 300) + '...' : e.transcript)
+                    : '';
+                prompt += `- [${date}] "${title}": ${e.aiSummary || excerpt}\n`;
+            });
+        }
 
+        if (context.habitStats && context.habitStats.totalHabits > 0) {
+            prompt += `Habits (${context.habitStats.completedToday}/${context.habitStats.totalHabits} today, ${context.habitStats.weeklyCompletionRate}% weekly):\n`;
             context.habitStats.habits.forEach((h: any) => {
                 const todayLog = context.todayHabitLogs?.find((l: any) => l.habitId === h.id);
-                const status = todayLog?.completed ? '✓ Done' : '○ Pending';
-                const streakText = h.streak > 0 ? ` - ${h.streak} day streak 🔥` : '';
-                prompt += `- "${h.name}" (${h.icon}) [${status}]${streakText}\n`;
-                if (todayLog?.notes) {
-                    prompt += `  Note: "${todayLog.notes}"\n`;
-                }
+                const status = todayLog?.completed ? 'done' : 'pending';
+                const streakText = h.streak > 0 ? ` (${h.streak}-day streak)` : '';
+                prompt += `- "${h.name}" [${status}]${streakText}\n`;
             });
-
-            prompt += `\nToday's Progress: ${context.habitStats.completedToday}/${context.habitStats.totalHabits}\n`;
-            prompt += `Weekly Completion Rate: ${context.habitStats.weeklyCompletionRate}%\n`;
-            prompt += `(Reference habits when discussing consistency. Celebrate streaks! If they're missing habits, gently encourage.)\n`;
         }
-
-        prompt += `\n=== END OF CONTEXT ===\n`;
     }
 
-    prompt += `\nRemember to reference this context naturally when relevant. For example, if they mention struggling, relate it to their specific goal or challenge. Celebrate their streak if it's going well!`;
-
     return prompt;
+}
+
+/**
+ * Build challenge feedback context from recent challenge logs.
+ * Used to make challenge generation smarter by learning from past performance.
+ *
+ * @param logs - Recent challenge logs with challenge data
+ * @returns Formatted feedback string for the generation prompt, or empty string
+ */
+export function buildChallengeFeedbackContext(logs: any[]): string {
+    if (!logs || logs.length === 0) return '';
+
+    const withDifficulty = logs.filter((l: any) => l.difficultyFelt != null);
+    const withSatisfaction = logs.filter((l: any) => l.satisfaction != null);
+
+    if (withDifficulty.length === 0 && withSatisfaction.length === 0) return '';
+
+    let feedback = '\n== USER CHALLENGE FEEDBACK ==\n';
+
+    if (withDifficulty.length > 0) {
+        const avgFelt = withDifficulty.reduce((sum: number, l: any) => sum + l.difficultyFelt, 0) / withDifficulty.length;
+        const avgAssigned = withDifficulty
+            .filter((l: any) => l.challenge?.difficulty != null)
+            .reduce((sum: number, l: any, _: number, arr: any[]) => sum + l.challenge.difficulty / arr.length, 0);
+
+        feedback += `Perceived difficulty: ${avgFelt.toFixed(1)}/10 (assigned avg: ${avgAssigned.toFixed(1)}/10)\n`;
+
+        if (avgFelt > avgAssigned + 1.5) {
+            feedback += `-> Challenges feel HARDER than rated. Consider slightly lower difficulty.\n`;
+        } else if (avgFelt < avgAssigned - 1.5) {
+            feedback += `-> Challenges feel EASIER than rated. Can increase difficulty.\n`;
+        }
+    }
+
+    if (withSatisfaction.length > 0) {
+        const avgSat = withSatisfaction.reduce((sum: number, l: any) => sum + l.satisfaction, 0) / withSatisfaction.length;
+        feedback += `Average enjoyment: ${avgSat.toFixed(1)}/10\n`;
+
+        // Find high and low satisfaction challenge types
+        const typeScores: Record<string, { total: number; count: number }> = {};
+        withSatisfaction.forEach((l: any) => {
+            const type = l.challenge?.personalizationNotes || 'unknown';
+            if (!typeScores[type]) typeScores[type] = { total: 0, count: 0 };
+            typeScores[type].total += l.satisfaction;
+            typeScores[type].count += 1;
+        });
+
+        const typeAvgs = Object.entries(typeScores)
+            .map(([type, data]) => ({ type, avg: data.total / data.count }))
+            .filter(t => t.type !== 'unknown')
+            .sort((a, b) => b.avg - a.avg);
+
+        if (typeAvgs.length > 0) {
+            const best = typeAvgs[0];
+            feedback += `Highest enjoyment type: ${best.type} (${best.avg.toFixed(1)}/10)\n`;
+            if (typeAvgs.length > 1) {
+                const worst = typeAvgs[typeAvgs.length - 1];
+                feedback += `Lowest enjoyment type: ${worst.type} (${worst.avg.toFixed(1)}/10)\n`;
+            }
+        }
+    }
+
+    // Include recent notes for qualitative feedback
+    const recentNotes = logs
+        .filter((l: any) => l.notes && l.notes.trim().length > 0)
+        .slice(0, 3)
+        .map((l: any) => `"${l.notes.trim().substring(0, 100)}"`);
+
+    if (recentNotes.length > 0) {
+        feedback += `Recent user notes: ${recentNotes.join(', ')}\n`;
+    }
+
+    return feedback;
 }
 
 /**

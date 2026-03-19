@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import * as db from '@/lib/db';
@@ -6,6 +5,8 @@ import { getCurrentUser } from '@/lib/auth';
 import { generateMultipleChallenges } from '@/lib/ai';
 import { UserPrefs } from '@/lib/types';
 import { ChallengeGenerateSchema, validateBody } from '@/lib/validation';
+import { logApiUsage } from '@/lib/ai/costs';
+import { buildChallengeFeedbackContext } from '@/lib/ai/context';
 
 export async function POST(request: NextRequest) {
     try {
@@ -45,17 +46,33 @@ export async function POST(request: NextRequest) {
             aiPersonality: (dbPrefs?.aiPersonality as UserPrefs['aiPersonality']) || 'empathetic',
         };
 
-        // 3. Fetch Recent History
+        // 3. Fetch Recent History + Challenge Feedback
         const recentChallenges = await db.getRecentCompletedChallenges(user.userId, 5);
+        const challengeLogs = await db.getRecentChallengeLogs(user.userId, 20);
+        const feedbackContext = buildChallengeFeedbackContext(challengeLogs);
 
-        // 4. Generate Multiple Challenges via AI
+        // 4. Generate Multiple Challenges via AI (with feedback context)
         const challengeDataList = await generateMultipleChallenges(
             clampedCount,
             userPrefs,
             goal ? (goal as any) : null,
             recentChallenges as any,
-            focusArea?.trim() || undefined
+            focusArea?.trim() || undefined,
+            feedbackContext
         );
+
+        // Log OpenAI usage for challenge generation
+        const usage = (challengeDataList as any).__usage;
+        if (usage) {
+            logApiUsage({
+                userId: user.userId,
+                route: 'challenges/generate',
+                provider: 'openai',
+                model: 'gpt-4o',
+                inputTokens: usage.prompt_tokens,
+                outputTokens: usage.completion_tokens,
+            });
+        }
 
         // 5. Save all challenges to DB
         const now = new Date();

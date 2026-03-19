@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { DiaryCreateSchema, validateBody } from '@/lib/validation';
+import { ANTHROPIC_MODEL } from '@/lib/anthropic';
+import { logApiUsage } from '@/lib/ai/costs';
 
 // POST /api/diary - Create diary entry
 export async function POST(request: NextRequest) {
@@ -33,7 +35,7 @@ export async function POST(request: NextRequest) {
                         'anthropic-version': '2023-06-01'
                     },
                     body: JSON.stringify({
-                        model: 'claude-3-haiku-20240307',
+                        model: ANTHROPIC_MODEL,
                         max_tokens: 400,
                         system: `You are an expert psychological analyst. Analyze the user's diary entry.
                         Return a JSON object with:
@@ -51,6 +53,19 @@ export async function POST(request: NextRequest) {
                 if (response.ok) {
                     const data = await response.json();
                     const content = data.content[0].text;
+
+                    // Log API usage
+                    if (data.usage) {
+                        logApiUsage({
+                            userId: user.userId,
+                            route: 'diary',
+                            provider: 'anthropic',
+                            model: ANTHROPIC_MODEL,
+                            inputTokens: data.usage.input_tokens,
+                            outputTokens: data.usage.output_tokens,
+                        });
+                    }
+
                     // Simple JSON extraction in case of preamble
                     const jsonMatch = content.match(/\{[\s\S]*\}/);
                     if (jsonMatch) {

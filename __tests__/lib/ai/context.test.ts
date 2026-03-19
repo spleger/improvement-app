@@ -355,10 +355,10 @@ describe('AI Context Module', () => {
             const prompt = buildEnhancedSystemPrompt(null);
 
             expect(prompt).toContain('Coach');
-            expect(prompt).toContain('Transformation Coach');
+            expect(prompt).toContain('personal development coach');
             expect(prompt).toContain('TODAY\'S FOCUS');
             expect(prompt).toContain('DISCIPLINE'); // Name is uppercased in the prompt
-            expect(prompt).not.toContain('USER\'S CURRENT CONTEXT');
+            expect(prompt).not.toContain('USER PROFILE');
         });
 
         it('includes daily focus in prompt', () => {
@@ -521,9 +521,9 @@ describe('AI Context Module', () => {
 
             const prompt = buildEnhancedSystemPrompt(context);
 
-            expect(prompt).toContain('USER\'S CURRENT CONTEXT');
+            expect(prompt).toContain('USER PROFILE');
             expect(prompt).toContain('Learn Spanish');
-            expect(prompt).toContain('ALL ACTIVE GOALS');
+            expect(prompt).toContain('ACTIVE GOALS');
             expect(prompt).toContain('Current streak: 7 days');
             expect(prompt).toContain('Challenges completed: 10');
             expect(prompt).toContain('Practice verbs');
@@ -551,7 +551,7 @@ describe('AI Context Module', () => {
 
             const prompt = buildEnhancedSystemPrompt(context);
 
-            expect(prompt).toContain('User has no active goal set yet');
+            expect(prompt).toContain('No active goals');
             expect(prompt).toContain('create_goal widget');
         });
 

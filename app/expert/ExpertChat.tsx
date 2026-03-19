@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown, Plus, Trash2, MoreHorizontal, Mic, Volume2, VolumeX, Loader2, Radio } from 'lucide-react';
+import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown, Plus, Trash2, MoreHorizontal, Mic, Volume2, VolumeX, Loader2, Radio, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
 import { getIcon } from '@/lib/icons';
 import ChallengeProposal from './widgets/ChallengeProposal';
@@ -73,6 +73,10 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
     const [isMuted, setIsMuted] = useState(false);
     const [isPlayingAudio, setIsPlayingAudio] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    // Conversation Reset State
+    const [showResetConfirm, setShowResetConfirm] = useState(false);
+    const [isResetting, setIsResetting] = useState(false);
 
     // Save selected coach to localStorage when it changes (skip initial render)
     const isInitialMount = useRef(true);
@@ -603,6 +607,27 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
         }
     };
 
+    // Reset conversation with memory extraction
+    const handleResetConversation = async () => {
+        if (isResetting) return;
+        setIsResetting(true);
+        try {
+            const response = await fetch('/api/expert/conversation/reset', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ coachId: selectedCoach.id }),
+            });
+            if (response.ok) {
+                setMessages([]);
+                setShowResetConfirm(false);
+            }
+        } catch (error) {
+            console.error('Failed to reset conversation:', error);
+        } finally {
+            setIsResetting(false);
+        }
+    };
+
     // Group coaches
     const defaultCoaches = coaches.filter(c => c.type === 'default');
     const goalCoaches = coaches.filter(c => c.type === 'goal');
@@ -633,6 +658,15 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
                     </button>
                     <button
                         type="button"
+                        onClick={() => setShowResetConfirm(true)}
+                        className="audio-toggle-btn"
+                        title="Reset conversation"
+                        disabled={messages.length === 0 || isResetting}
+                    >
+                        <RotateCcw size={18} className={isResetting ? 'spin-icon' : ''} />
+                    </button>
+                    <button
+                        type="button"
                         onClick={toggleMute}
                         className={`audio-toggle-btn ${isMuted ? 'muted' : ''} ${isPlayingAudio ? 'playing' : ''}`}
                         title={isMuted ? 'Unmute AI voice' : 'Mute AI voice'}
@@ -640,6 +674,44 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
                         {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
                     </button>
                 </div>
+
+                {/* Reset Confirmation */}
+                {showResetConfirm && (
+                    <div className="reset-confirm-bar">
+                        <span>Clear chat? Key insights will be remembered.</span>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                                onClick={handleResetConversation}
+                                disabled={isResetting}
+                                style={{
+                                    padding: '4px 12px',
+                                    borderRadius: '8px',
+                                    border: 'none',
+                                    background: 'var(--color-error, #ef4444)',
+                                    color: 'white',
+                                    fontSize: '0.75rem',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                {isResetting ? 'Resetting...' : 'Reset'}
+                            </button>
+                            <button
+                                onClick={() => setShowResetConfirm(false)}
+                                style={{
+                                    padding: '4px 12px',
+                                    borderRadius: '8px',
+                                    border: '1px solid var(--color-border)',
+                                    background: 'transparent',
+                                    color: 'var(--color-text-secondary)',
+                                    fontSize: '0.75rem',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {showCoachSelector && (
                     <div className="coach-dropdown custom-scrollbar">
@@ -860,7 +932,24 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
                 .header-row {
                     display: flex;
                     align-items: center;
-                    gap: 12px;
+                    gap: 8px;
+                }
+
+                .reset-confirm-bar {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    padding: 8px 16px;
+                    background: var(--color-surface-2);
+                    border-top: 1px solid var(--color-border);
+                    font-size: 0.75rem;
+                    color: var(--color-text-secondary);
+                    animation: slideDown 0.15s ease-out;
+                }
+
+                @keyframes slideDown {
+                    from { opacity: 0; transform: translateY(-4px); }
+                    to { opacity: 1; transform: translateY(0); }
                 }
 
                 .audio-toggle-btn {

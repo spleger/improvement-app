@@ -2,7 +2,8 @@ import { NextRequest } from 'next/server';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { getUserContext } from '@/lib/ai/context';
-import { getAnthropicClient } from '@/lib/anthropic';
+import { getAnthropicClient, ANTHROPIC_MODEL } from '@/lib/anthropic';
+import { logApiUsage } from '@/lib/ai/costs';
 
 // Interview stages following the spec framework
 type InterviewStage = 'mood' | 'goals' | 'challenges' | 'habits' | 'general' | 'open';
@@ -222,7 +223,7 @@ export async function POST(request: NextRequest) {
             async start(controller) {
                 try {
                     const streamResponse = await anthropic.messages.stream({
-                        model: 'claude-3-haiku-20240307',
+                        model: ANTHROPIC_MODEL,
                         max_tokens: 500,
                         system: systemPrompt,
                         messages: messages
@@ -237,6 +238,19 @@ export async function POST(request: NextRequest) {
                                 controller.enqueue(encoder.encode(`data: ${data}\n\n`));
                             }
                         }
+                    }
+
+                    // Log API usage
+                    const finalMessage = await streamResponse.finalMessage();
+                    if (finalMessage?.usage) {
+                        logApiUsage({
+                            userId: user.userId,
+                            route: 'interview',
+                            provider: 'anthropic',
+                            model: ANTHROPIC_MODEL,
+                            inputTokens: finalMessage.usage.input_tokens,
+                            outputTokens: finalMessage.usage.output_tokens,
+                        });
                     }
 
                     // Send done signal

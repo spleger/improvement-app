@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI, { APIConnectionTimeoutError } from 'openai';
 import { getCurrentUser } from '@/lib/auth';
+import { logWhisperUsage } from '@/lib/ai/costs';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +40,11 @@ export async function POST(request: NextRequest) {
             file: file,
             model: 'whisper-1',
         });
+
+        // Log Whisper usage (estimate ~10 seconds if no duration info available)
+        const fileSizeMB = file.size / (1024 * 1024);
+        const estimatedDurationSec = Math.max(fileSizeMB * 60, 5); // rough estimate from file size
+        logWhisperUsage(user.userId, estimatedDurationSec);
 
         // Handle empty transcription
         if (!transcription.text || transcription.text.trim().length === 0) {

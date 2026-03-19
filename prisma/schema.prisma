@@ -36,6 +36,8 @@ model User {
   preferences       UserPreferences?
   customCoaches     CustomCoach[]
   habits            Habit[]
+  apiUsage          ApiUsage[]
+  coachMemories     CoachMemory[]
 }
 
 // ==================== GOALS ====================
@@ -292,6 +294,41 @@ model CustomCoach {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+}
+
+// ==================== API USAGE TRACKING ====================
+
+model ApiUsage {
+  id           String   @id @default(cuid())
+  userId       String
+  route        String   // e.g. "expert/chat/stream", "diary", "tts"
+  provider     String   // "anthropic" or "openai"
+  model        String   // "claude-sonnet-4-6", "gpt-4o", "tts-1", "whisper-1"
+  inputTokens  Int?
+  outputTokens Int?
+  costCents    Float    // cost in cents (e.g. 0.45 = $0.0045)
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, createdAt])
+}
+
+// ==================== COACH MEMORY ====================
+
+model CoachMemory {
+  id        String   @id @default(cuid())
+  userId    String
+  coachId   String   // "general", "health", goal ID, custom coach ID
+  memories  String   @db.Text // JSON array of memory entries
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, coachId])
   @@index([userId])
 }
 
