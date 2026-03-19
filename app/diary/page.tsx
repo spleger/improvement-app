@@ -60,7 +60,7 @@ export default function DiaryPage() {
     };
 
     return (
-        <div className="page" style={{ paddingBottom: '100px' }}>
+        <div className="page">
             <PageHeader
                 icon="📝"
                 title="Voice Diary"

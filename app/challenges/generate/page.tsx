@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -26,13 +26,15 @@ function ChallengeGeneratorContent() {
     const [focusArea, setFocusArea] = useState('');
     const [contextInfo, setContextInfo] = useState<{ day: number; adaptedDifficulty: number } | null>(null);
     const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
+    const [streamProgress, setStreamProgress] = useState<string | null>(null);
+    const abortControllerRef = useRef<AbortController | null>(null);
 
-    // Auto-redirect countdown after successful generation
+    // Auto-redirect countdown after generation completes (not during streaming)
     useEffect(() => {
-        if (challenges.length > 0 && redirectCountdown === null) {
+        if (!generating && challenges.length > 0 && redirectCountdown === null) {
             setRedirectCountdown(5);
         }
-    }, [challenges.length]);
+    }, [challenges.length, generating]);
 
     useEffect(() => {
         if (redirectCountdown !== null && redirectCountdown > 0) {
@@ -50,32 +52,103 @@ function ChallengeGeneratorContent() {
         setGenerating(true);
         setError(null);
         setChallenges([]);
+        setStreamProgress(null);
+        setRedirectCountdown(null);
+
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
 
         try {
             const response = await fetch('/api/challenges/generate', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'text/event-stream',
+                },
                 body: JSON.stringify({
                     goalId,
                     count,
                     focusArea: focusArea.trim() || undefined
-                })
+                }),
+                signal: controller.signal,
             });
 
-            const data = await response.json();
+            if (!response.ok) {
+                const data = await response.json();
+                setError(data.error || 'Failed to generate challenges');
+                setGenerating(false);
+                return;
+            }
 
-            if (data.success) {
-                setChallenges(data.data.challenges);
-                if (data.data.context) {
-                    setContextInfo(data.data.context);
+            const contentType = response.headers.get('Content-Type') || '';
+
+            if (contentType.includes('text/event-stream') && response.body) {
+                // SSE streaming path
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let receivedCount = 0;
+
+                setStreamProgress(`Generating challenge 1 of ${count}...`);
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+
+                    // Parse SSE events from buffer
+                    const lines = buffer.split('\n\n');
+                    // Keep the last incomplete chunk in the buffer
+                    buffer = lines.pop() || '';
+
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (!trimmed.startsWith('data: ')) continue;
+
+                        try {
+                            const payload = JSON.parse(trimmed.slice(6));
+
+                            if (payload.type === 'challenge') {
+                                receivedCount++;
+                                setChallenges(prev => [...prev, payload.data]);
+                                if (receivedCount < count) {
+                                    setStreamProgress(`Generating challenge ${receivedCount + 1} of ${count}...`);
+                                } else {
+                                    setStreamProgress(null);
+                                }
+                            } else if (payload.type === 'done') {
+                                if (payload.context) {
+                                    setContextInfo(payload.context);
+                                }
+                                setStreamProgress(null);
+                            } else if (payload.type === 'error') {
+                                setError(payload.error || 'Failed to generate challenges');
+                            }
+                        } catch {
+                            // Skip malformed JSON lines
+                        }
+                    }
                 }
             } else {
-                setError(data.error || 'Failed to generate challenges');
+                // Fallback: JSON response (for non-streaming responses)
+                const data = await response.json();
+                if (data.success) {
+                    setChallenges(data.data.challenges);
+                    if (data.data.context) {
+                        setContextInfo(data.data.context);
+                    }
+                } else {
+                    setError(data.error || 'Failed to generate challenges');
+                }
             }
-        } catch (err) {
-            setError('Network error. Please try again.');
+        } catch (err: any) {
+            if (err.name !== 'AbortError') {
+                setError('Network error. Please try again.');
+            }
         } finally {
             setGenerating(false);
+            abortControllerRef.current = null;
         }
     };
 
@@ -92,7 +165,7 @@ function ChallengeGeneratorContent() {
             </Link>
 
             <div className="page-header">
-                <h1 className="heading-2">🤖 AI Challenge Generator</h1>
+                <h1 className="heading-2">AI Challenge Generator</h1>
                 <p className="text-secondary">
                     The AI creates personalized challenges based on your goals, progress, and learning patterns
                 </p>
@@ -141,27 +214,28 @@ function ChallengeGeneratorContent() {
                         className="btn btn-success w-full"
                         style={{ padding: '1rem', fontSize: '1.125rem' }}
                     >
-                        🧠 Generate with AI
+                        Generate with AI
                     </button>
                 </div>
             )}
 
-            {/* Loading State */}
-            {generating && (
+            {/* Loading State (shown while streaming, before any challenges arrive) */}
+            {generating && challenges.length === 0 && (
                 <div className="card text-center" style={{ padding: '3rem' }}>
-                    <div style={{ fontSize: '3rem', marginBottom: '1rem', animation: 'pulse 1.5s infinite' }}>
-                        🧠
+                    <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>
+                        <span className="animate-pulse" style={{ display: 'inline-block' }}>...</span>
                     </div>
-                    <h3 className="heading-4 mb-md">AI is analyzing your journey...</h3>
+                    <h3 className="heading-4 mb-md">AI is analyzing your journey</h3>
                     <p className="text-muted">
-                        Creating personalized challenges based on your goals, progress, and learning patterns
+                        {streamProgress || 'Creating personalized challenges based on your goals, progress, and learning patterns'}
                     </p>
-                    <div className="flex flex-col gap-sm mt-lg text-left" style={{ maxWidth: '300px', margin: '1rem auto 0' }}>
-                        <div className="text-small text-muted">✓ Analyzing your goal and progress</div>
-                        <div className="text-small text-muted">✓ Reviewing past challenge feedback</div>
-                        <div className="text-small text-muted">✓ Adapting difficulty to your level</div>
-                        <div className="text-small text-muted animate-pulse">⏳ Crafting unique challenges...</div>
-                    </div>
+                </div>
+            )}
+
+            {/* Streaming progress indicator (shown alongside challenges as they arrive) */}
+            {generating && challenges.length > 0 && streamProgress && (
+                <div className="card mb-md text-center" style={{ padding: '1rem' }}>
+                    <p className="text-secondary animate-pulse">{streamProgress}</p>
                 </div>
             )}
 
@@ -175,16 +249,16 @@ function ChallengeGeneratorContent() {
                 </div>
             )}
 
-            {/* Generated Challenges */}
+            {/* Generated Challenges (shown incrementally as they stream in) */}
             {challenges.length > 0 && (
                 <div>
                     <div className="flex items-center justify-between mb-md">
                         <h2 className="heading-4">
-                            ✨ {challenges.length} Challenge{challenges.length > 1 ? 's' : ''} Created!
+                            {challenges.length} Challenge{challenges.length > 1 ? 's' : ''} Created{generating ? '...' : '!'}
                         </h2>
                         {contextInfo && (
                             <span className="text-small text-muted">
-                                Day {contextInfo.day} • Adapted to your level
+                                Day {contextInfo.day} -- Adapted to your level
                             </span>
                         )}
                     </div>
@@ -194,8 +268,12 @@ function ChallengeGeneratorContent() {
                             <Link
                                 key={challenge.id}
                                 href={`/challenges/${challenge.id}`}
-                                className={`card ${challenge.isRealityShift ? 'reality-shift' : ''}`}
-                                style={{ textDecoration: 'none' }}
+                                className={`card ${challenge.isRealityShift ? 'reality-shift' : ''} animate-fade-in`}
+                                style={{
+                                    textDecoration: 'none',
+                                    animationDelay: `${index * 100}ms`,
+                                    animationFillMode: 'both',
+                                }}
                             >
                                 <div className="flex items-start gap-md">
                                     <div style={{
@@ -217,35 +295,38 @@ function ChallengeGeneratorContent() {
                                         <div className="flex items-center gap-sm mb-xs">
                                             <span className="heading-5">{challenge.title}</span>
                                             {challenge.isRealityShift && (
-                                                <span style={{ color: '#f12711', fontSize: '0.875rem' }}>⚡ Reality Shift</span>
+                                                <span style={{ color: '#f12711', fontSize: '0.875rem' }}>Reality Shift</span>
                                             )}
                                         </div>
                                         <p className="text-secondary">{challenge.description}</p>
                                     </div>
-                                    <span style={{ fontSize: '1.5rem', opacity: 0.5 }}>→</span>
+                                    <span style={{ fontSize: '1.5rem', opacity: 0.5 }}>&rarr;</span>
                                 </div>
                             </Link>
                         ))}
                     </div>
 
-                    <div className="flex gap-md">
-                        <button
-                            onClick={() => { setChallenges([]); setContextInfo(null); setRedirectCountdown(null); }}
-                            className="btn btn-secondary"
-                        >
-                            Generate More
-                        </button>
-                        <Link href="/" onClick={() => router.refresh()} className="btn btn-primary" style={{ flex: 1 }}>
-                            Go to Dashboard {redirectCountdown !== null && redirectCountdown > 0 ? `(${redirectCountdown}s)` : ''}
-                        </Link>
-                    </div>
+                    {/* Action buttons only shown after generation completes */}
+                    {!generating && (
+                        <div className="flex gap-md">
+                            <button
+                                onClick={() => { setChallenges([]); setContextInfo(null); setRedirectCountdown(null); }}
+                                className="btn btn-secondary"
+                            >
+                                Generate More
+                            </button>
+                            <Link href="/" onClick={() => router.refresh()} className="btn btn-primary" style={{ flex: 1 }}>
+                                Go to Dashboard {redirectCountdown !== null && redirectCountdown > 0 ? `(${redirectCountdown}s)` : ''}
+                            </Link>
+                        </div>
+                    )}
                 </div>
             )}
 
             {/* How it works */}
             {!generating && challenges.length === 0 && (
                 <div className="card card-surface mt-lg">
-                    <h3 className="heading-5 mb-md">🔬 How AI Generation Works</h3>
+                    <h3 className="heading-5 mb-md">How AI Generation Works</h3>
                     <ul className="text-small text-secondary" style={{ paddingLeft: '1.25rem', lineHeight: 1.8 }}>
                         <li>Analyzes your <strong>goal</strong> and where you are in your 30-day journey</li>
                         <li>Reviews your <strong>past challenges</strong> and how difficult they felt</li>
@@ -257,12 +338,6 @@ function ChallengeGeneratorContent() {
                 </div>
             )}
 
-            <style jsx>{`
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.1); opacity: 0.7; }
-        }
-      `}</style>
         </div>
     );
 }

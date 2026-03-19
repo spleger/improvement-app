@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '../ThemeContext';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 interface Preferences {
     displayName?: string;
@@ -81,6 +82,8 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
     const { setAccentColor } = useTheme();
     const initialLoadRef = useRef(true);
     const voiceSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const push = usePushNotifications();
+    const { isSupported: pushSupported, permission: pushPermission } = push;
 
     const updatePref = (key: keyof Preferences, value: any) => {
         setPrefs(prev => ({ ...prev, [key]: value }));
@@ -522,13 +525,28 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                     <label className="flex items-center gap-md" style={{ cursor: 'pointer', justifyContent: 'space-between' }}>
                         <div style={{ flex: 1 }}>
                             <div className="heading-5">Daily Reminders</div>
-                            <div className="text-small text-muted">Get reminded about your challenges</div>
+                            <div className="text-small text-muted">
+                                {!pushSupported
+                                    ? 'Push notifications are not supported in this browser'
+                                    : pushPermission === 'denied'
+                                        ? 'Notifications blocked -- reset in browser settings'
+                                        : 'Get reminded about your challenges'}
+                            </div>
                         </div>
                         <div className="toggle-switch">
                             <input
                                 type="checkbox"
                                 checked={prefs.notificationsEnabled}
-                                onChange={e => updatePref('notificationsEnabled', e.target.checked)}
+                                disabled={!pushSupported || pushPermission === 'denied'}
+                                onChange={async (e) => {
+                                    const enabled = e.target.checked;
+                                    updatePref('notificationsEnabled', enabled);
+                                    if (enabled) {
+                                        await push.subscribe();
+                                    } else {
+                                        await push.unsubscribe();
+                                    }
+                                }}
                             />
                             <span className="toggle-slider"></span>
                         </div>

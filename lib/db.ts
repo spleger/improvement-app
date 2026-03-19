@@ -1148,3 +1148,423 @@ export async function getRecentChallengeLogs(userId: string, limit: number = 20)
 
     return logs;
 }
+
+// ==================== ACCOUNTABILITY PARTNER OPERATIONS ====================
+
+export async function createPartnerInvite(userId: string, inviteCode: string) {
+    // Create with partnerId = userId as a placeholder (self-referencing).
+    // On accept, partnerId will be updated to the accepting user's ID.
+    return await prisma.accountabilityPartner.create({
+        data: {
+            userId,
+            partnerId: userId, // placeholder until accepted
+            status: 'invited',
+            inviteCode,
+        },
+    });
+}
+
+export async function getPartnerInviteByCode(inviteCode: string) {
+    return await prisma.accountabilityPartner.findUnique({
+        where: { inviteCode },
+        include: {
+            user: { select: { id: true, displayName: true, email: true } },
+        },
+    });
+}
+
+export async function acceptPartnerInvite(inviteId: string, partnerId: string) {
+    return await prisma.accountabilityPartner.update({
+        where: { id: inviteId },
+        data: {
+            partnerId,
+            status: 'active',
+            acceptedAt: new Date(),
+        },
+    });
+}
+
+export async function getPartnersByUserId(userId: string) {
+    // Find all active partnerships in both directions
+    const partnerships = await prisma.accountabilityPartner.findMany({
+        where: {
+            status: 'active',
+            OR: [
+                { userId },
+                { partnerId: userId },
+            ],
+        },
+        include: {
+            user: { select: { id: true, displayName: true, email: true } },
+            partner: { select: { id: true, displayName: true, email: true } },
+        },
+        orderBy: { acceptedAt: 'desc' },
+    });
+
+    // For each partnership, resolve the "other" user
+    return partnerships.map(p => {
+        const isInviter = p.userId === userId;
+        const otherUser = isInviter ? p.partner : p.user;
+        return {
+            id: p.id,
+            partnerUserId: otherUser.id,
+            displayName: otherUser.displayName || otherUser.email,
+            acceptedAt: p.acceptedAt,
+        };
+    });
+}
+
+export async function removePartnership(partnershipId: string, userId: string) {
+    // Verify the user is part of this partnership before deleting
+    const partnership = await prisma.accountabilityPartner.findFirst({
+        where: {
+            id: partnershipId,
+            OR: [
+                { userId },
+                { partnerId: userId },
+            ],
+        },
+    });
+
+    if (!partnership) return null;
+
+    return await prisma.accountabilityPartner.delete({
+        where: { id: partnershipId },
+    });
+}
+
+export async function getPartnerStats(userId: string) {
+    // Current streak
+    const streak = await calculateStreak(userId);
+
+    // Challenges completed this week
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    weekStart.setHours(0, 0, 0, 0);
+
+    const weekChallenges = await prisma.challenge.count({
+        where: {
+            userId,
+            status: 'completed',
+            completedAt: { gte: weekStart },
+        },
+    });
+
+    // Active goal titles
+    const activeGoals = await prisma.goal.findMany({
+        where: { userId, status: 'active' },
+        select: { title: true },
+    });
+
+    // Habit completion rate this week
+    const habits = await getHabitsByUserId(userId);
+    const weekDays = Math.min(new Date().getDay() + 1, 7);
+    const totalPossible = habits.length * weekDays;
+
+    let habitRate = 0;
+    if (totalPossible > 0) {
+        const logs = await prisma.habitLog.findMany({
+            where: {
+                habit: { userId },
+                logDate: { gte: weekStart },
+                completed: true,
+            },
+        });
+        habitRate = Math.round((logs.length / totalPossible) * 100);
+    }
+
+    return {
+        streak,
+        weekChallenges,
+        activeGoals: activeGoals.map(g => g.title),
+        habitRate,
+    };
+}
+
+export async function isActivePartner(userId: string, targetUserId: string): Promise<boolean> {
+    const partnership = await prisma.accountabilityPartner.findFirst({
+        where: {
+            status: 'active',
+            OR: [
+                { userId, partnerId: targetUserId },
+                { userId: targetUserId, partnerId: userId },
+            ],
+        },
+    });
+    return !!partnership;
+}
+
+// ==================== PUSH SUBSCRIPTION OPERATIONS ====================
+
+export async function savePushSubscription(
+    userId: string,
+    endpoint: string,
+    p256dh: string,
+    auth: string
+) {
+    return await prisma.pushSubscription.upsert({
+        where: {
+            userId_endpoint: { userId, endpoint },
+        },
+        create: {
+            userId,
+            endpoint,
+            p256dh,
+            auth,
+        },
+        update: {
+            p256dh,
+            auth,
+        },
+    });
+}
+
+export async function removePushSubscription(userId: string, endpoint: string) {
+    return await prisma.pushSubscription.deleteMany({
+        where: { userId, endpoint },
+    });
+}
+
+export async function getPushSubscriptionsByUserId(userId: string) {
+    return await prisma.pushSubscription.findMany({
+        where: { userId },
+    });
+}
+
+// ==================== MILESTONE OPERATIONS ====================
+
+export async function getMilestonesByUserId(userId: string) {
+    return await prisma.milestone.findMany({
+        where: { userId },
+        orderBy: { achievedAt: 'desc' },
+    });
+}
+
+export async function getUncelebratedMilestones(userId: string) {
+    return await prisma.milestone.findMany({
+        where: { userId, celebrated: false },
+        orderBy: { achievedAt: 'desc' },
+    });
+}
+
+export async function createMilestone(data: {
+    userId: string;
+    goalId: string | null;
+    type: string;
+    title: string;
+    description?: string;
+}): Promise<any | null> {
+    // Check if milestone already exists (manual check because PostgreSQL
+    // treats NULL != NULL in unique constraints, so the @@unique constraint
+    // does not prevent duplicate global milestones with goalId=null).
+    const existing = await prisma.milestone.findFirst({
+        where: {
+            userId: data.userId,
+            goalId: data.goalId,
+            type: data.type,
+        },
+    });
+
+    if (existing) return null;
+
+    return await prisma.milestone.create({
+        data: {
+            userId: data.userId,
+            goalId: data.goalId,
+            type: data.type,
+            title: data.title,
+            description: data.description,
+        },
+    });
+}
+
+export async function markMilestoneCelebrated(milestoneId: string) {
+    return await prisma.milestone.update({
+        where: { id: milestoneId },
+        data: { celebrated: true },
+    });
+}
+
+// ==================== WEEKLY DIGEST OPERATIONS ====================
+
+export async function getWeeklyDigest(userId: string, weekStartDate: Date) {
+    return await prisma.weeklyDigest.findUnique({
+        where: {
+            userId_weekStartDate: { userId, weekStartDate },
+        },
+    });
+}
+
+export async function createWeeklyDigest(data: {
+    userId: string;
+    weekStartDate: Date;
+    weekEndDate: Date;
+    rawData: string;
+    aiSummary: string;
+    topAchievement?: string;
+    focusArea?: string;
+    suggestion?: string;
+}) {
+    return await prisma.weeklyDigest.create({
+        data: {
+            userId: data.userId,
+            weekStartDate: data.weekStartDate,
+            weekEndDate: data.weekEndDate,
+            rawData: data.rawData,
+            aiSummary: data.aiSummary,
+            topAchievement: data.topAchievement,
+            focusArea: data.focusArea,
+            suggestion: data.suggestion,
+        },
+    });
+}
+
+export async function getWeeklyDigestData(userId: string, startDate: Date, endDate: Date) {
+    const [
+        challenges,
+        surveys,
+        diaryEntries,
+        habits,
+        activeGoals,
+        streak,
+        challengeLogs,
+    ] = await Promise.all([
+        prisma.challenge.findMany({
+            where: {
+                userId,
+                scheduledDate: { gte: startDate, lt: endDate },
+            },
+            select: { status: true },
+        }),
+        prisma.dailySurvey.findMany({
+            where: {
+                userId,
+                surveyDate: { gte: startDate, lt: endDate },
+            },
+            select: {
+                overallMood: true,
+                energyLevel: true,
+                motivationLevel: true,
+            },
+        }),
+        prisma.diaryEntry.findMany({
+            where: {
+                userId,
+                createdAt: { gte: startDate, lt: endDate },
+            },
+            select: { keyThemes: true },
+        }),
+        prisma.habit.findMany({
+            where: { userId, isActive: true },
+            include: {
+                logs: {
+                    where: {
+                        logDate: { gte: startDate, lt: endDate },
+                    },
+                },
+            },
+        }),
+        prisma.goal.findMany({
+            where: { userId, status: 'active' },
+            select: { title: true },
+        }),
+        calculateStreak(userId),
+        prisma.challengeLog.findMany({
+            where: {
+                userId,
+                completedAt: { gte: startDate, lt: endDate },
+            },
+            select: { difficultyFelt: true, satisfaction: true },
+        }),
+    ]);
+
+    const challengesCompleted = challenges.filter(c => c.status === 'completed').length;
+    const challengesSkipped = challenges.filter(c => c.status === 'skipped').length;
+
+    const avgMood = surveys.length > 0
+        ? surveys.reduce((sum, s) => sum + s.overallMood, 0) / surveys.length
+        : null;
+    const avgEnergy = surveys.length > 0
+        ? surveys.reduce((sum, s) => sum + s.energyLevel, 0) / surveys.length
+        : null;
+    const avgMotivation = surveys.length > 0
+        ? surveys.reduce((sum, s) => sum + s.motivationLevel, 0) / surveys.length
+        : null;
+
+    let moodTrend: 'improving' | 'declining' | 'stable' = 'stable';
+    if (surveys.length >= 4) {
+        const mid = Math.floor(surveys.length / 2);
+        const firstHalfAvg = surveys.slice(0, mid).reduce((s, v) => s + v.overallMood, 0) / mid;
+        const secondHalfAvg = surveys.slice(mid).reduce((s, v) => s + v.overallMood, 0) / (surveys.length - mid);
+        if (secondHalfAvg - firstHalfAvg > 0.5) moodTrend = 'improving';
+        else if (firstHalfAvg - secondHalfAvg > 0.5) moodTrend = 'declining';
+    }
+
+    const allThemes: string[] = [];
+    for (const entry of diaryEntries) {
+        if (entry.keyThemes) {
+            try {
+                const parsed = JSON.parse(entry.keyThemes);
+                if (Array.isArray(parsed)) allThemes.push(...parsed);
+            } catch { /* ignore parse errors */ }
+        }
+    }
+    const themeCounts: Record<string, number> = {};
+    for (const theme of allThemes) {
+        themeCounts[theme] = (themeCounts[theme] || 0) + 1;
+    }
+    const commonThemes = Object.entries(themeCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([theme]) => theme);
+
+    const completedLogs = habits.reduce(
+        (sum, h) => sum + h.logs.filter(l => l.completed).length,
+        0,
+    );
+    const daySpan = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    const totalExpected = habits.length * daySpan;
+    const habitCompletionRate = totalExpected > 0
+        ? Math.round((completedLogs / totalExpected) * 100)
+        : 0;
+
+    let bestHabit: string | null = null;
+    let worstHabit: string | null = null;
+    if (habits.length > 0) {
+        const habitRates = habits.map(h => ({
+            name: h.name,
+            rate: daySpan > 0 ? h.logs.filter(l => l.completed).length / daySpan : 0,
+        }));
+        habitRates.sort((a, b) => b.rate - a.rate);
+        bestHabit = habitRates[0]?.name || null;
+        worstHabit = habitRates[habitRates.length - 1]?.name || null;
+        if (worstHabit === bestHabit) worstHabit = null;
+    }
+
+    const logsWithDifficulty = challengeLogs.filter(l => l.difficultyFelt !== null);
+    const logsWithSatisfaction = challengeLogs.filter(l => l.satisfaction !== null);
+    const avgDifficulty = logsWithDifficulty.length > 0
+        ? logsWithDifficulty.reduce((sum, l) => sum + (l.difficultyFelt ?? 0), 0) / logsWithDifficulty.length
+        : null;
+    const avgSatisfaction = logsWithSatisfaction.length > 0
+        ? logsWithSatisfaction.reduce((sum, l) => sum + (l.satisfaction ?? 0), 0) / logsWithSatisfaction.length
+        : null;
+
+    return {
+        challengesCompleted,
+        challengesSkipped,
+        avgDifficulty: avgDifficulty !== null ? Math.round(avgDifficulty * 10) / 10 : null,
+        avgSatisfaction: avgSatisfaction !== null ? Math.round(avgSatisfaction * 10) / 10 : null,
+        avgMood: avgMood !== null ? Math.round(avgMood * 10) / 10 : null,
+        avgEnergy: avgEnergy !== null ? Math.round(avgEnergy * 10) / 10 : null,
+        avgMotivation: avgMotivation !== null ? Math.round(avgMotivation * 10) / 10 : null,
+        moodTrend,
+        diaryCount: diaryEntries.length,
+        commonThemes,
+        habitCompletionRate,
+        bestHabit,
+        worstHabit,
+        activeGoalTitles: activeGoals.map(g => g.title),
+        streak,
+    };
+}

@@ -329,7 +329,7 @@ export default function HabitsPage() {
 
             <style jsx>{`
                 .habits-page {
-                    padding-bottom: 100px;
+                    padding-bottom: calc(var(--spacing-xl) + 80px + env(safe-area-inset-bottom));
                 }
 
                 .habits-summary {

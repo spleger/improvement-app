@@ -12,13 +12,13 @@ export async function GET() {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Fetch all data in parallel for performance
+        // Fetch all data in parallel - each call is resilient to individual failures
         const [challenges, surveys, activeGoal, allGoals, streak] = await Promise.all([
-            db.getChallengesByUserId(user.userId, { limit: 30 }),
-            db.getSurveysByUserId(user.userId, 30),
-            db.getActiveGoalByUserId(user.userId),
-            db.getGoalsByUserId(user.userId),
-            db.calculateStreak(user.userId)
+            db.getChallengesByUserId(user.userId, { limit: 30 }).catch(() => []),
+            db.getSurveysByUserId(user.userId, 30).catch(() => []),
+            db.getActiveGoalByUserId(user.userId).catch(() => null),
+            db.getGoalsByUserId(user.userId).catch(() => []),
+            db.calculateStreak(user.userId).catch(() => 0)
         ]);
 
         return NextResponse.json({

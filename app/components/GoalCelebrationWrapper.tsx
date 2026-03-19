@@ -34,7 +34,7 @@ export default function GoalCelebrationWrapper({ goals }: { goals: any[] }) {
             });
 
             for (const goal of completedGoals) {
-                const hasCelebrated = sessionStorage.getItem(`celebrated_goal_${goal.id}`);
+                const hasCelebrated = localStorage.getItem(`celebrated_goal_${goal.id}`);
                 if (!hasCelebrated) {
                     setCelebratingGoal(goal);
                     break; // One at a time
@@ -47,7 +47,7 @@ export default function GoalCelebrationWrapper({ goals }: { goals: any[] }) {
 
     const handleClose = () => {
         if (celebratingGoal) {
-            sessionStorage.setItem(`celebrated_goal_${celebratingGoal.id}`, 'true');
+            localStorage.setItem(`celebrated_goal_${celebratingGoal.id}`, 'true');
             setCelebratingGoal(null);
         }
     };

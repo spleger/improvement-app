@@ -29,6 +29,24 @@ async function getDashboardData(userId: string) {
     // Get habit stats
     const habitStats = await db.getHabitStats(userId, 7);
 
+    // Get recent celebrated milestones for display
+    const allMilestones = await db.getMilestonesByUserId(userId);
+    const recentMilestones = allMilestones
+        .filter(m => m.celebrated)
+        .slice(0, 3);
+
+    // Get accountability partners with stats
+    const partners = await db.getPartnersByUserId(userId);
+    let partnersWithStats: { id: string; partnerUserId: string; displayName: string; stats: { streak: number; weekChallenges: number; habitRate: number } }[] = [];
+    if (partners.length > 0) {
+        partnersWithStats = await Promise.all(
+            partners.map(async (p) => {
+                const stats = await db.getPartnerStats(p.partnerUserId);
+                return { ...p, stats: { streak: stats.streak, weekChallenges: stats.weekChallenges, habitRate: stats.habitRate } };
+            })
+        );
+    }
+
     // Calculate overall progress
     const totalChallengesCompleted = todayChallenges.filter(c => c.status === 'completed').length;
     const totalChallengesTotal = todayChallenges.length;
@@ -38,6 +56,8 @@ async function getDashboardData(userId: string) {
         activeGoals,
         allGoals,
         habitStats,
+        recentMilestones,
+        partnersWithStats,
         stats: {
             streak,
             completedChallenges,
@@ -59,8 +79,7 @@ function getGreeting() {
 import GoalCelebrationWrapper from './components/GoalCelebrationWrapper';
 import GoalActions from './components/GoalActions';
 import DailyChallengeLoader from './components/DailyChallengeLoader';
-
-// ... (keep existing imports)
+import MilestoneCelebration from './components/MilestoneCelebration';
 
 export default async function DashboardPage() {
     const user = await getCurrentUser();
@@ -68,7 +87,7 @@ export default async function DashboardPage() {
         redirect('/login');
     }
 
-    const { todayChallenges, activeGoals, allGoals, habitStats, stats } = await getDashboardData(user.userId);
+    const { todayChallenges, activeGoals, allGoals, habitStats, recentMilestones, partnersWithStats, stats } = await getDashboardData(user.userId);
     const greeting = getGreeting();
 
     const pendingChallenges = todayChallenges.filter(c => c.status === 'pending');
@@ -81,6 +100,7 @@ export default async function DashboardPage() {
     return (
         <div className="page animate-fade-in">
             <GoalCelebrationWrapper goals={activeGoals} />
+            <MilestoneCelebration />
             {/* Header */}
             <div className="dashboard-header">
                 <h1 className="greeting">
@@ -340,6 +360,42 @@ export default async function DashboardPage() {
                 )
             }
 
+            {/* Weekly Insights */}
+            <section className="mb-lg">
+                <div className="flex justify-between items-center mb-md">
+                    <h2 className="heading-4">📈 Weekly Insights</h2>
+                    <Link href="/digest" className="btn btn-ghost text-small">View Digest</Link>
+                </div>
+                <Link href="/digest" className="card-glass" style={{ display: 'block', textDecoration: 'none' }}>
+                    <div className="flex items-center gap-md">
+                        <div style={{
+                            width: '48px',
+                            height: '48px',
+                            borderRadius: '12px',
+                            background: 'var(--gradient-primary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            fontWeight: 'bold',
+                            fontSize: '0.85rem',
+                            flexShrink: 0,
+                        }}>
+                            [W]
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <div className="heading-5">Your Weekly Digest</div>
+                            <div className="text-small text-muted">
+                                AI-powered summary of your progress, achievements, and next steps
+                            </div>
+                        </div>
+                        <span style={{ fontSize: '1.5rem', color: 'var(--color-text-muted)', flexShrink: 0 }}>
+                            {'\u2192'}
+                        </span>
+                    </div>
+                </Link>
+            </section>
+
             {/* Quick Stats */}
             <section className="mb-lg">
                 <h2 className="heading-4 mb-md">📊 Stats</h2>
@@ -362,6 +418,54 @@ export default async function DashboardPage() {
                     </div>
                 </div>
             </section>
+
+            {/* Recent Achievements */}
+            {recentMilestones.length > 0 && (
+                <section className="mb-lg">
+                    <h2 className="heading-4 mb-md">Recent Achievements</h2>
+                    <div className="flex flex-col gap-sm">
+                        {recentMilestones.map((milestone: any) => (
+                            <div key={milestone.id} className="card-glass" style={{
+                                padding: 'var(--spacing-md)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 'var(--spacing-md)',
+                            }}>
+                                <div style={{
+                                    width: '40px',
+                                    height: '40px',
+                                    borderRadius: '10px',
+                                    background: 'linear-gradient(135deg, #8b5cf6, #a78bfa)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'white',
+                                    fontWeight: 'bold',
+                                    fontSize: '1rem',
+                                    flexShrink: 0,
+                                }}>
+                                    {milestone.type.startsWith('streak_') ? '*'
+                                        : milestone.type.startsWith('challenges_') ? '#'
+                                        : milestone.type.startsWith('day_') ? '+'
+                                        : '>'}
+                                </div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{
+                                        fontWeight: 600,
+                                        fontSize: '0.9rem',
+                                        color: 'var(--color-text-primary)',
+                                    }}>
+                                        {milestone.title}
+                                    </div>
+                                    <div className="text-small text-muted">
+                                        {new Date(milestone.achievedAt).toLocaleDateString()}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
 
             {/* Habits Summary */}
             {
@@ -416,6 +520,77 @@ export default async function DashboardPage() {
                     </section>
                 )
             }
+
+            {/* Accountability Partners */}
+            {partnersWithStats.length > 0 && (
+                <section className="mb-lg">
+                    <div className="flex justify-between items-center mb-md">
+                        <h2 className="heading-4">Partners</h2>
+                        <Link href="/accountability" className="btn btn-ghost text-small">View All</Link>
+                    </div>
+                    <div className="flex gap-md" style={{ flexWrap: 'wrap' }}>
+                        {partnersWithStats.map((partner) => (
+                            <Link
+                                key={partner.id}
+                                href="/accountability"
+                                className="card-glass"
+                                style={{
+                                    textDecoration: 'none',
+                                    flex: '1 1 140px',
+                                    minWidth: '140px',
+                                    maxWidth: '200px',
+                                    padding: 'var(--spacing-md)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: 'var(--spacing-sm)',
+                                }}
+                            >
+                                <div style={{
+                                    width: '36px',
+                                    height: '36px',
+                                    borderRadius: 'var(--radius-full)',
+                                    background: 'var(--gradient-primary)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'white',
+                                    fontWeight: 700,
+                                    fontSize: '0.9rem',
+                                }}>
+                                    {partner.displayName.charAt(0).toUpperCase()}
+                                </div>
+                                <div style={{
+                                    fontSize: '0.85rem',
+                                    fontWeight: 600,
+                                    color: 'var(--color-text)',
+                                    textAlign: 'center',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    width: '100%',
+                                }}>
+                                    {partner.displayName}
+                                </div>
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    color: '#f59e0b',
+                                    fontSize: '0.9rem',
+                                    fontWeight: 700,
+                                }}>
+                                    <span style={{ fontSize: '0.85rem' }}>*</span>
+                                    {partner.stats.streak} day streak
+                                </div>
+                                <div className="text-small text-muted">
+                                    {partner.stats.weekChallenges} challenges this week
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
+                </section>
+            )}
         </div >
     );
 }

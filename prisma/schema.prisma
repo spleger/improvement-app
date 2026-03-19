@@ -38,6 +38,11 @@ model User {
   habits            Habit[]
   apiUsage          ApiUsage[]
   coachMemories     CoachMemory[]
+  pushSubscriptions PushSubscription[]
+  weeklyDigests     WeeklyDigest[]
+  milestones        Milestone[]
+  partners          AccountabilityPartner[] @relation("UserPartners")
+  partnerOf         AccountabilityPartner[] @relation("PartnerOf")
 }
 
 // ==================== GOALS ====================
@@ -330,6 +335,80 @@ model CoachMemory {
 
   @@unique([userId, coachId])
   @@index([userId])
+}
+
+// ==================== PUSH NOTIFICATIONS ====================
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, endpoint])
+  @@index([userId])
+}
+
+// ==================== WEEKLY DIGEST ====================
+
+model WeeklyDigest {
+  id             String   @id @default(cuid())
+  userId         String
+  weekStartDate  DateTime
+  weekEndDate    DateTime
+  rawData        String   @db.Text
+  aiSummary      String   @db.Text
+  topAchievement String?
+  focusArea      String?
+  suggestion     String?
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStartDate])
+  @@index([userId])
+}
+
+// ==================== MILESTONES ====================
+
+model Milestone {
+  id          String   @id @default(cuid())
+  userId      String
+  goalId      String?
+  type        String
+  title       String
+  description String?
+  achievedAt  DateTime @default(now())
+  celebrated  Boolean  @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, goalId, type])
+  @@index([userId])
+}
+
+// ==================== ACCOUNTABILITY ====================
+
+model AccountabilityPartner {
+  id         String    @id @default(cuid())
+  userId     String
+  partnerId  String
+  status     String    @default("pending")
+  inviteCode String    @unique
+  createdAt  DateTime  @default(now())
+  acceptedAt DateTime?
+
+  user    User @relation("UserPartners", fields: [userId], references: [id], onDelete: Cascade)
+  partner User @relation("PartnerOf", fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, partnerId])
+  @@index([userId])
+  @@index([partnerId])
+  @@index([inviteCode])
 }
 
 // ==================== HABITS ====================

@@ -45,7 +45,7 @@ export default async function ProfilePage() {
             <PageHeader
                 icon="👤"
                 title="My Profile"
-                subtitle={`${stats.daysOnPlatform} days on your transformation journey`}
+                subtitle={`${stats.daysOnPlatform} ${stats.daysOnPlatform === 1 ? 'day' : 'days'} on your transformation journey`}
             />
 
             {/* Profile Picture */}

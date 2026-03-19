@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
             icon: parsed.data.icon,
             frequency: parsed.data.frequency,
             targetDays: parsed.data.targetDays,
-            goalId: parsed.data.goalId
+            goalId: parsed.data.goalId ?? undefined
         });
 
         return NextResponse.json({

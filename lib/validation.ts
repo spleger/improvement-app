@@ -19,7 +19,7 @@ export const HabitCreateSchema = z.object({
     icon: z.string().max(10).optional(),
     frequency: z.enum(['daily', 'weekly', 'custom']).optional().default('daily'),
     targetDays: z.array(z.string()).optional(),
-    goalId: z.string().optional(),
+    goalId: z.string().nullable().optional(),
 });
 
 export const HabitUpdateSchema = z.object({
@@ -93,6 +93,14 @@ export const InterviewMessageSchema = z.object({
     nextStage: z.enum(['mood', 'goals', 'challenges', 'habits', 'general', 'open']).nullable().optional(),
     exchangeCount: z.number().int().min(0).max(100).optional().default(0),
     clientContext: z.any().optional(),
+});
+
+export const AcceptInviteSchema = z.object({
+    inviteCode: z.string().min(1).max(20),
+});
+
+export const RemovePartnerSchema = z.object({
+    partnershipId: z.string().min(1),
 });
 
 /**
