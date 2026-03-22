@@ -85,7 +85,7 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
     const push = usePushNotifications();
     const { isSupported: pushSupported, permission: pushPermission } = push;
 
-    const updatePref = (key: keyof Preferences, value: any) => {
+    const updatePref = (key: string, value: any) => {
         setPrefs(prev => ({ ...prev, [key]: value }));
         setSaved(false);
 
