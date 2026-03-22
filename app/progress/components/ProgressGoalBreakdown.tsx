@@ -71,11 +71,10 @@ export function ProgressGoalBreakdown({
                                     <span style={{
                                         fontSize: '0.95rem',
                                         fontWeight: 600,
-                                        maxWidth: isComplete ? '70%' : '60%',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                        whiteSpace: 'nowrap',
-                                        color: 'var(--color-text-primary)'
+                                        flex: 1,
+                                        minWidth: 0,
+                                        color: 'var(--color-text-primary)',
+                                        lineHeight: 1.3
                                     }}>
                                         {stats.title}
                                     </span>

@@ -63,6 +63,7 @@ export default function RegisterPage() {
                             value={displayName}
                             onChange={(e) => setDisplayName(e.target.value)}
                             placeholder="Your Name"
+                            autoComplete="name"
                         />
                     </div>
 
@@ -76,6 +77,7 @@ export default function RegisterPage() {
                             onChange={(e) => setEmail(e.target.value)}
                             required
                             placeholder="you@example.com"
+                            autoComplete="email"
                         />
                     </div>
 
@@ -90,6 +92,7 @@ export default function RegisterPage() {
                             required
                             placeholder="••••••••"
                             minLength={6}
+                            autoComplete="new-password"
                         />
                         <p className="text-tiny text-secondary mt-xs">Must be at least 6 characters</p>
                     </div>

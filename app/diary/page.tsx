@@ -401,7 +401,8 @@ export default function DiaryPage() {
                             if (themes.length === 0) return null;
 
                             const themeCounts = themes.reduce((acc, t) => {
-                                acc[t] = (acc[t] || 0) + 1;
+                                const normalized = t.toLowerCase();
+                                acc[normalized] = (acc[normalized] || 0) + 1;
                                 return acc;
                             }, {} as Record<string, number>);
 

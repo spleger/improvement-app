@@ -34,26 +34,24 @@ function parsePreferences(row: any) {
 }
 
 export async function saveUserPreferences(userId: string, prefs: {
-    displayName?: string;
-    preferredDifficulty?: number;
-    challengesPerDay?: number;
-    realityShiftEnabled?: boolean;
-    preferredChallengeTime?: string;
-    focusAreas?: string[];
-    avoidAreas?: string[];
-    aiPersonality?: string;
-    includeScientificBasis?: boolean;
-    challengeLengthPreference?: string;
-    notificationsEnabled?: boolean;
-    dailyReminderTime?: string;
-    streakReminders?: boolean;
-    theme?: string;
-    // AI Voice Selection
-    voiceId?: string;
-    // AI Personality Customization
-    aiCustomName?: string;
-    tonePreference?: string;
-    rudeMode?: boolean;
+    displayName?: string | null;
+    preferredDifficulty?: number | null;
+    challengesPerDay?: number | null;
+    realityShiftEnabled?: boolean | null;
+    preferredChallengeTime?: string | null;
+    focusAreas?: string[] | null;
+    avoidAreas?: string[] | null;
+    aiPersonality?: string | null;
+    includeScientificBasis?: boolean | null;
+    challengeLengthPreference?: string | null;
+    notificationsEnabled?: boolean | null;
+    dailyReminderTime?: string | null;
+    streakReminders?: boolean | null;
+    theme?: string | null;
+    voiceId?: string | null;
+    aiCustomName?: string | null;
+    tonePreference?: string | null;
+    rudeMode?: boolean | null;
 }) {
     const data: any = { ...prefs };
     // Stringify JSON fields (Schema says String for SQLite compatibility likely, or just design)

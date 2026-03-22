@@ -322,7 +322,7 @@ export default function DigestPage() {
                                 <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
                                     {digest.rawData.diaryCount}
                                 </div>
-                                <div className="text-small text-muted">Diary Entries</div>
+                                <div className="text-small text-muted" style={{ whiteSpace: 'nowrap' }}>Entries</div>
                             </div>
                         </div>
 

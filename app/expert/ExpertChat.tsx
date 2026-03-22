@@ -213,7 +213,7 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
                     const loadedMessages = data.data.messages.map((msg: any, index: number) => ({
                         id: msg.id || diffId(index),
                         role: msg.role,
-                        content: msg.content,
+                        content: msg.role === 'user' ? msg.content.replace(/^\[LIVE VOICE MODE[^\]]*\]\s*/, '') : msg.content,
                         timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date()
                     }));
 

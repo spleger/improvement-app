@@ -119,8 +119,8 @@ export default async function ProfilePage() {
                                     }}>
                                         {goal.status === 'completed' ? '✅' : '🎯'}
                                     </span>
-                                    <div style={{ flex: 1 }}>
-                                        <div className="heading-4">{goal.title}</div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div className="text-body" style={{ fontWeight: 600 }}>{goal.title}</div>
                                         <div className="text-small text-muted">
                                             {goal.domain?.name || 'General'} •
                                             Started {new Date(goal.startedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}

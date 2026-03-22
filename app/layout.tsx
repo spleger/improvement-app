@@ -10,6 +10,10 @@ export const metadata: Metadata = {
     description: 'Turn your aspirations into reality with daily challenges, voice journaling, and AI-powered guidance.',
     keywords: ['goals', 'transformation', 'habits', 'challenges', 'personal development'],
     manifest: '/manifest.json',
+    icons: {
+        icon: '/icons/icon-192x192.png',
+        apple: '/icons/icon-192x192.png',
+    },
 };
 
 export const viewport: Viewport = {

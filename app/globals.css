@@ -670,10 +670,13 @@ button {
 }
 
 .pillar-label {
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pillar-sublabel {

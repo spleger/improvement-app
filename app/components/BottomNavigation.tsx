@@ -4,16 +4,18 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 
+const HIDDEN_ROUTES = ['/login', '/register', '/onboarding'];
+
 export default function BottomNavigation() {
     const pathname = usePathname();
     const [showTrackingMenu, setShowTrackingMenu] = useState(false);
 
     // Determine active tab based on pathname
-    // Home, Tracking (covers /habits, /diary), Progress, Expert
+    // Home, Tracking (covers /habits, /diary, /survey), Progress, Expert
     const getActiveTab = () => {
         if (pathname === '/') return 'home';
         if (pathname?.startsWith('/progress')) return 'progress';
-        if (pathname?.startsWith('/habits') || pathname?.startsWith('/diary')) return 'tracking';
+        if (pathname?.startsWith('/habits') || pathname?.startsWith('/diary') || pathname?.startsWith('/survey')) return 'tracking';
         if (pathname?.startsWith('/expert')) return 'expert';
         return '';
     };
@@ -42,6 +44,10 @@ export default function BottomNavigation() {
     useEffect(() => {
         setShowTrackingMenu(false);
     }, [pathname]);
+
+    if (HIDDEN_ROUTES.some(route => pathname?.startsWith(route))) {
+        return null;
+    }
 
     const trackingSubmenu = [
         { id: 'habits', label: 'Daily Habits', href: '/habits' },
@@ -179,10 +185,9 @@ export default function BottomNavigation() {
 
                 .tracking-submenu-dropdown {
                     position: absolute;
-                    bottom: 100%;
+                    bottom: calc(100% + 8px);
                     left: 50%;
                     transform: translateX(-50%);
-                    margin-bottom: var(--spacing-md);
                     background: rgba(18, 18, 30, 0.95);
                     border: 1px solid rgba(255, 255, 255, 0.1);
                     border-radius: 20px; /* More rounded container */

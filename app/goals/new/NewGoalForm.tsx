@@ -84,7 +84,7 @@ export default function NewGoalForm({ domains }: Props) {
                 <div className="animate-slide-up">
                     <h2 className="heading-4 mb-lg">Choose your transformation area</h2>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
                         {domains.map(domain => (
                             <button
                                 key={domain.id}
@@ -93,14 +93,15 @@ export default function NewGoalForm({ domains }: Props) {
                                 style={{
                                     cursor: 'pointer',
                                     textAlign: 'left',
+                                    padding: '1rem',
                                     border: formData.domainId === domain.id ? `2px solid ${domain.color}` : '2px solid transparent',
                                     transition: 'all 0.2s'
                                 }}
                             >
-                                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>
+                                <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>
                                     {domainIcons[domain.icon || ''] || '🎯'}
                                 </div>
-                                <div className="heading-4">{domain.name}</div>
+                                <div className="text-body" style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{domain.name}</div>
                                 <p className="text-small text-muted" style={{ marginTop: '0.25rem' }}>
                                     {domain.description}
                                 </p>

@@ -59,8 +59,8 @@ export default async function ChallengesListPage() {
                                 <span style={{ fontSize: '1.5rem' }}>
                                     {getStatusIcon(challenge.status)}
                                 </span>
-                                <div style={{ flex: 1 }}>
-                                    <div className="heading-4">{challenge.title}</div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div className="heading-4" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{challenge.title}</div>
                                     <div className="text-small text-muted flex gap-md">
                                         <span>
                                             {new Date(challenge.scheduledDate).toLocaleDateString('en-US', {

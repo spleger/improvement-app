@@ -84,7 +84,9 @@ export async function POST(request: NextRequest) {
                     // Save conversation to database after streaming completes
                     try {
                         const { conversation, conversationMessages } = await getOrCreateExpertConversation(user.userId, coachId);
-                        conversationMessages.push({ role: 'user', content: message, timestamp: new Date().toISOString() });
+                        // Strip internal LIVE VOICE MODE prefix before persisting
+                        const cleanMessage = message.replace(/^\[LIVE VOICE MODE[^\]]*\]\s*/, '');
+                        conversationMessages.push({ role: 'user', content: cleanMessage, timestamp: new Date().toISOString() });
                         conversationMessages.push({ role: 'assistant', content: fullResponse, timestamp: new Date().toISOString() });
                         if (conversation && conversation.id) {
                             await db.updateConversationMessages(conversation.id, conversationMessages);

@@ -349,6 +349,7 @@ export default function CreateHabitModal({ onClose, onCreated }: CreateHabitModa
                         font-size: 1rem;
                         cursor: pointer;
                         transition: all 0.2s;
+                        white-space: nowrap;
                     }
 
                     .btn-secondary {

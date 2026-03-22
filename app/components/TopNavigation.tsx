@@ -11,6 +11,8 @@ interface OngoingChallenge {
     totalDays: number;
 }
 
+const HIDDEN_ROUTES = ['/login', '/register', '/onboarding'];
+
 export default function TopNavigation() {
     const pathname = usePathname();
     const [challenge, setChallenge] = useState<OngoingChallenge | null>(null);
@@ -18,6 +20,7 @@ export default function TopNavigation() {
 
     // Fetch ongoing challenge data
     useEffect(() => {
+        if (HIDDEN_ROUTES.some(route => pathname?.startsWith(route))) return;
         const fetchChallenge = async () => {
             try {
                 const response = await fetch('/api/goals');
@@ -38,7 +41,7 @@ export default function TopNavigation() {
             }
         };
         fetchChallenge();
-    }, []);
+    }, [pathname]);
 
     const quickActions = [
         { id: 'habits', label: 'Daily Habits', href: '/habits' },
@@ -68,6 +71,10 @@ export default function TopNavigation() {
     useEffect(() => {
         setShowQuickActions(false);
     }, [pathname]);
+
+    if (HIDDEN_ROUTES.some(route => pathname?.startsWith(route))) {
+        return null;
+    }
 
     return (
         <nav className="nav-top">
