@@ -151,7 +151,7 @@ export default function VoiceRecorder({ onClose, onSaved, autoStart = false }: V
                 try {
                     recognitionRef.current.start();
                 } catch (e) {
-                    console.log('Recognition already started');
+                    // Already started, ignore
                 }
             }
 
