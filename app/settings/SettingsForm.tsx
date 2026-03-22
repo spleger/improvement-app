@@ -392,54 +392,6 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                 </div>
             </section>
 
-            {/* Notifications Section */}
-            <section className="card mb-lg">
-                <h2 className="heading-4 mb-md">Notifications</h2>
-
-                <div className="form-group">
-                    <label className="flex items-center gap-md" style={{ cursor: 'pointer' }}>
-                        <input
-                            type="checkbox"
-                            checked={prefs.notificationsEnabled}
-                            onChange={e => updatePref('notificationsEnabled', e.target.checked)}
-                            style={{ width: '20px', height: '20px' }}
-                        />
-                        <div>
-                            <div className="heading-5">Daily Reminders</div>
-                            <div className="text-small text-muted">Get reminded about your challenges</div>
-                        </div>
-                    </label>
-                </div>
-
-                {prefs.notificationsEnabled && (
-                    <div className="form-group">
-                        <label className="form-label">Reminder Time</label>
-                        <input
-                            type="time"
-                            value={prefs.dailyReminderTime}
-                            onChange={e => updatePref('dailyReminderTime', e.target.value)}
-                            className="form-input"
-                            style={{ maxWidth: '150px' }}
-                        />
-                    </div>
-                )}
-
-                <div className="form-group">
-                    <label className="flex items-center gap-md" style={{ cursor: 'pointer' }}>
-                        <input
-                            type="checkbox"
-                            checked={prefs.streakReminders}
-                            onChange={e => updatePref('streakReminders', e.target.checked)}
-                            style={{ width: '20px', height: '20px' }}
-                        />
-                        <div>
-                            <div className="heading-5">Streak Protection</div>
-                            <div className="text-small text-muted">Warn me before I lose my streak</div>
-                        </div>
-                    </label>
-                </div>
-            </section>
-
             {/* Save Button */}
             <div className="mb-xl">
                 <button
