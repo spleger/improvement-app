@@ -7,6 +7,7 @@ import { ChatMessage } from '@/lib/types';
 import { useKeyboardOffset } from '@/hooks/useKeyboardOffset';
 import { useTTSAudio } from '@/hooks/useTTSAudio';
 import { useVoiceRecording } from '@/hooks/useVoiceRecording';
+import { parseSSEStream } from '@/lib/streaming';
 
 // Interview stages following the spec framework
 export type InterviewStage = 'mood' | 'goals' | 'challenges' | 'habits' | 'general' | 'open';
@@ -294,55 +295,28 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
                 setIsLoading(false);
                 setIsStreaming(true);
 
-                const decoder = new TextDecoder();
-                let buffer = '';
                 let accumulatedText = '';
 
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-
-                    buffer += decoder.decode(value, { stream: true });
-
-                    // Process SSE events from buffer
-                    const lines = buffer.split('\n');
-                    buffer = lines.pop() || '';
-
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const data = line.slice(6);
-
-                            if (data === '[DONE]') {
-                                continue;
-                            }
-
-                            try {
-                                const parsed = JSON.parse(data);
-                                if (parsed.text) {
-                                    accumulatedText += parsed.text;
-                                    setMessages(prev => prev.map(msg =>
-                                        msg.id === assistantMessageId
-                                            ? { ...msg, content: msg.content + parsed.text }
-                                            : msg
-                                    ));
-                                } else if (parsed.stage) {
-                                    // Update stage if AI signals transition
-                                    setCurrentStage(parsed.stage);
-                                } else if (parsed.error) {
-                                    setMessages(prev => prev.map(msg =>
-                                        msg.id === assistantMessageId
-                                            ? { ...msg, content: "I'm having trouble starting. Please try again." }
-                                            : msg
-                                    ));
-                                }
-                            } catch {
-                                // Ignore parse errors for malformed chunks
-                            }
-                        }
+                for await (const event of parseSSEStream(reader)) {
+                    if (event.done) continue;
+                    if (event.text) {
+                        accumulatedText += event.text;
+                        setMessages(prev => prev.map(msg =>
+                            msg.id === assistantMessageId
+                                ? { ...msg, content: msg.content + event.text }
+                                : msg
+                        ));
+                    } else if (event.stage) {
+                        setCurrentStage(event.stage as InterviewStage);
+                    } else if (event.error) {
+                        setMessages(prev => prev.map(msg =>
+                            msg.id === assistantMessageId
+                                ? { ...msg, content: "I'm having trouble starting. Please try again." }
+                                : msg
+                        ));
                     }
                 }
 
-                // Play TTS audio after streaming completes
                 if (accumulatedText) {
                     playTTSAudio(accumulatedText);
                 }
@@ -423,71 +397,41 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
             setIsLoading(false);
             setIsStreaming(true);
 
-            const decoder = new TextDecoder();
-            let buffer = '';
             let accumulatedText = '';
 
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                buffer += decoder.decode(value, { stream: true });
-
-                // Process SSE events from buffer
-                const lines = buffer.split('\n');
-                buffer = lines.pop() || '';
-
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const data = line.slice(6);
-
-                        if (data === '[DONE]') {
-                            continue;
-                        }
-
-                        try {
-                            const parsed = JSON.parse(data);
-                            if (parsed.text) {
-                                accumulatedText += parsed.text;
-                                setMessages(prev => prev.map(msg =>
-                                    msg.id === assistantMessageId
-                                        ? { ...msg, content: msg.content + parsed.text }
-                                        : msg
-                                ));
-                            } else if (parsed.stage) {
-                                // Update stage if AI signals transition
-                                const newStage = parsed.stage as InterviewStage;
-                                setCurrentStage(newStage);
-                                // Reset exchange count for the new stage
-                                setStageExchangeCount(prev => ({
-                                    ...prev,
-                                    [newStage]: 0
-                                }));
-                                // Mark interview complete when reaching open stage
-                                if (newStage === 'open') {
-                                    setIsInterviewComplete(true);
-                                    onComplete?.();
-                                }
-                            } else if (parsed.error) {
-                                setMessages(prev => prev.map(msg =>
-                                    msg.id === assistantMessageId
-                                        ? { ...msg, content: "I'm having trouble connecting. Please try again." }
-                                        : msg
-                                ));
-                            }
-                        } catch {
-                            // Ignore parse errors for malformed chunks
-                        }
+            for await (const event of parseSSEStream(reader)) {
+                if (event.done) continue;
+                if (event.text) {
+                    accumulatedText += event.text;
+                    setMessages(prev => prev.map(msg =>
+                        msg.id === assistantMessageId
+                            ? { ...msg, content: msg.content + event.text }
+                            : msg
+                    ));
+                } else if (event.stage) {
+                    const newStage = event.stage as InterviewStage;
+                    setCurrentStage(newStage);
+                    setStageExchangeCount(prev => ({
+                        ...prev,
+                        [newStage]: 0
+                    }));
+                    if (newStage === 'open') {
+                        setIsInterviewComplete(true);
+                        onComplete?.();
                     }
+                } else if (event.error) {
+                    setMessages(prev => prev.map(msg =>
+                        msg.id === assistantMessageId
+                            ? { ...msg, content: "I'm having trouble connecting. Please try again." }
+                            : msg
+                    ));
                 }
             }
 
-            // Play TTS audio after streaming completes
             if (accumulatedText) {
                 playTTSAudio(accumulatedText);
             }
 
-            // Auto-advance stage if threshold reached and AI didn't signal transition
             if (shouldTransition && nextStage && currentStage !== 'open') {
                 advanceToNextStage();
             }

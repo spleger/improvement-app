@@ -12,6 +12,7 @@ import { ChatMessage } from '@/lib/types';
 import { useKeyboardOffset } from '@/hooks/useKeyboardOffset';
 import { useTTSAudio } from '@/hooks/useTTSAudio';
 import { useVoiceRecording } from '@/hooks/useVoiceRecording';
+import { parseSSEStream } from '@/lib/streaming';
 
 interface Coach {
     id: string;
@@ -308,55 +309,26 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
             setIsLoading(false);
             setIsStreaming(true);
 
-            const decoder = new TextDecoder();
-            let buffer = '';
-            let accumulatedText = ''; // Track full response for TTS
+            let accumulatedText = '';
 
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                buffer += decoder.decode(value, { stream: true });
-
-                // Process SSE events from buffer
-                const lines = buffer.split('\n');
-                buffer = lines.pop() || ''; // Keep incomplete line in buffer
-
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const data = line.slice(6);
-
-                        if (data === '[DONE]') {
-                            // Streaming complete
-                            continue;
-                        }
-
-                        try {
-                            const parsed = JSON.parse(data);
-                            if (parsed.text) {
-                                accumulatedText += parsed.text; // Track for TTS
-                                // Update assistant message with new text chunk
-                                setMessages(prev => prev.map(msg =>
-                                    msg.id === assistantMessageId
-                                        ? { ...msg, content: msg.content + parsed.text }
-                                        : msg
-                                ));
-                            } else if (parsed.error) {
-                                // Handle stream error
-                                setMessages(prev => prev.map(msg =>
-                                    msg.id === assistantMessageId
-                                        ? { ...msg, content: "I'm having trouble connecting. Please try again." }
-                                        : msg
-                                ));
-                            }
-                        } catch {
-                            // Ignore parse errors for malformed chunks
-                        }
-                    }
+            for await (const event of parseSSEStream(reader)) {
+                if (event.done) continue;
+                if (event.text) {
+                    accumulatedText += event.text;
+                    setMessages(prev => prev.map(msg =>
+                        msg.id === assistantMessageId
+                            ? { ...msg, content: msg.content + event.text }
+                            : msg
+                    ));
+                } else if (event.error) {
+                    setMessages(prev => prev.map(msg =>
+                        msg.id === assistantMessageId
+                            ? { ...msg, content: "I'm having trouble connecting. Please try again." }
+                            : msg
+                    ));
                 }
             }
 
-            // Play TTS audio after streaming completes successfully
             if (accumulatedText) {
                 playTTSAudio(accumulatedText);
             }
