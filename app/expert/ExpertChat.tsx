@@ -9,6 +9,7 @@ import MoodLogWidget from './widgets/MoodLogWidget';
 import NewGoalWidget from './widgets/NewGoalWidget';
 import CreateCoachModal from './CreateCoachModal';
 import { ChatMessage } from '@/lib/types';
+import { useKeyboardOffset } from '@/hooks/useKeyboardOffset';
 
 interface Coach {
     id: string;
@@ -113,43 +114,7 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
         };
     }, []);
 
-    // Handle virtual keyboard appearance on mobile
-    useEffect(() => {
-        const handleViewportResize = () => {
-            if (!chatContainerRef.current) return;
-
-            // visualViewport provides the actual visible area excluding keyboard
-            const viewport = window.visualViewport;
-            if (!viewport) return;
-
-            // Calculate keyboard height (difference between window height and visual viewport)
-            const keyboardHeight = window.innerHeight - viewport.height;
-
-            // Apply CSS custom property for keyboard offset
-            if (keyboardHeight > 0) {
-                chatContainerRef.current.style.setProperty('--keyboard-offset', `${keyboardHeight}px`);
-            } else {
-                chatContainerRef.current.style.setProperty('--keyboard-offset', '0px');
-            }
-        };
-
-        const viewport = window.visualViewport;
-        if (viewport) {
-            viewport.addEventListener('resize', handleViewportResize);
-            viewport.addEventListener('scroll', handleViewportResize);
-        }
-
-        // Also listen for window resize as fallback
-        window.addEventListener('resize', handleViewportResize);
-
-        return () => {
-            if (viewport) {
-                viewport.removeEventListener('resize', handleViewportResize);
-                viewport.removeEventListener('scroll', handleViewportResize);
-            }
-            window.removeEventListener('resize', handleViewportResize);
-        };
-    }, []);
+    useKeyboardOffset(chatContainerRef);
 
     // Save mute preference to localStorage
     const toggleMute = () => {

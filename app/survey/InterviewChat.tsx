@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Mic, Volume2, VolumeX, User, MessageCircle, Loader2, Radio } from 'lucide-react';
 import Link from 'next/link';
 import { ChatMessage } from '@/lib/types';
+import { useKeyboardOffset } from '@/hooks/useKeyboardOffset';
 
 // Interview stages following the spec framework
 export type InterviewStage = 'mood' | 'goals' | 'challenges' | 'habits' | 'general' | 'open';
@@ -92,43 +93,7 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
 
     const chatContainerRef = useRef<HTMLDivElement>(null);
 
-    // Handle virtual keyboard appearance on mobile
-    useEffect(() => {
-        const handleViewportResize = () => {
-            if (!chatContainerRef.current) return;
-
-            // visualViewport provides the actual visible area excluding keyboard
-            const viewport = window.visualViewport;
-            if (!viewport) return;
-
-            // Calculate keyboard height (difference between window height and visual viewport)
-            const keyboardHeight = window.innerHeight - viewport.height;
-
-            // Apply CSS custom property for keyboard offset
-            if (keyboardHeight > 0) {
-                chatContainerRef.current.style.setProperty('--keyboard-offset', `${keyboardHeight}px`);
-            } else {
-                chatContainerRef.current.style.setProperty('--keyboard-offset', '0px');
-            }
-        };
-
-        const viewport = window.visualViewport;
-        if (viewport) {
-            viewport.addEventListener('resize', handleViewportResize);
-            viewport.addEventListener('scroll', handleViewportResize);
-        }
-
-        // Also listen for window resize as fallback
-        window.addEventListener('resize', handleViewportResize);
-
-        return () => {
-            if (viewport) {
-                viewport.removeEventListener('resize', handleViewportResize);
-                viewport.removeEventListener('scroll', handleViewportResize);
-            }
-            window.removeEventListener('resize', handleViewportResize);
-        };
-    }, []);
+    useKeyboardOffset(chatContainerRef);
 
     // Handle input focus to ensure visibility when keyboard appears
     const handleInputFocus = () => {
