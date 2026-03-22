@@ -5,6 +5,7 @@ import { Send, Mic, Volume2, VolumeX, User, MessageCircle, Loader2, Radio } from
 import Link from 'next/link';
 import { ChatMessage } from '@/lib/types';
 import { useKeyboardOffset } from '@/hooks/useKeyboardOffset';
+import { useTTSAudio } from '@/hooks/useTTSAudio';
 
 // Interview stages following the spec framework
 export type InterviewStage = 'mood' | 'goals' | 'challenges' | 'habits' | 'general' | 'open';
@@ -112,10 +113,10 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
 
-    // TTS Audio State
-    const [isMuted, setIsMuted] = useState(false);
-    const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-    const audioRef = useRef<HTMLAudioElement | null>(null);
+    // TTS Audio
+    const { isMuted, isPlayingAudio, toggleMute, playTTSAudio } = useTTSAudio({
+        storageKey: 'interviewChatMuted',
+    });
 
     // Fetch user context on mount for personalized questions
     useEffect(() => {
@@ -230,105 +231,12 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
         }
     }, [currentStage, getNextStage, onComplete]);
 
-    // Load TTS mute preference from localStorage
-    useEffect(() => {
-        const savedMuted = localStorage.getItem('interviewChatMuted');
-        if (savedMuted !== null) {
-            setIsMuted(savedMuted === 'true');
-        }
-    }, []);
-
-    // Cleanup audio on unmount to prevent memory leaks
-    useEffect(() => {
-        return () => {
-            if (audioRef.current) {
-                audioRef.current.pause();
-                if (audioRef.current.src) {
-                    URL.revokeObjectURL(audioRef.current.src);
-                }
-                audioRef.current = null;
-            }
-        };
-    }, []);
 
     // Notify parent of stage changes
     useEffect(() => {
         onStageChange?.(currentStage);
     }, [currentStage, onStageChange]);
 
-    // Save mute preference to localStorage
-    const toggleMute = () => {
-        const newMuted = !isMuted;
-        setIsMuted(newMuted);
-        localStorage.setItem('interviewChatMuted', String(newMuted));
-        // Stop any currently playing audio when muting
-        if (newMuted && audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current = null;
-            setIsPlayingAudio(false);
-        }
-    };
-
-    // Play TTS audio for a given text
-    const playTTSAudio = async (text: string) => {
-        if (isMuted || !text.trim()) return;
-
-        // Truncate to 4096 chars (API limit)
-        const truncatedText = text.length > 4096 ? text.slice(0, 4096) : text;
-
-        try {
-            setIsPlayingAudio(true);
-
-            const response = await fetch('/api/tts', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: truncatedText })
-            });
-
-            if (!response.ok) {
-                // TTS failed - fail silently as per spec (fall back to text-only)
-                setIsPlayingAudio(false);
-                return;
-            }
-
-            const audioBlob = await response.blob();
-            const audioUrl = URL.createObjectURL(audioBlob);
-
-            // Stop any existing audio
-            if (audioRef.current) {
-                audioRef.current.pause();
-                URL.revokeObjectURL(audioRef.current.src);
-            }
-
-            const audio = new Audio(audioUrl);
-            audioRef.current = audio;
-
-            audio.onended = () => {
-                setIsPlayingAudio(false);
-                URL.revokeObjectURL(audioUrl);
-                audioRef.current = null;
-            };
-
-            audio.onerror = () => {
-                // Handle audio playback errors gracefully (e.g., autoplay blocked)
-                setIsPlayingAudio(false);
-                URL.revokeObjectURL(audioUrl);
-                audioRef.current = null;
-            };
-
-            // Try to play - may be blocked by browser autoplay policy
-            await audio.play().catch(() => {
-                // Autoplay blocked - fail silently
-                setIsPlayingAudio(false);
-                URL.revokeObjectURL(audioUrl);
-                audioRef.current = null;
-            });
-
-        } catch {
-            // Network or other error - fail silently
-            setIsPlayingAudio(false);
-        }
-    };
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
