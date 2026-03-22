@@ -1,10 +1,10 @@
 import { NextRequest } from 'next/server';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
-import { getUserContext, buildEnhancedSystemPrompt } from '@/lib/ai/context';
 import { getAnthropicClient, ANTHROPIC_MODEL } from '@/lib/anthropic';
 import { logApiUsage } from '@/lib/ai/costs';
 import { ChatMessageSchema, validateBody } from '@/lib/validation';
+import { buildExpertSystemPrompt, buildMessageHistory, getOrCreateExpertConversation } from '@/lib/api/expertChatSetup';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,48 +28,11 @@ export async function POST(request: NextRequest) {
         }
         const { message, history, coachId } = parsed.data;
 
-        // Get user context and coach memory
-        const context = await getUserContext(user.userId);
-        const targetCoachId = coachId || 'general';
-        const coachMemory = await db.getCoachMemory(user.userId, targetCoachId);
-        const memories = coachMemory?.memories || [];
-        let systemPrompt = '';
+        let { systemPrompt } = await buildExpertSystemPrompt(user.userId, coachId);
+        const messages = buildMessageHistory(history, message);
 
-        // Check if using a custom coach
-        const standardCoachIds = ['general', 'languages', 'mobility', 'emotional', 'relationships', 'health', 'tolerance', 'skills', 'habits'];
-
-        if (coachId && !standardCoachIds.includes(coachId)) {
-            const coaches = await db.getCustomCoachesByUserId(user.userId);
-            const customCoach = coaches.find((c: any) => c.id === coachId);
-
-            if (customCoach) {
-                const basePrompt = buildEnhancedSystemPrompt(context, 'general', undefined, memories);
-                const promptPrefix = `You are ${customCoach.name}. ${customCoach.systemPrompt}\n\n`;
-                systemPrompt = promptPrefix + basePrompt.replace(/^You are [^,]+,[\s\S]*?\n\n/, '');
-            } else {
-                systemPrompt = buildEnhancedSystemPrompt(context, coachId, undefined, memories);
-            }
-        } else {
-            systemPrompt = buildEnhancedSystemPrompt(context, coachId, undefined, memories);
-        }
-
-        // Build conversation history for Claude
-        const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
-        if (history && Array.isArray(history)) {
-            for (const msg of history.slice(-6)) {
-                if (msg.content && typeof msg.content === 'string' && msg.content.trim().length > 0) {
-                    if (msg.role === 'user') {
-                        messages.push({ role: 'user', content: msg.content.trim() });
-                    } else if (msg.role === 'assistant') {
-                        messages.push({ role: 'assistant', content: msg.content.trim() });
-                    }
-                }
-            }
-        }
-
-        // Add current message
+        // In live voice mode, constrain responses to be short and conversational
         const isLiveMode = message.trim().startsWith('[LIVE VOICE MODE');
-        messages.push({ role: 'user', content: message.trim() });
 
         // In live voice mode, constrain responses to be short and conversational
         if (isLiveMode) {
@@ -120,35 +83,9 @@ export async function POST(request: NextRequest) {
 
                     // Save conversation to database after streaming completes
                     try {
-                        const targetCoachId = coachId || 'general';
-                        let conversation = await db.getExpertConversation(user.userId, targetCoachId);
-                        let conversationMessages = conversation?.messages || [];
-
-                        if (!conversation) {
-                            conversation = await db.createConversation({
-                                userId: user.userId,
-                                conversationType: 'expert_chat',
-                                title: `${targetCoachId.charAt(0).toUpperCase() + targetCoachId.slice(1)} Coaching`,
-                                initialMessages: [],
-                                context: { coachId: targetCoachId }
-                            });
-                            conversationMessages = [];
-                        }
-
-                        // Append user message
-                        conversationMessages.push({
-                            role: 'user',
-                            content: message,
-                            timestamp: new Date().toISOString()
-                        });
-
-                        // Append assistant message
-                        conversationMessages.push({
-                            role: 'assistant',
-                            content: fullResponse,
-                            timestamp: new Date().toISOString()
-                        });
-
+                        const { conversation, conversationMessages } = await getOrCreateExpertConversation(user.userId, coachId);
+                        conversationMessages.push({ role: 'user', content: message, timestamp: new Date().toISOString() });
+                        conversationMessages.push({ role: 'assistant', content: fullResponse, timestamp: new Date().toISOString() });
                         if (conversation && conversation.id) {
                             await db.updateConversationMessages(conversation.id, conversationMessages);
                         }

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
-import { getUserContext, buildEnhancedSystemPrompt } from '@/lib/ai/context';
 import { getAnthropicClient, ANTHROPIC_MODEL } from '@/lib/anthropic';
 import { logApiUsage } from '@/lib/ai/costs';
 import { ChatMessageSchema, validateBody } from '@/lib/validation';
+import { buildExpertSystemPrompt, buildMessageHistory, getOrCreateExpertConversation } from '@/lib/api/expertChatSetup';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,65 +22,11 @@ export async function POST(request: NextRequest) {
         }
         const { message, history, coachId } = parsed.data;
 
-        // Get user context and coach memory
-        const context = await getUserContext(user.userId);
-        const targetCoachIdForMemory = coachId || 'general';
-        const coachMemory = await db.getCoachMemory(user.userId, targetCoachIdForMemory);
-        const memories = coachMemory?.memories || [];
-        let systemPrompt = '';
-
-        // Check if using a custom coach
-        const standardCoachIds = ['general', 'languages', 'mobility', 'emotional', 'relationships', 'health', 'tolerance', 'skills', 'habits'];
-
-        if (coachId && !standardCoachIds.includes(coachId)) {
-            const coaches = await db.getCustomCoachesByUserId(user.userId);
-            const customCoach = coaches.find((c: any) => c.id === coachId);
-
-            if (customCoach) {
-                const basePrompt = buildEnhancedSystemPrompt(context, 'general', undefined, memories);
-                const promptPrefix = `You are ${customCoach.name}. ${customCoach.systemPrompt}\n\n`;
-                systemPrompt = promptPrefix + basePrompt.replace(/^You are [^,]+,[\s\S]*?\n\n/, '');
-            } else {
-                systemPrompt = buildEnhancedSystemPrompt(context, coachId, undefined, memories);
-            }
-        } else {
-            systemPrompt = buildEnhancedSystemPrompt(context, coachId, undefined, memories);
-        }
-
-        // Build conversation history for Claude
-        const messages = [];
-        if (history && Array.isArray(history)) {
-            for (const msg of history.slice(-6)) {
-                if (msg.content && typeof msg.content === 'string' && msg.content.trim().length > 0) {
-                    if (msg.role === 'user') {
-                        messages.push({ role: 'user', content: msg.content.trim() });
-                    } else if (msg.role === 'assistant') {
-                        messages.push({ role: 'assistant', content: msg.content.trim() });
-                    }
-                }
-            }
-        }
-
-        // Add current message
-        messages.push({ role: 'user', content: message.trim() });
+        const { systemPrompt, context } = await buildExpertSystemPrompt(user.userId, coachId);
+        const messages = buildMessageHistory(history, message);
 
         try {
-            // Find specific conversation for this coach
-            const targetCoachId = coachId || 'general';
-            let conversation = await db.getExpertConversation(user.userId, targetCoachId);
-            let conversationMessages = conversation?.messages || [];
-
-            // If no conversation found or it's empty, create one
-            if (!conversation) {
-                conversation = await db.createConversation({
-                    userId: user.userId,
-                    conversationType: 'expert_chat',
-                    title: `${targetCoachId.charAt(0).toUpperCase() + targetCoachId.slice(1)} Coaching`,
-                    initialMessages: [],
-                    context: { coachId: targetCoachId }
-                });
-                conversationMessages = [];
-            }
+            const { conversation, conversationMessages } = await getOrCreateExpertConversation(user.userId, coachId);
 
             // Append user message to our history tracking
             const userMsgObj = {
@@ -138,25 +84,12 @@ export async function POST(request: NextRequest) {
 
             const reply = getFallbackResponse(message, context);
 
-            // Even on error fallback, we want to save interaction to the correct context
-            const targetCoachId = coachId || 'general';
-            let conversation = await db.getExpertConversation(user.userId, targetCoachId);
-
-            if (!conversation) {
-                conversation = await db.createConversation({
-                    userId: user.userId,
-                    conversationType: 'expert_chat',
-                    title: `${targetCoachId.charAt(0).toUpperCase() + targetCoachId.slice(1)} Coaching`,
-                    initialMessages: [],
-                    context: { coachId: targetCoachId }
-                });
-            }
-
-            if (conversation && conversation.id) {
-                const msgs = conversation.messages || [];
-                msgs.push({ role: 'user', content: message, timestamp: new Date().toISOString() });
-                msgs.push({ role: 'assistant', content: reply, timestamp: new Date().toISOString() });
-                await db.updateConversationMessages(conversation.id, msgs);
+            // Even on error fallback, save interaction to the correct context
+            const fallbackConvo = await getOrCreateExpertConversation(user.userId, coachId);
+            if (fallbackConvo.conversation && fallbackConvo.conversation.id) {
+                fallbackConvo.conversationMessages.push({ role: 'user', content: message, timestamp: new Date().toISOString() });
+                fallbackConvo.conversationMessages.push({ role: 'assistant', content: reply, timestamp: new Date().toISOString() });
+                await db.updateConversationMessages(fallbackConvo.conversation.id, fallbackConvo.conversationMessages);
             }
 
             return NextResponse.json({
