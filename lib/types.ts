@@ -156,6 +156,13 @@ export interface Message {
     content: string;
 }
 
+export interface ChatMessage {
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: Date;
+}
+
 export interface ShiftSuggestion {
     isShiftRecommended: boolean;
     reasoning: string;

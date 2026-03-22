@@ -8,13 +8,7 @@ import ChallengeProposal from './widgets/ChallengeProposal';
 import MoodLogWidget from './widgets/MoodLogWidget';
 import NewGoalWidget from './widgets/NewGoalWidget';
 import CreateCoachModal from './CreateCoachModal';
-
-interface Message {
-    id: string;
-    role: 'user' | 'assistant';
-    content: string;
-    timestamp: Date;
-}
+import { ChatMessage } from '@/lib/types';
 
 interface Coach {
     id: string;
@@ -48,7 +42,7 @@ interface ExpertChatProps {
 }
 
 export default function ExpertChat({ onBack }: ExpertChatProps) {
-    const [messages, setMessages] = useState<Message[]>([]);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isStreaming, setIsStreaming] = useState(false);
@@ -398,7 +392,7 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
     const sendMessage = async (content: string) => {
         if (!content.trim()) return;
 
-        const userMessage: Message = {
+        const userMessage: ChatMessage = {
             id: Date.now().toString(),
             role: 'user',
             content: content.trim(),
@@ -411,7 +405,7 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
 
         // Create placeholder assistant message for streaming
         const assistantMessageId = (Date.now() + 1).toString();
-        const assistantMessage: Message = {
+        const assistantMessage: ChatMessage = {
             id: assistantMessageId,
             role: 'assistant',
             content: '',

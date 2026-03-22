@@ -3,13 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Mic, Volume2, VolumeX, User, MessageCircle, Loader2, Radio } from 'lucide-react';
 import Link from 'next/link';
-
-interface Message {
-    id: string;
-    role: 'user' | 'assistant';
-    content: string;
-    timestamp: Date;
-}
+import { ChatMessage } from '@/lib/types';
 
 // Interview stages following the spec framework
 export type InterviewStage = 'mood' | 'goals' | 'challenges' | 'habits' | 'general' | 'open';
@@ -77,7 +71,7 @@ interface InterviewChatProps {
 }
 
 export default function InterviewChat({ initialStage = 'mood', onStageChange, onComplete, onBack }: InterviewChatProps) {
-    const [messages, setMessages] = useState<Message[]>([]);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isStreaming, setIsStreaming] = useState(false);
@@ -392,7 +386,7 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
 
             // Create placeholder assistant message for streaming
             const assistantMessageId = Date.now().toString();
-            const assistantMessage: Message = {
+            const assistantMessage: ChatMessage = {
                 id: assistantMessageId,
                 role: 'assistant',
                 content: '',
@@ -495,7 +489,7 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
     const sendMessage = async (content: string) => {
         if (!content.trim()) return;
 
-        const userMessage: Message = {
+        const userMessage: ChatMessage = {
             id: Date.now().toString(),
             role: 'user',
             content: content.trim(),
@@ -519,7 +513,7 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
 
         // Create placeholder assistant message for streaming
         const assistantMessageId = (Date.now() + 1).toString();
-        const assistantMessage: Message = {
+        const assistantMessage: ChatMessage = {
             id: assistantMessageId,
             role: 'assistant',
             content: '',
