@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ChatMessage } from '@/lib/types';
 import { useKeyboardOffset } from '@/hooks/useKeyboardOffset';
 import { useTTSAudio } from '@/hooks/useTTSAudio';
+import { useVoiceRecording } from '@/hooks/useVoiceRecording';
 
 // Interview stages following the spec framework
 export type InterviewStage = 'mood' | 'goals' | 'challenges' | 'habits' | 'general' | 'open';
@@ -107,11 +108,13 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // Voice Recording State
-    const [isRecording, setIsRecording] = useState(false);
-    const [isTranscribing, setIsTranscribing] = useState(false);
-    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-    const audioChunksRef = useRef<Blob[]>([]);
+    // Voice Recording
+    const { isRecording, isTranscribing, handleVoiceInput } = useVoiceRecording({
+        onTranscription: (text) => {
+            setInput(prev => prev + (prev ? ' ' : '') + text);
+            handleInputFocus();
+        },
+    });
 
     // TTS Audio
     const { isMuted, isPlayingAudio, toggleMute, playTTSAudio } = useTTSAudio({
@@ -507,63 +510,6 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
         sendMessage(input);
     };
 
-    // Voice Recording Functions
-    const handleVoiceInput = async () => {
-        if (isRecording) {
-            // Stop recording
-            mediaRecorderRef.current?.stop();
-            setIsRecording(false);
-        } else {
-            // Start recording
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-                mediaRecorderRef.current = mediaRecorder;
-                audioChunksRef.current = [];
-
-                mediaRecorder.ondataavailable = (event) => {
-                    if (event.data.size > 0) {
-                        audioChunksRef.current.push(event.data);
-                    }
-                };
-
-                mediaRecorder.onstop = async () => {
-                    stream.getTracks().forEach(track => track.stop());
-                    const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-
-                    // Transcribe the audio
-                    setIsTranscribing(true);
-                    try {
-                        const formData = new FormData();
-                        formData.append('file', audioBlob, 'recording.webm');
-
-                        const response = await fetch('/api/transcribe', {
-                            method: 'POST',
-                            body: formData
-                        });
-
-                        const data = await response.json();
-                        const text = data.text || data.data?.text || '';
-
-                        if (text) {
-                            setInput(prev => prev + (prev ? ' ' : '') + text);
-                            // Focus input so user can edit or send
-                            handleInputFocus();
-                        }
-                    } catch {
-                        // Transcription failed - silently ignore
-                    } finally {
-                        setIsTranscribing(false);
-                    }
-                };
-
-                mediaRecorder.start();
-                setIsRecording(true);
-            } catch {
-                // Microphone access denied - silently ignore
-            }
-        }
-    };
 
     // Get current stage index for progress indicator
     const currentStageIndex = INTERVIEW_STAGES.findIndex(s => s.id === currentStage);

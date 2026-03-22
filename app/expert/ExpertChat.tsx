@@ -11,6 +11,7 @@ import CreateCoachModal from './CreateCoachModal';
 import { ChatMessage } from '@/lib/types';
 import { useKeyboardOffset } from '@/hooks/useKeyboardOffset';
 import { useTTSAudio } from '@/hooks/useTTSAudio';
+import { useVoiceRecording } from '@/hooks/useVoiceRecording';
 
 interface Coach {
     id: string;
@@ -59,11 +60,13 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const chatContainerRef = useRef<HTMLDivElement>(null);
 
-    // Voice Recording State
-    const [isRecording, setIsRecording] = useState(false);
-    const [isTranscribing, setIsTranscribing] = useState(false);
-    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-    const audioChunksRef = useRef<Blob[]>([]);
+    // Voice Recording
+    const { isRecording, isTranscribing, handleVoiceInput } = useVoiceRecording({
+        onTranscription: (text) => {
+            setInput(prev => prev + (prev ? ' ' : '') + text);
+            inputRef.current?.focus();
+        },
+    });
 
     // TTS Audio
     const { isMuted, isPlayingAudio, toggleMute, playTTSAudio } = useTTSAudio({
@@ -413,62 +416,6 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
         }, 300);
     };
 
-    // Voice Recording Functions
-    const handleVoiceInput = async () => {
-        if (isRecording) {
-            // Stop recording
-            mediaRecorderRef.current?.stop();
-            setIsRecording(false);
-        } else {
-            // Start recording
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-                mediaRecorderRef.current = mediaRecorder;
-                audioChunksRef.current = [];
-
-                mediaRecorder.ondataavailable = (event) => {
-                    if (event.data.size > 0) {
-                        audioChunksRef.current.push(event.data);
-                    }
-                };
-
-                mediaRecorder.onstop = async () => {
-                    stream.getTracks().forEach(track => track.stop());
-                    const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-
-                    // Transcribe the audio
-                    setIsTranscribing(true);
-                    try {
-                        const formData = new FormData();
-                        formData.append('file', audioBlob, 'recording.webm');
-
-                        const response = await fetch('/api/transcribe', {
-                            method: 'POST',
-                            body: formData
-                        });
-
-                        const data = await response.json();
-                        // Handle response - API returns { text: string }
-                        const transcribedText = data.text || data.data?.text || '';
-                        if (transcribedText) {
-                            setInput(prev => prev + (prev ? ' ' : '') + transcribedText);
-                            inputRef.current?.focus();
-                        }
-                    } catch (error) {
-                        console.error('Transcription failed:', error);
-                    } finally {
-                        setIsTranscribing(false);
-                    }
-                };
-
-                mediaRecorder.start();
-                setIsRecording(true);
-            } catch (error) {
-                console.error('Microphone access denied:', error);
-            }
-        }
-    };
 
     // Reset conversation with memory extraction
     const handleResetConversation = async () => {
