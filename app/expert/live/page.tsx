@@ -691,7 +691,7 @@ export default function LiveVoiceChat() {
 
             <style jsx>{`
                 .live-voice-chat {
-                    height: 100dvh;
+                    height: calc(100dvh - 60px);
                     display: flex;
                     flex-direction: column;
                     align-items: center;

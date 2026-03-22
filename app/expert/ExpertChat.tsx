@@ -530,13 +530,12 @@ export default function ExpertChat() {
                 .expert-chat {
                     display: flex;
                     flex-direction: column;
-                    height: calc(100vh - 80px);
+                    height: calc(100vh - 80px - 60px);
                     min-height: 400px;
                     background: var(--color-background);
                     overflow: hidden;
                     position: relative;
                     width: 100%;
-                    padding-top: 56px;
                 }
 
                 .chat-header {
