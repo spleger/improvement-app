@@ -9,8 +9,8 @@ interface NotificationSettingsProps {
     updatePref: (key: string, value: any) => void;
     pushSupported: boolean;
     pushPermission: string;
-    pushSubscribe: () => Promise<void>;
-    pushUnsubscribe: () => Promise<void>;
+    pushSubscribe: () => Promise<boolean>;
+    pushUnsubscribe: () => Promise<boolean>;
 }
 
 export default function NotificationSettings({ prefs, updatePref, pushSupported, pushPermission, pushSubscribe, pushUnsubscribe }: NotificationSettingsProps) {
