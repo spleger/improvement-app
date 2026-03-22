@@ -31,7 +31,14 @@ export default function AIConversation({ onBack }: AIConversationProps) {
     }
 
     if (selectedMode === 'expert') {
-        return <ExpertChat onBack={handleBackToModeSelection} />;
+        return (
+            <div>
+                <button onClick={handleBackToModeSelection} className="btn btn-ghost mb-md text-small">
+                    ← Back to options
+                </button>
+                <ExpertChat />
+            </div>
+        );
     }
 
     // Otherwise render selection menu

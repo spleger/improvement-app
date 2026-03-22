@@ -1,12 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { useTheme } from '../ThemeContext';
-import { usePushNotifications } from '@/hooks/usePushNotifications';
-import ProfileSettings from './components/ProfileSettings';
-import ChallengeSettings from './components/ChallengeSettings';
-import AISettings from './components/AISettings';
-import NotificationSettings from './components/NotificationSettings';
+import { useState, useEffect, useCallback } from 'react';
 
 interface Preferences {
     displayName?: string;
@@ -23,13 +17,6 @@ interface Preferences {
     dailyReminderTime?: string;
     streakReminders?: boolean;
     theme?: string;
-    accentColor?: string;
-    // AI Voice Selection
-    voiceId?: string;
-    // AI Personality Customization
-    aiCustomName?: string;
-    tonePreference?: string;
-    rudeMode?: boolean;
 }
 
 const DEFAULT_PREFS: Preferences = {
@@ -45,93 +32,71 @@ const DEFAULT_PREFS: Preferences = {
     notificationsEnabled: true,
     dailyReminderTime: '09:00',
     streakReminders: true,
-    theme: 'minimal',
-    accentColor: 'teal',
-    // AI Voice Selection
-    voiceId: 'nova',
-    // AI Personality Customization
-    aiCustomName: '',
-    tonePreference: 'friendly',
-    rudeMode: false
+    theme: 'minimal'
 };
-
-const ACCENT_COLORS = [
-    { id: 'teal', name: 'Teal', primary: '#0d9488', secondary: '#06b6d4', emoji: '🌊' },
-    { id: 'gold', name: 'Gold', primary: '#d97706', secondary: '#f59e0b', emoji: '✨' },
-    { id: 'blue', name: 'Blue', primary: '#3b82f6', secondary: '#60a5fa', emoji: '💙' },
-    { id: 'purple', name: 'Purple', primary: '#8b5cf6', secondary: '#a78bfa', emoji: '💜' },
-    { id: 'rose', name: 'Rose', primary: '#e11d48', secondary: '#f43f5e', emoji: '🌹' },
-];
-
-const VOICE_OPTIONS = [
-    { id: 'alloy', name: 'Alloy', gender: 'neutral', description: 'Balanced and versatile' },
-    { id: 'ash', name: 'Ash', gender: 'male', description: 'Warm and conversational' },
-    { id: 'coral', name: 'Coral', gender: 'female', description: 'Warm and engaging' },
-    { id: 'echo', name: 'Echo', gender: 'male', description: 'Clear and professional' },
-    { id: 'fable', name: 'Fable', gender: 'neutral', description: 'Expressive and dynamic' },
-    { id: 'onyx', name: 'Onyx', gender: 'male', description: 'Deep and authoritative' },
-    { id: 'nova', name: 'Nova', gender: 'female', description: 'Friendly and approachable' },
-    { id: 'sage', name: 'Sage', gender: 'female', description: 'Calm and wise' },
-    { id: 'shimmer', name: 'Shimmer', gender: 'female', description: 'Bright and energetic' },
-];
-
-
 
 export default function SettingsForm({ initialPreferences }: { initialPreferences: Preferences | null }) {
     const [prefs, setPrefs] = useState<Preferences>({ ...DEFAULT_PREFS, ...initialPreferences });
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [focusInput, setFocusInput] = useState('');
-    const [voiceSaved, setVoiceSaved] = useState(false);
-    const { setAccentColor } = useTheme();
-    const initialLoadRef = useRef(true);
-    const voiceSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const push = usePushNotifications();
-    const { isSupported: pushSupported, permission: pushPermission } = push;
+    const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+    const [selectedVoice, setSelectedVoice] = useState<string>('');
+    const [playingVoice, setPlayingVoice] = useState<string | null>(null);
 
-    const updatePref = (key: string, value: any) => {
-        setPrefs(prev => ({ ...prev, [key]: value }));
-        setSaved(false);
-
-        // Immediate update for visual feedback
-        if (key === 'accentColor') {
-            setAccentColor(value);
-        }
-    };
-
-    // Auto-save when voiceId changes (skip initial load)
+    // Load available voices from Web Speech API
     useEffect(() => {
-        if (initialLoadRef.current) {
-            initialLoadRef.current = false;
-            return;
-        }
-
-        if (voiceSaveTimeoutRef.current) {
-            clearTimeout(voiceSaveTimeoutRef.current);
-        }
-
-        voiceSaveTimeoutRef.current = setTimeout(async () => {
-            try {
-                const response = await fetch('/api/settings', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(prefs)
-                });
-                if (response.ok) {
-                    setVoiceSaved(true);
-                    setTimeout(() => setVoiceSaved(false), 2000);
-                }
-            } catch (error) {
-                console.error('Error auto-saving voice selection:', error);
-            }
-        }, 500);
-
-        return () => {
-            if (voiceSaveTimeoutRef.current) {
-                clearTimeout(voiceSaveTimeoutRef.current);
+        const loadVoices = () => {
+            if (typeof window === 'undefined' || !window.speechSynthesis) return;
+            const voices = speechSynthesis.getVoices();
+            if (voices.length > 0) {
+                // Filter to English voices for relevance, keep a reasonable list
+                const englishVoices = voices.filter(v => v.lang.startsWith('en'));
+                setAvailableVoices(englishVoices.length > 0 ? englishVoices : voices.slice(0, 12));
             }
         };
-    }, [prefs.voiceId]); // eslint-disable-line react-hooks/exhaustive-deps
+        loadVoices();
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+            speechSynthesis.addEventListener('voiceschanged', loadVoices);
+            return () => speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+        }
+    }, []);
+
+    // Load saved voice preference from localStorage
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('aiVoicePreference');
+            if (saved) setSelectedVoice(saved);
+        }
+    }, []);
+
+    const playVoiceSample = useCallback((voiceName: string) => {
+        if (typeof window === 'undefined' || !window.speechSynthesis) return;
+        const utterance = new SpeechSynthesisUtterance('Hello, I am your AI coach.');
+        const voices = speechSynthesis.getVoices();
+        const voice = voices.find(v => v.name === voiceName);
+        if (voice) utterance.voice = voice;
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        setPlayingVoice(voiceName);
+        utterance.onend = () => setPlayingVoice(null);
+        utterance.onerror = () => setPlayingVoice(null);
+        speechSynthesis.cancel();
+        speechSynthesis.speak(utterance);
+    }, []);
+
+    const selectVoice = useCallback((voiceName: string) => {
+        setSelectedVoice(voiceName);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('aiVoicePreference', voiceName);
+        }
+        playVoiceSample(voiceName);
+    }, [playVoiceSample]);
+
+    const updatePref = (key: keyof Preferences, value: any) => {
+        setPrefs(prev => ({ ...prev, [key]: value }));
+        setSaved(false);
+    };
 
     const addFocusArea = () => {
         if (focusInput.trim() && !prefs.focusAreas?.includes(focusInput.trim())) {
@@ -165,36 +130,257 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
 
     return (
         <div className="settings-form">
-            <ProfileSettings
-                prefs={prefs}
-                updatePref={updatePref}
-                accentColors={ACCENT_COLORS}
-            />
+            {/* Profile Section */}
+            <section className="card mb-lg">
+                <h2 className="heading-4 mb-md">👤 Profile</h2>
 
-            <ChallengeSettings
-                prefs={prefs}
-                updatePref={updatePref}
-                focusInput={focusInput}
-                setFocusInput={setFocusInput}
-                addFocusArea={addFocusArea}
-                removeFocusArea={removeFocusArea}
-            />
+                <div className="form-group">
+                    <label className="form-label">Display Name</label>
+                    <input
+                        type="text"
+                        value={prefs.displayName || ''}
+                        onChange={e => updatePref('displayName', e.target.value)}
+                        placeholder="Your name"
+                        className="form-input"
+                    />
+                </div>
+            </section>
 
-            <AISettings
-                prefs={prefs}
-                updatePref={updatePref}
-                voiceOptions={VOICE_OPTIONS}
-                voiceSaved={voiceSaved}
-            />
+            {/* Challenge Generation Section */}
+            <section className="card mb-lg">
+                <h2 className="heading-4 mb-md">🎯 Challenge Generation</h2>
 
-            <NotificationSettings
-                prefs={prefs}
-                updatePref={updatePref}
-                pushSupported={pushSupported}
-                pushPermission={pushPermission}
-                pushSubscribe={push.subscribe}
-                pushUnsubscribe={push.unsubscribe}
-            />
+                {/* Preferred Difficulty */}
+                <div className="form-group">
+                    <label className="form-label">Default Difficulty Level</label>
+                    <div className="flex items-center gap-md">
+                        <input
+                            type="range"
+                            min="1"
+                            max="10"
+                            value={prefs.preferredDifficulty}
+                            onChange={e => updatePref('preferredDifficulty', parseInt(e.target.value))}
+                            className="slider"
+                            style={{ flex: 1 }}
+                        />
+                        <span className="heading-5" style={{ width: '40px', textAlign: 'center' }}>
+                            {prefs.preferredDifficulty}
+                        </span>
+                    </div>
+                    <p className="text-tiny text-muted">
+                        {prefs.preferredDifficulty! <= 3 ? 'Gentle start - building momentum' :
+                            prefs.preferredDifficulty! <= 6 ? 'Moderate - balanced challenge' :
+                                prefs.preferredDifficulty! <= 8 ? 'Intense - pushing boundaries' :
+                                    'Extreme - maximum growth'}
+                    </p>
+                </div>
+
+                {/* Challenges Per Day */}
+                <div className="form-group">
+                    <label className="form-label">Challenges Per Day</label>
+                    <div className="flex gap-sm">
+                        {[1, 2, 3, 5].map(n => (
+                            <button
+                                key={n}
+                                onClick={() => updatePref('challengesPerDay', n)}
+                                className={`btn ${prefs.challengesPerDay === n ? 'btn-primary' : 'btn-secondary'}`}
+                                style={{ flex: 1 }}
+                            >
+                                {n}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Challenge Length */}
+                <div className="form-group">
+                    <label className="form-label">Preferred Challenge Length</label>
+                    <div className="flex gap-sm">
+                        {[
+                            { value: 'short', label: '5-15 min', emoji: '⚡' },
+                            { value: 'medium', label: '15-30 min', emoji: '🎯' },
+                            { value: 'long', label: '30+ min', emoji: '🏋️' }
+                        ].map(opt => (
+                            <button
+                                key={opt.value}
+                                onClick={() => updatePref('challengeLengthPreference', opt.value)}
+                                className={`btn ${prefs.challengeLengthPreference === opt.value ? 'btn-primary' : 'btn-secondary'}`}
+                                style={{ flex: 1, flexDirection: 'column', padding: '0.75rem' }}
+                            >
+                                <span>{opt.emoji}</span>
+                                <span className="text-tiny">{opt.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Preferred Time */}
+                <div className="form-group">
+                    <label className="form-label">Best Time for Challenges</label>
+                    <div className="flex gap-xs flex-wrap">
+                        {[
+                            { value: 'morning', label: 'Morning', emoji: '🌅' },
+                            { value: 'afternoon', label: 'Afternoon', emoji: '☀️' },
+                            { value: 'evening', label: 'Evening', emoji: '🌙' },
+                            { value: 'anytime', label: 'Anytime', emoji: '🔄' }
+                        ].map(opt => (
+                            <button
+                                key={opt.value}
+                                onClick={() => updatePref('preferredChallengeTime', opt.value)}
+                                className={`btn ${prefs.preferredChallengeTime === opt.value ? 'btn-primary' : 'btn-secondary'}`}
+                                style={{ padding: '0.5rem 0.75rem', fontSize: '0.9rem' }}
+                            >
+                                {opt.emoji} {opt.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Reality Shift Mode */}
+                <div className="form-group">
+                    <label className="flex items-center gap-md" style={{ cursor: 'pointer' }}>
+                        <input
+                            type="checkbox"
+                            checked={prefs.realityShiftEnabled}
+                            onChange={e => updatePref('realityShiftEnabled', e.target.checked)}
+                            style={{ width: '20px', height: '20px' }}
+                        />
+                        <div>
+                            <div className="heading-5">⚡ Reality Shift Mode</div>
+                            <div className="text-small text-muted">
+                                Enable extreme, life-changing challenges that push you far outside your comfort zone
+                            </div>
+                        </div>
+                    </label>
+                </div>
+            </section>
+
+            {/* Focus Areas Section */}
+            <section className="card mb-lg">
+                <h2 className="heading-4 mb-md">🎪 Focus Areas</h2>
+                <p className="text-small text-muted mb-md">
+                    Tell the AI what you want to focus on or avoid
+                </p>
+
+                <div className="form-group">
+                    <label className="form-label">I want challenges that focus on:</label>
+                    <div className="flex items-center gap-2 mb-sm">
+                        <input
+                            type="text"
+                            value={focusInput}
+                            onChange={e => setFocusInput(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && addFocusArea()}
+                            placeholder="e.g., speaking, morning routines, facing fears"
+                            className="form-input"
+                            style={{ flex: 1, minWidth: 0 }}
+                        />
+                        <button
+                            onClick={addFocusArea}
+                            className="btn btn-secondary"
+                            style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem', flexShrink: 0 }}
+                        >
+                            + Add
+                        </button>
+                    </div>
+                    {prefs.focusAreas && prefs.focusAreas.length > 0 && (
+                        <div className="flex gap-sm flex-wrap">
+                            {prefs.focusAreas.map(area => (
+                                <span key={area} className="tag" style={{
+                                    background: 'var(--color-surface)',
+                                    padding: '0.25rem 0.75rem',
+                                    borderRadius: '20px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem'
+                                }}>
+                                    {area}
+                                    <button
+                                        onClick={() => removeFocusArea(area)}
+                                        style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: 0.5 }}
+                                    >
+                                        ✕
+                                    </button>
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </section>
+
+            {/* AI Personality Section */}
+            <section className="card mb-lg">
+                <h2 className="heading-4 mb-md">🤖 AI Personality</h2>
+
+                <div className="form-group">
+                    <label className="form-label">How should the AI coach you?</label>
+                    <div className="flex gap-2 flex-wrap">
+                        {[
+                            { value: 'encouraging', label: 'Encouraging' },
+                            { value: 'tough-love', label: 'Tough Love' },
+                            { value: 'scientific', label: 'Scientific' },
+                            { value: 'casual', label: 'Casual Friend' }
+                        ].map(opt => (
+                            <button
+                                key={opt.value}
+                                onClick={() => updatePref('aiPersonality', opt.value)}
+                                className={`btn ${prefs.aiPersonality === opt.value ? 'btn-primary' : 'btn-secondary'}`}
+                                style={{
+                                    padding: '0.35rem 0.75rem',
+                                    fontSize: '0.85rem',
+                                    borderRadius: '9999px',
+                                }}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="form-group mt-md">
+                    <label className="flex items-center gap-md" style={{ cursor: 'pointer' }}>
+                        <input
+                            type="checkbox"
+                            checked={prefs.includeScientificBasis}
+                            onChange={e => updatePref('includeScientificBasis', e.target.checked)}
+                            style={{ width: '20px', height: '20px' }}
+                        />
+                        <div>
+                            <div className="heading-5">📚 Include Scientific Basis</div>
+                            <div className="text-small text-muted">
+                                Show why each challenge works based on research
+                            </div>
+                        </div>
+                    </label>
+                </div>
+            </section>
+
+            {/* AI Voice Section */}
+            {availableVoices.length > 0 && (
+                <section className="card mb-lg">
+                    <h2 className="heading-4 mb-md">AI Voice</h2>
+                    <p className="text-small text-muted mb-md">
+                        Select a voice for AI speech. Click to hear a sample.
+                    </p>
+
+                    <div className="flex gap-2 flex-wrap">
+                        {availableVoices.map(voice => (
+                            <button
+                                key={voice.name}
+                                onClick={() => selectVoice(voice.name)}
+                                className={`btn ${selectedVoice === voice.name ? 'btn-primary' : 'btn-secondary'}`}
+                                style={{
+                                    padding: '0.35rem 0.75rem',
+                                    fontSize: '0.85rem',
+                                    borderRadius: '9999px',
+                                    opacity: playingVoice === voice.name ? 0.7 : 1,
+                                }}
+                            >
+                                {playingVoice === voice.name ? '...' : ''} {voice.name.replace(/Microsoft |Google /, '')}
+                            </button>
+                        ))}
+                    </div>
+                </section>
+            )}
 
             {/* Save Button */}
             <div className="mb-xl">

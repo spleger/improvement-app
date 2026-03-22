@@ -84,25 +84,28 @@ export default function NewGoalForm({ domains }: Props) {
                 <div className="animate-slide-up">
                     <h2 className="heading-4 mb-lg">Choose your transformation area</h2>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
                         {domains.map(domain => (
                             <button
                                 key={domain.id}
                                 onClick={() => handleDomainSelect(domain.id)}
                                 className="card"
+                                lang="en"
                                 style={{
                                     cursor: 'pointer',
                                     textAlign: 'left',
-                                    padding: '1rem',
                                     border: formData.domainId === domain.id ? `2px solid ${domain.color}` : '2px solid transparent',
-                                    transition: 'all 0.2s'
+                                    transition: 'all 0.2s',
+                                    hyphens: 'auto',
+                                    wordBreak: 'break-word',
+                                    overflow: 'visible'
                                 }}
                             >
-                                <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>
-                                    {domainIcons[domain.icon || ''] || '🎯'}
+                                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>
+                                    {domainIcons[domain.icon || ''] || ''}
                                 </div>
-                                <div className="text-body" style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{domain.name}</div>
-                                <p className="text-small text-muted" style={{ marginTop: '0.25rem' }}>
+                                <div className="heading-4" style={{ hyphens: 'auto', wordBreak: 'break-word' }} lang="en">{domain.name}</div>
+                                <p className="text-small text-muted" style={{ marginTop: '0.25rem', hyphens: 'auto', wordBreak: 'break-word' }} lang="en">
                                     {domain.description}
                                 </p>
                             </button>
@@ -201,7 +204,6 @@ export default function NewGoalForm({ domains }: Props) {
                                 value={formData.difficultyLevel}
                                 onChange={e => setFormData(prev => ({ ...prev, difficultyLevel: parseInt(e.target.value) }))}
                                 className="slider"
-                                style={{ '--slider-progress': `${((formData.difficultyLevel - 1) / 9) * 100}%` } as React.CSSProperties}
                             />
                             <div className="slider-labels">
                                 <span>Gentle</span>

@@ -2,8 +2,6 @@ import Link from 'next/link';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import PageHeader from '../components/PageHeader';
-import AvatarUpload from './AvatarUpload';
 
 export default async function ProfilePage() {
     const user = await getCurrentUser();
@@ -11,15 +9,11 @@ export default async function ProfilePage() {
         redirect('/login');
     }
 
-    // Get all user data in parallel to reduce connection hold time
-    const [userData, goals, challenges, streak, diaryCount, apiUsage] = await Promise.all([
-        db.getUserById(user.userId),
-        db.getGoalsByUserId(user.userId),
-        db.getChallengesByUserId(user.userId, { limit: 100 }),
-        db.calculateStreak(user.userId),
-        db.getDiaryEntriesCount(user.userId),
-        db.getApiUsageTotals(user.userId),
-    ]);
+    // Get all user data
+    const goals = await db.getGoalsByUserId(user.userId);
+    const challenges = await db.getChallengesByUserId(user.userId, { limit: 100 });
+    const streak = await db.calculateStreak(user.userId);
+    const diaryCount = await db.getDiaryEntriesCount(user.userId);
 
     const completedChallenges = challenges.filter(c => c.status === 'completed').length;
     const activeGoals = goals.filter(g => g.status === 'active').length;
@@ -28,8 +22,8 @@ export default async function ProfilePage() {
     // Calculate total days in journey
     const firstGoal = goals[goals.length - 1];
     const daysOnPlatform = firstGoal
-        ? Math.max(1, Math.ceil((Date.now() - new Date(firstGoal.createdAt).getTime()) / (1000 * 60 * 60 * 24)))
-        : 1;
+        ? Math.ceil((Date.now() - new Date(firstGoal.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+        : 0;
 
     const stats = {
         streak,
@@ -44,17 +38,25 @@ export default async function ProfilePage() {
     return (
         <div className="page animate-fade-in">
             {/* Header */}
-            <PageHeader
-                icon="👤"
-                title="My Profile"
-                subtitle={`${stats.daysOnPlatform} ${stats.daysOnPlatform === 1 ? 'day' : 'days'} on your transformation journey`}
-            />
-
-            {/* Profile Picture */}
-            <AvatarUpload
-                initialUrl={userData?.avatarUrl || null}
-                displayName={userData?.displayName || null}
-            />
+            <div className="page-header text-center">
+                <div style={{
+                    width: '80px',
+                    height: '80px',
+                    borderRadius: '50%',
+                    background: 'var(--gradient-primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 1rem',
+                    fontSize: '2.5rem'
+                }}>
+                    👤
+                </div>
+                <h1 className="heading-2">My Profile</h1>
+                <p className="text-secondary">
+                    {stats.daysOnPlatform} days on your transformation journey
+                </p>
+            </div>
 
             {/* Stats Grid */}
             <section className="mb-lg">
@@ -79,32 +81,14 @@ export default async function ProfilePage() {
                 </div>
             </section>
 
-            {/* API Usage */}
-            <section className="mb-lg">
-                <h2 className="heading-4 mb-md">AI Usage</h2>
-                <div className="stats-grid">
-                    <div className="stat-card">
-                        <div className="stat-value">${(apiUsage.totalCostCents / 100).toFixed(2)}</div>
-                        <div className="stat-label">Total Cost</div>
-                    </div>
-                    <div className="stat-card">
-                        <div className="stat-value">${(apiUsage.last7DaysCostCents / 100).toFixed(2)}</div>
-                        <div className="stat-label">Last 7 Days</div>
-                    </div>
-                    <div className="stat-card">
-                        <div className="stat-value">{apiUsage.totalRequests}</div>
-                        <div className="stat-label">Total Requests</div>
-                    </div>
-                    <div className="stat-card">
-                        <div className="stat-value">{apiUsage.last7DaysRequests}</div>
-                        <div className="stat-label">7-Day Requests</div>
-                    </div>
-                </div>
-            </section>
-
             {/* Active Goals */}
             <section className="mb-lg">
-                <h2 className="heading-4 mb-md">Your Goals</h2>
+                <div className="flex justify-between items-center mb-md">
+                    <h2 className="heading-4">Your Goals</h2>
+                    <Link href="/goals/new" className="btn btn-ghost text-small">
+                        + New Goal
+                    </Link>
+                </div>
 
                 {goals.length === 0 ? (
                     <div className="card text-center">
@@ -121,8 +105,16 @@ export default async function ProfilePage() {
                                     }}>
                                         {goal.status === 'completed' ? '✅' : '🎯'}
                                     </span>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div className="text-body" style={{ fontWeight: 600 }}>{goal.title}</div>
+                                    <div style={{ flex: 1 }}>
+                                        <div className="heading-4">{
+                                            (() => {
+                                                const match = goal.title.match(/^(.+?)(\s*\([^)]+\))$/);
+                                                if (match) {
+                                                    return <>{match[1]}<span style={{ whiteSpace: 'nowrap' }}>{match[2]}</span></>;
+                                                }
+                                                return goal.title;
+                                            })()
+                                        }</div>
                                         <div className="text-small text-muted">
                                             {goal.domain?.name || 'General'} •
                                             Started {new Date(goal.startedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -141,13 +133,13 @@ export default async function ProfilePage() {
             {/* Settings Section */}
             <section className="mb-lg">
                 <h2 className="heading-4 mb-md">Settings</h2>
-                <div className="flex flex-col gap-md">
-                    <Link href="/settings" className="card card-glass flex items-center gap-md" style={{ width: '100%', textAlign: 'left', textDecoration: 'none', color: 'inherit' }}>
+                <div className="flex flex-col gap-sm">
+                    <Link href="/settings" className="card flex items-center gap-md" style={{ width: '100%', textAlign: 'left', textDecoration: 'none', color: 'inherit' }}>
                         <span>⚙️</span>
                         <span style={{ flex: 1 }}>General Settings</span>
                         <span className="text-muted">→</span>
                     </Link>
-                    <Link href="/api/auth/logout" className="card card-glass flex items-center gap-md" style={{ width: '100%', textAlign: 'left', textDecoration: 'none', color: 'var(--color-error)' }}>
+                    <Link href="/api/auth/logout" className="card flex items-center gap-md" style={{ width: '100%', textAlign: 'left', textDecoration: 'none', color: 'var(--color-error)' }}>
                         <span>🚪</span>
                         <span style={{ flex: 1 }}>Logout</span>
                         <span className="text-muted">→</span>
@@ -155,6 +147,16 @@ export default async function ProfilePage() {
                 </div>
             </section>
 
+            {/* Bottom Navigation */}
+            <nav className="nav-bottom">
+                <div className="nav-bottom-inner">
+                    <Link href="/" className="nav-item"><span className="nav-item-icon">🏠</span><span className="nav-item-label">Home</span></Link>
+                    <Link href="/progress" className="nav-item"><span className="nav-item-icon">📊</span><span className="nav-item-label">Progress</span></Link>
+                    <Link href="/diary" className="nav-item"><span className="nav-item-icon">🎙️</span><span className="nav-item-label">Diary</span></Link>
+                    <Link href="/expert" className="nav-item"><span className="nav-item-icon">💬</span><span className="nav-item-label">Expert</span></Link>
+                    <Link href="/profile" className="nav-item active"><span className="nav-item-icon">👤</span><span className="nav-item-label">Profile</span></Link>
+                </div>
+            </nav>
         </div>
     );
 }

@@ -1,10 +1,282 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
-import { getAnthropicClient, ANTHROPIC_MODEL } from '@/lib/anthropic';
-import { logApiUsage } from '@/lib/ai/costs';
-import { ChatMessageSchema, validateBody } from '@/lib/validation';
-import { buildExpertSystemPrompt, buildMessageHistory, getOrCreateExpertConversation } from '@/lib/api/expertChatSetup';
+
+const ANTHROPIC_API_KEY_RAW = process.env.ANTHROPIC_API_KEY;
+// Sanitize: strip quotes and whitespace
+const ANTHROPIC_API_KEY = ANTHROPIC_API_KEY_RAW?.replace(/^["']|["']$/g, '').trim();
+
+async function getUserContext(userId: string) {
+    try {
+        // Get active goal
+        const activeGoal = await db.getActiveGoalByUserId(userId);
+
+        // Get recent challenges
+        const challenges = await db.getChallengesByUserId(userId, { limit: 10 });
+        const completedChallenges = challenges.filter(c => c.status === 'completed');
+        const todayChallenge = await db.getTodayChallenge(userId);
+
+        // Get streak
+        const streak = await db.calculateStreak(userId);
+
+        // Get user preferences (NEW)
+        const preferences = await db.getUserPreferences(userId);
+
+        // Get recent surveys for mood data
+        const surveys = await db.getSurveysByUserId(userId, 7);
+        const avgMood = surveys.length > 0
+            ? Math.round(surveys.reduce((sum, s) => sum + s.overallMood, 0) / surveys.length * 10) / 10
+            : null;
+
+        // Get habit stats
+        const habitStats = await db.getHabitStats(userId, 7);
+        const todayHabitLogs = await db.getHabitLogsForDate(userId, new Date());
+
+        // Calculate day in journey
+        const dayInJourney = activeGoal
+            ? Math.ceil((Date.now() - new Date(activeGoal.startedAt).getTime()) / (1000 * 60 * 60 * 24))
+            : 0;
+
+        return {
+            activeGoal,
+            todayChallenge,
+            completedChallengesCount: completedChallenges.length,
+            totalChallenges: challenges.length,
+            streak,
+            avgMood,
+            dayInJourney,
+            recentChallenges: challenges.slice(0, 5),
+            preferences,
+            recentDiary: await db.getDiaryEntriesByUserId(userId, 3), // Fetch recent 3 entries
+            recentSurveys: surveys.slice(0, 3), // Include last 3 check-ins for AI context
+            habitStats,
+            todayHabitLogs
+        };
+    } catch (error) {
+        console.error('Error fetching user context:', error);
+        return null;
+    }
+}
+
+function buildSystemPrompt(context: any, coachId?: string) {
+    let roleDescription = 'You are a Transformation Coach - an expert in habit formation, goal achievement, and personal development.';
+
+    // Customize role based on coach ID
+    switch (coachId) {
+        case 'languages':
+            roleDescription = 'You are a Language Learning Expert and Polyglot Coach. You focus on immersion strategies, overcoming speaking anxiety, and consistent practice.';
+            break;
+        case 'mobility':
+            roleDescription = 'You are a Mobility and Movement Coach. You focus on flexibility, joint health, and building a body that moves without pain.';
+            break;
+        case 'emotional':
+            roleDescription = 'You are an Emotional Intelligence Coach. You focus on emotional regulation, self-awareness, and building resilience.';
+            break;
+        case 'relationships':
+            roleDescription = 'You are a Relationship and Communication Coach. You focus on empathy, active listening, and building deeper connections.';
+            break;
+        case 'health':
+            roleDescription = 'You are a Health and Vitality Coach. You focus on sustainable fitness, nutrition habits, and physical energy.';
+            break;
+        case 'tolerance':
+            roleDescription = 'You are a Resilience and Tolerance Coach. You focus on getting comfortable with discomfort, stoicism, and mental toughness.';
+            break;
+        case 'skills':
+            roleDescription = 'You are a Skill Acquisition Expert. You focus on deliberate practice, the 80/20 rule of learning, and overcoming plateaus.';
+            break;
+        case 'habits':
+            roleDescription = 'You are a Habit Formation Expert. You focus on cue-routine-reward loops, environment design, and small atomic habits.';
+            break;
+        default:
+        // Keep default general coach
+    }
+
+    // Adjust tone based on user preferences (if context is available)
+    const personality = context?.preferences?.aiPersonality;
+    let toneDesc = "You're warm, encouraging, and evidence-based in your approach.";
+    if (personality === 'tough-love') {
+        toneDesc = "You're direct, no-nonsense, and push users hard while still caring about their growth.";
+    } else if (personality === 'scientific') {
+        toneDesc = "You're analytical, data-driven, and always reference research or evidence to support your advice.";
+    } else if (personality === 'casual') {
+        toneDesc = "You're relaxed, conversational, and use humor to keep things light while still being helpful.";
+    }
+
+    let prompt = `${roleDescription} ${toneDesc}
+
+Your role is to help users:
+- Stay motivated on their 30-day transformation journeys
+- Build consistent habits
+- Overcome challenges and setbacks
+- Process emotions around change
+- Celebrate wins (big and small)
+
+IMPORTANT: Stay STRICTLY within your domain of expertise (${coachId || 'General'}). If the user asks about something totally unrelated, gently guide them to the General Coach or the appropriate specialist.
+
+=== INTERACTIVE WIDGETS PROCTOCOL ===
+You can trigger interactive widgets in the chat to help the user take action.
+To use a widget, output a JSON block formatted exactly like this on a separate line:
+<<<{"type": "WIDGET_TYPE", "payload": { ... }}>>>
+
+Supported Widgets:
+1. Suggest Challenge (Use when user asks for a challenge or needs something to do)
+   <<<{"type": "suggest_challenge", "payload": {"title": "Challenge Title", "difficulty": 5, "isRealityShift": false}}>>>
+
+2. Log Mood (Use when user mentions feeling a certain way or you want to check in)
+   <<<{"type": "log_mood", "payload": {}}>>>
+
+3. Create Goal (Use when user wants to start a new journey or has no active goal)
+   <<<{"type": "create_goal", "payload": {"title": "Suggested Goal Title", "domainId": 1}}>>>
+=====================================
+
+Guidelines:
+- Keep responses concise (2-4 paragraphs max)
+- Use specific, actionable advice
+- Reference their ACTUAL goals and progress when relevant
+- Be empathetic but also gently push users out of comfort zones
+- Use occasional emojis to be warm but not excessive
+- Ask follow-up questions to understand their situation better
+`;
+
+    if (context) {
+        prompt += `\n=== USER'S CURRENT CONTEXT ===\n`;
+
+        if (context.preferences?.displayName) {
+            prompt += `User's Name: ${context.preferences.displayName}\n`;
+        }
+
+        if (context.preferences?.preferredDifficulty) {
+            prompt += `User's Preferred Difficulty: ${context.preferences.preferredDifficulty}/10\n`;
+        }
+
+        if (context.preferences?.aiPersonality) {
+            const personalityDescriptions: Record<string, string> = {
+                'encouraging': 'supportive and encouraging -- celebrate wins, give gentle pushes, be warm and positive',
+                'tough-love': 'direct and tough-love style -- no excuses, push hard, be blunt but caring',
+                'scientific': 'scientific and analytical -- cite research, be data-driven, explain mechanisms',
+                'casual': 'casual and friendly -- relaxed tone, conversational, use humor when appropriate',
+            };
+            const desc = personalityDescriptions[context.preferences.aiPersonality] || context.preferences.aiPersonality;
+            prompt += `Communication Style: The user prefers a ${desc} approach.\n`;
+        }
+
+        if (context.preferences?.focusAreas && context.preferences.focusAreas.length > 0) {
+            prompt += `Focus Areas: The user wants to focus on: ${context.preferences.focusAreas.join(', ')}. Prioritize these topics in your guidance.\n`;
+        }
+
+        if (context.preferences?.includeScientificBasis) {
+            prompt += `Scientific Basis: The user wants scientific explanations. Include brief research references or evidence-based reasoning when suggesting actions.\n`;
+        }
+
+        if (context.preferences?.challengeLengthPreference) {
+            prompt += `Preferred Challenge Length: ${context.preferences.challengeLengthPreference}\n`;
+        }
+
+        if (context.preferences?.preferredChallengeTime) {
+            prompt += `Preferred Time for Challenges: ${context.preferences.preferredChallengeTime}\n`;
+        }
+
+        if (context.activeGoal) {
+            prompt += `\n📎 ACTIVE GOAL:
+- Title: "${context.activeGoal.title}"
+- Domain: ${context.activeGoal.domain?.name || 'General'}
+- Day ${context.dayInJourney} of 30-day journey
+- Current state: "${context.activeGoal.currentState || 'Not specified'}"
+- Desired state: "${context.activeGoal.desiredState || 'Not specified'}"
+- Difficulty preference: ${context.activeGoal.difficultyLevel}/10
+- Reality Shift mode: ${context.activeGoal.realityShiftEnabled ? 'ON (wants extreme challenges)' : 'OFF'}
+`;
+        } else {
+            prompt += `\n⚠️ User has no active goal set yet. Encourage them to set one using the create_goal widget!\n`;
+        }
+
+        prompt += `\n📊 PROGRESS:
+- Current streak: ${context.streak} days
+- Challenges completed: ${context.completedChallengesCount}
+- Total challenges attempted: ${context.totalChallenges}
+${context.avgMood ? `- Average mood (last 7 days): ${context.avgMood}/10` : ''}
+`;
+
+        if (context.todayChallenge) {
+            prompt += `\n🎯 TODAY'S CHALLENGE:
+- "${context.todayChallenge.title}"
+- Difficulty: ${context.todayChallenge.difficulty}/10
+- Status: ${context.todayChallenge.status}
+${context.todayChallenge.description ? `- Description: ${context.todayChallenge.description}` : ''}
+`;
+        }
+
+        if (context.recentChallenges && context.recentChallenges.length > 0) {
+            prompt += `\n📋 RECENT CHALLENGES:\n`;
+            context.recentChallenges.slice(0, 3).forEach((c: any) => {
+                prompt += `- "${c.title}" (${c.status}, difficulty ${c.difficulty}/10)\n`;
+            });
+        }
+
+        if (context.recentDiary && context.recentDiary.length > 0) {
+            prompt += `\n🎙️ RECENT DIARY ENTRIES (Full Context):\n`;
+            context.recentDiary.slice(0, 3).forEach((e: any) => {
+                const date = new Date(e.createdAt).toLocaleDateString();
+                let insights = '';
+                let title = 'Untitled Entry';
+                try {
+                    const parsed = JSON.parse(e.aiInsights || '{}');
+                    if (parsed.title) title = parsed.title;
+                    if (parsed.sentiment) insights += `Sentiment: ${parsed.sentiment}. `;
+                    if (parsed.distortions?.length) insights += `Distortions: ${parsed.distortions.join(', ')}. `;
+                } catch (err) { }
+
+                // Include transcript excerpt (first 500 chars) for real context
+                const transcriptExcerpt = e.transcript
+                    ? (e.transcript.length > 500 ? e.transcript.substring(0, 500) + '...' : e.transcript)
+                    : 'No transcript';
+
+                prompt += `- [${date}] "${title}":\n`;
+                prompt += `  Summary: ${e.aiSummary || 'No AI summary'}\n`;
+                prompt += `  ${insights}\n`;
+                prompt += `  Transcript: "${transcriptExcerpt}"\n\n`;
+            });
+            prompt += `(Use these diary insights to be deeply empathetic. Reference what they actually said.)\n`;
+        }
+
+        if (context.recentSurveys && context.recentSurveys.length > 0) {
+            prompt += `\n📊 RECENT CHECK-INS (Daily Wellness):\n`;
+            context.recentSurveys.slice(0, 3).forEach((s: any) => {
+                const date = new Date(s.surveyDate).toLocaleDateString();
+                prompt += `- [${date}] Energy: ${s.energyLevel}/10, Motivation: ${s.motivationLevel}/10, Mood: ${s.overallMood}/10\n`;
+                if (s.biggestWin) prompt += `  Win: "${s.biggestWin}"\n`;
+                if (s.biggestBlocker) prompt += `  Blocker: "${s.biggestBlocker}"\n`;
+            });
+            prompt += `(Reference these when discussing their recent state. If energy was low, be understanding.)\n`;
+        }
+
+        // Habit tracking context
+        if (context.habitStats && context.habitStats.totalHabits > 0) {
+            prompt += `\n✅ HABIT TRACKING:\n`;
+            prompt += `Active Habits (${context.habitStats.totalHabits}):\n`;
+
+            context.habitStats.habits.forEach((h: any) => {
+                const todayLog = context.todayHabitLogs?.find((l: any) => l.habitId === h.id);
+                const status = todayLog?.completed ? '✓ Done' : '○ Pending';
+                const streakText = h.streak > 0 ? ` - ${h.streak} day streak 🔥` : '';
+                prompt += `- "${h.name}" (${h.icon}) [${status}]${streakText}\n`;
+                if (todayLog?.notes) {
+                    prompt += `  Note: "${todayLog.notes}"\n`;
+                }
+            });
+
+            prompt += `\nToday's Progress: ${context.habitStats.completedToday}/${context.habitStats.totalHabits}\n`;
+            prompt += `Weekly Completion Rate: ${context.habitStats.weeklyCompletionRate}%\n`;
+            prompt += `(Reference habits when discussing consistency. Celebrate streaks! If they're missing habits, gently encourage.)\n`;
+        }
+
+        prompt += `\n=== END OF CONTEXT ===\n`;
+    }
+
+    prompt += `\nRemember to reference this context naturally when relevant. For example, if they mention struggling, relate it to their specific goal or challenge. Celebrate their streak if it's going well!`;
+
+    return prompt;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -15,18 +287,96 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const body = await request.json();
-        const parsed = validateBody(ChatMessageSchema, body);
-        if (!parsed.success) {
-            return NextResponse.json({ success: false, error: parsed.error }, { status: 400 });
-        }
-        const { message, history, coachId } = parsed.data;
+        // Use sanitized key
+        const apiKey = ANTHROPIC_API_KEY;
 
-        const { systemPrompt, context } = await buildExpertSystemPrompt(user.userId, coachId);
-        const messages = buildMessageHistory(history, message);
+        const body = await request.json();
+        const { message, history, coachId } = body;
+
+        if (!message) {
+            return NextResponse.json(
+                { success: false, error: 'Message is required' },
+                { status: 400 }
+            );
+        }
+
+        // Get user context
+        const context = await getUserContext(user.userId);
+        let systemPrompt = '';
+
+        // Check if using a custom coach (ID usually starts with random chars, unlike 'general', 'health')
+        // We'll query DB for custom coach if ID is not in standard list
+        const standardCoachIds = ['general', 'languages', 'mobility', 'emotional', 'relationships', 'health', 'tolerance', 'skills', 'habits'];
+
+        if (coachId && !standardCoachIds.includes(coachId)) {
+            // It's likely a custom coach ID
+            // We need a way to fetch a single custom coach. Since we only have getCustomCoachesByUserId, we can use that or add getCustomCoachById
+            // For now, let's just fetch all and filter (not optimal but works for MVP) or assumes we added getCustomCoachById in a better world.
+            // Actually, let's modify getCustomCoachesByUserId to be getAll or use a direct query here?
+            // To keep it clean, let's use db.pool directly or add a helper.
+            // I'll add a helper inline or assume the user has few coaches.
+
+            // Better: Add getCustomCoachById to db.ts? No, I can't easily jump files.
+            // I'll execute a raw query here for speed, or fetch list.
+            const coaches = await db.getCustomCoachesByUserId(user.userId);
+            const customCoach = coaches.find((c: any) => c.id === coachId);
+
+            if (customCoach) {
+                systemPrompt = `${customCoach.systemPrompt}\n\n`;
+                systemPrompt += `You are "${customCoach.name}", a specialized AI coach.\n`;
+                systemPrompt += `Stay in character. Your goal is to help the user with: ${customCoach.name}.\n\n`;
+                // Add standard context
+                systemPrompt += buildSystemPrompt(context, 'custom_overlay').split('=== INTERACTIVE WIDGETS PROCTOCOL ===')[1] ?
+                    '=== INTERACTIVE WIDGETS PROCTOCOL ===' + buildSystemPrompt(context, 'custom_overlay').split('=== INTERACTIVE WIDGETS PROCTOCOL ===')[1]
+                    : buildSystemPrompt(context, 'general'); // Fallback to reusing the protocol section if parsing fails
+
+                // Actually, simpler: Use the buildSystemPrompt but replace the role description
+                const basePrompt = buildSystemPrompt(context, 'general');
+                // Inject custom role
+                const promptPrefix = `You are ${customCoach.name}. ${customCoach.systemPrompt}\n\n`;
+                // Use [\s\S] instead of DOTALL /s flag for compatibility
+                systemPrompt = promptPrefix + basePrompt.replace(/^You are a Transformation Coach[\s\S]*?\n\n/, '');
+            } else {
+                systemPrompt = buildSystemPrompt(context, coachId);
+            }
+        } else {
+            systemPrompt = buildSystemPrompt(context, coachId);
+        }
+
+        // Build conversation history for Claude
+        const messages = [];
+        if (history && Array.isArray(history)) {
+            for (const msg of history.slice(-6)) {
+                if (msg.content && typeof msg.content === 'string' && msg.content.trim().length > 0) {
+                    if (msg.role === 'user') {
+                        messages.push({ role: 'user', content: msg.content.trim() });
+                    } else if (msg.role === 'assistant') {
+                        messages.push({ role: 'assistant', content: msg.content.trim() });
+                    }
+                }
+            }
+        }
+
+        // Add current message
+        messages.push({ role: 'user', content: message.trim() });
 
         try {
-            const { conversation, conversationMessages } = await getOrCreateExpertConversation(user.userId, coachId);
+            // Find specific conversation for this coach
+            const targetCoachId = coachId || 'general';
+            let conversation = await db.getExpertConversation(user.userId, targetCoachId);
+            let conversationMessages = conversation?.messages || [];
+
+            // If no conversation found or it's empty, create one
+            if (!conversation) {
+                conversation = await db.createConversation({
+                    userId: user.userId,
+                    conversationType: 'expert_chat',
+                    title: `${targetCoachId.charAt(0).toUpperCase() + targetCoachId.slice(1)} Coaching`,
+                    initialMessages: [],
+                    context: { coachId: targetCoachId }
+                });
+                conversationMessages = [];
+            }
 
             // Append user message to our history tracking
             const userMsgObj = {
@@ -37,29 +387,29 @@ export async function POST(request: NextRequest) {
             conversationMessages.push(userMsgObj);
 
             // Call Claude API
-            const anthropic = getAnthropicClient();
-            const response = await anthropic.messages.create({
-                model: ANTHROPIC_MODEL,
-                max_tokens: 1000,
-                system: systemPrompt,
-                messages: messages as any[]
+            const response = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey || '',
+                    'anthropic-version': '2023-06-01'
+                },
+                body: JSON.stringify({
+                    model: 'claude-3-haiku-20240307',
+                    max_tokens: 1000,
+                    system: systemPrompt,
+                    messages
+                })
             });
 
-            // Log API usage
-            if (response.usage) {
-                logApiUsage({
-                    userId: user.userId,
-                    route: 'expert/chat',
-                    provider: 'anthropic',
-                    model: ANTHROPIC_MODEL,
-                    inputTokens: response.usage.input_tokens,
-                    outputTokens: response.usage.output_tokens,
-                });
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Claude API error [Expert Chat]:', response.status, errorText);
+                throw new Error(`Claude API error: ${response.status}`);
             }
 
-            // Extract text from response
-            const textContent = response.content.find(block => block.type === 'text');
-            const reply = textContent?.type === 'text' ? textContent.text : getFallbackResponse(message, context);
+            const data = await response.json();
+            const reply = data.content[0]?.text || getFallbackResponse(message, context);
 
             // Append assistant message
             const assistantMsgObj = {
@@ -81,15 +431,30 @@ export async function POST(request: NextRequest) {
 
         } catch (apiError) {
             console.error('Claude API call failed:', apiError);
+            const errorMsg = apiError instanceof Error ? apiError.message : String(apiError);
+            const keyInfo = ANTHROPIC_API_KEY ? `Key present (len: ${ANTHROPIC_API_KEY.length}, start: ${ANTHROPIC_API_KEY.slice(0, 5)})` : 'Key is MISSING in Vercel env';
 
-            const reply = getFallbackResponse(message, context);
+            const reply = getFallbackResponse(message, context, `${errorMsg} | ${keyInfo}`);
 
-            // Even on error fallback, save interaction to the correct context
-            const fallbackConvo = await getOrCreateExpertConversation(user.userId, coachId);
-            if (fallbackConvo.conversation && fallbackConvo.conversation.id) {
-                fallbackConvo.conversationMessages.push({ role: 'user', content: message, timestamp: new Date().toISOString() });
-                fallbackConvo.conversationMessages.push({ role: 'assistant', content: reply, timestamp: new Date().toISOString() });
-                await db.updateConversationMessages(fallbackConvo.conversation.id, fallbackConvo.conversationMessages);
+            // Even on error fallback, we want to save interaction to the correct context
+            const targetCoachId = coachId || 'general';
+            let conversation = await db.getExpertConversation(user.userId, targetCoachId);
+
+            if (!conversation) {
+                conversation = await db.createConversation({
+                    userId: user.userId,
+                    conversationType: 'expert_chat',
+                    title: `${targetCoachId.charAt(0).toUpperCase() + targetCoachId.slice(1)} Coaching`,
+                    initialMessages: [],
+                    context: { coachId: targetCoachId }
+                });
+            }
+
+            if (conversation && conversation.id) {
+                const msgs = conversation.messages || [];
+                msgs.push({ role: 'user', content: message, timestamp: new Date().toISOString() });
+                msgs.push({ role: 'assistant', content: reply, timestamp: new Date().toISOString() });
+                await db.updateConversationMessages(conversation.id, msgs);
             }
 
             return NextResponse.json({
@@ -156,39 +521,39 @@ export async function GET(request: NextRequest) {
     }
 }
 
-// Fallback responses with context (used when AI API is unavailable)
-function getFallbackResponse(message: string, context: any): string {
+// Fallback responses with context
+function getFallbackResponse(message: string, context: any, errorMsg?: string): string {
     const goalName = context?.activeGoal?.title || 'your goal';
     const streak = context?.streak || 0;
 
     const lowerMessage = message.toLowerCase();
 
     if (lowerMessage.includes('motivation') || lowerMessage.includes('struggling')) {
-        return `I see you're working on "${goalName}" and you're on day ${context?.dayInJourney || 1}. That's real commitment!
+        return `I see you're working on "${goalName}" and you're on day ${context?.dayInJourney || 1}. That's real commitment! 💪
 
 When motivation dips, remember why you started. What was the spark that made you want this change?
 
 ${streak > 0 ? `You've got a ${streak}-day streak going - that's not nothing! Let's protect it.` : 'Every day is a chance to start fresh.'}
 
-What specific part feels hardest right now?`;
+What specific part feels hardest right now? (Debug: ${errorMsg || 'No detail'})`;
     }
 
     if (lowerMessage.includes('progress') || lowerMessage.includes('how am i doing')) {
-        return `Let me check your stats!
+        return `Let me check your stats! 📊
 
 ${context?.activeGoal ? `You're on Day ${context.dayInJourney} of your "${goalName}" journey.` : ''}
 ${context?.completedChallengesCount ? `You've completed ${context.completedChallengesCount} challenges.` : ''}
-${streak > 0 ? `Current streak: ${streak} days!` : ''}
+${streak > 0 ? `Current streak: ${streak} days! 🔥` : ''}
 ${context?.avgMood ? `Your average mood this week: ${context.avgMood}/10` : ''}
 
 ${context?.completedChallengesCount > 5 ? "You're building real momentum!" : "Every completed challenge builds the foundation."}
 
-What would you like to focus on next?`;
+What would you like to focus on next? (Debug: ${errorMsg || 'No detail'})`;
     }
 
-    return `I'm here to help with your journey toward "${goalName}".
+    return `I'm here to help with your journey toward "${goalName}". 
 
 ${context?.todayChallenge ? `I see today's challenge is "${context.todayChallenge.title}" - how's that going?` : ''}
 
-What's on your mind?`;
+What's on your mind? (Debug Error: ${errorMsg || 'Unknown error'})`;
 }

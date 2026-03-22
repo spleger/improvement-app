@@ -3,66 +3,21 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-interface ChallengeInfo {
-    title: string;
-    description: string;
-    difficulty: number;
-    personalizationNotes?: string;
-    domain?: string;
-    tips?: string[];
-}
-
 interface Props {
     challengeId: string;
     isCompleted: boolean;
-    challenge: ChallengeInfo;
 }
 
-// Generate dynamic tips based on challenge content
-function getDynamicTips(challenge: ChallengeInfo): string[] {
-    const tips: string[] = [];
-
-    // Difficulty-based tips
-    if (challenge.difficulty <= 3) {
-        tips.push('This is a gentle challenge - perfect for building momentum');
-        tips.push('Focus on completing it rather than perfecting it');
-    } else if (challenge.difficulty <= 6) {
-        tips.push('Set aside focused time without distractions');
-        tips.push('Break it down into smaller steps if needed');
-    } else {
-        tips.push('This is a challenging one - prepare mentally first');
-        tips.push('Consider tackling this when your energy is highest');
-        tips.push('It\'s okay to take breaks - just don\'t give up');
-    }
-
-    // Add personalization notes as a tip if available
-    if (challenge.personalizationNotes) {
-        const firstNote = challenge.personalizationNotes.split('\n')[0];
-        if (firstNote && firstNote.length > 10) {
-            tips.push(firstNote.replace(/^\d+\.\s*/, '').trim());
-        }
-    }
-
-    // Universal tips
-    tips.push('Record a voice diary after to capture your experience');
-
-    return tips.slice(0, 4); // Limit to 4 tips
-}
-
-export default function ChallengeDetailClient({ challengeId, isCompleted, challenge }: Props) {
+export default function ChallengeDetailClient({ challengeId, isCompleted }: Props) {
     const router = useRouter();
     const [showCompletionModal, setShowCompletionModal] = useState(false);
+    const [showSkipConfirm, setShowSkipConfirm] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
         difficultyFelt: 5,
         satisfaction: 5,
         notes: ''
     });
-
-    // Use AI-generated tips if available, otherwise fall back to dynamic tips
-    const displayTips = challenge.tips && challenge.tips.length > 0
-        ? challenge.tips.slice(0, 4)
-        : getDynamicTips(challenge);
 
     const handleComplete = async () => {
         setIsSubmitting(true);
@@ -71,11 +26,7 @@ export default function ChallengeDetailClient({ challengeId, isCompleted, challe
             const response = await fetch(`/api/challenges/${challengeId}/complete`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ...formData,
-                    difficultyFelt: Math.round(formData.difficultyFelt),
-                    satisfaction: Math.round(formData.satisfaction)
-                })
+                body: JSON.stringify(formData)
             });
 
             if (response.ok) {
@@ -93,8 +44,7 @@ export default function ChallengeDetailClient({ challengeId, isCompleted, challe
     };
 
     const handleSkip = async () => {
-        if (!confirm('Are you sure you want to skip this challenge?')) return;
-
+        setShowSkipConfirm(false);
         setIsSubmitting(true);
         try {
             const response = await fetch(`/api/challenges/${challengeId}/skip`, {
@@ -141,7 +91,7 @@ export default function ChallengeDetailClient({ challengeId, isCompleted, challe
                     ✓ Mark Complete
                 </button>
                 <button
-                    onClick={handleSkip}
+                    onClick={() => setShowSkipConfirm(true)}
                     disabled={isSubmitting}
                     className="btn btn-ghost"
                 >
@@ -149,15 +99,14 @@ export default function ChallengeDetailClient({ challengeId, isCompleted, challe
                 </button>
             </div>
 
-            {/* Tips Section - AI-generated with fallback to dynamic tips */}
+            {/* Tips Section */}
             <div className="card card-surface">
                 <h3 className="heading-4 mb-md">💡 Tips for Success</h3>
                 <ul style={{ paddingLeft: '1.5rem' }}>
-                    {displayTips.map((tip, index) => (
-                        <li key={index} className={`text-secondary ${index < displayTips.length - 1 ? 'mb-sm' : ''}`}>
-                            {tip}
-                        </li>
-                    ))}
+                    <li className="text-secondary mb-sm">Find a quiet moment without distractions</li>
+                    <li className="text-secondary mb-sm">Set a timer if needed to stay focused</li>
+                    <li className="text-secondary mb-sm">Remember: progress over perfection</li>
+                    <li className="text-secondary">Record a voice diary after to capture your experience</li>
                 </ul>
             </div>
 
@@ -174,7 +123,7 @@ export default function ChallengeDetailClient({ challengeId, isCompleted, challe
                         bottom: 0,
                         background: 'rgba(0, 0, 0, 0.7)',
                         display: 'flex',
-                        alignItems: 'flex-end',
+                        alignItems: 'stretch',
                         justifyContent: 'center',
                         zIndex: 1000,
                         padding: 0
@@ -185,10 +134,10 @@ export default function ChallengeDetailClient({ challengeId, isCompleted, challe
                         onClick={e => e.stopPropagation()}
                         style={{
                             background: 'var(--color-background)',
-                            borderRadius: '24px 24px 0 0',
+                            borderRadius: 0,
                             width: '100%',
-                            maxWidth: '500px',
-                            maxHeight: '85vh',
+                            maxWidth: '100%',
+                            height: '100%',
                             display: 'flex',
                             flexDirection: 'column',
                             overflow: 'hidden'
@@ -198,59 +147,66 @@ export default function ChallengeDetailClient({ challengeId, isCompleted, challe
                         <div style={{
                             padding: '1.5rem 1.5rem 1rem',
                             borderBottom: '1px solid var(--color-border)',
-                            flexShrink: 0
+                            flexShrink: 0,
+                            maxWidth: '640px',
+                            width: '100%',
+                            margin: '0 auto'
                         }}>
-                            <h2 className="heading-3 text-center">🎉 Challenge Complete!</h2>
+                            <h2 className="heading-3 text-center">Challenge Complete!</h2>
                             <p className="text-center text-muted">Quick feedback to help the AI learn</p>
                         </div>
 
                         {/* Modal Body - Scrollable */}
                         <div style={{
-                            padding: '1rem 1.5rem',
+                            padding: '1.5rem',
                             overflowY: 'auto',
-                            flex: 1
+                            flex: 1,
+                            maxWidth: '640px',
+                            width: '100%',
+                            margin: '0 auto',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center'
                         }}>
                             {/* Difficulty Felt */}
                             <div className="form-group">
                                 <label className="form-label">How difficult did it feel?</label>
-                                <div className="slider-container">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                    <span>😌</span>
                                     <input
                                         type="range"
                                         min="1"
                                         max="10"
-                                        step="any"
                                         value={formData.difficultyFelt}
-                                        onChange={e => setFormData(prev => ({ ...prev, difficultyFelt: parseFloat(e.target.value) }))}
+                                        onChange={e => setFormData(prev => ({ ...prev, difficultyFelt: parseInt(e.target.value) }))}
                                         className="slider"
-                                        style={{ '--slider-progress': `${((formData.difficultyFelt - 1) / 9) * 100}%`, padding: '16px 0' } as React.CSSProperties}
+                                        style={{ flex: 1 }}
                                     />
-                                    <div className="slider-labels">
-                                        <span>Easy</span>
-                                        <span>Hard</span>
-                                    </div>
-                                    <div className="slider-value">{Math.round(formData.difficultyFelt)}/10</div>
+                                    <span>😓</span>
+                                    <span className="heading-5" style={{ width: '40px', textAlign: 'center' }}>
+                                        {formData.difficultyFelt}
+                                    </span>
                                 </div>
                             </div>
 
                             {/* Satisfaction */}
                             <div className="form-group">
                                 <label className="form-label">How satisfied are you?</label>
-                                <div className="slider-container">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                    <span>😕</span>
                                     <input
                                         type="range"
                                         min="1"
                                         max="10"
-                                        step="any"
                                         value={formData.satisfaction}
-                                        onChange={e => setFormData(prev => ({ ...prev, satisfaction: parseFloat(e.target.value) }))}
+                                        onChange={e => setFormData(prev => ({ ...prev, satisfaction: parseInt(e.target.value) }))}
                                         className="slider"
-                                        style={{ '--slider-progress': `${((formData.satisfaction - 1) / 9) * 100}%`, padding: '16px 0' } as React.CSSProperties}
+                                        style={{ flex: 1 }}
                                     />
-                                    <div className="slider-labels">
-                                        <span>Not happy</span>
-                                        <span>Very happy</span>
-                                    </div>
-                                    <div className="slider-value">{Math.round(formData.satisfaction)}/10</div>
+                                    <span>🤩</span>
+                                    <span className="heading-5" style={{ width: '40px', textAlign: 'center' }}>
+                                        {formData.satisfaction}
+                                    </span>
                                 </div>
                             </div>
 
@@ -273,7 +229,10 @@ export default function ChallengeDetailClient({ challengeId, isCompleted, challe
                             padding: '1rem 1.5rem 1.5rem',
                             borderTop: '1px solid var(--color-border)',
                             flexShrink: 0,
-                            background: 'var(--color-background)'
+                            background: 'var(--color-background)',
+                            maxWidth: '640px',
+                            width: '100%',
+                            margin: '0 auto'
                         }}>
                             <button
                                 onClick={handleComplete}
@@ -292,6 +251,59 @@ export default function ChallengeDetailClient({ challengeId, isCompleted, challe
                                 className="btn btn-ghost w-full"
                             >
                                 Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Skip Confirmation Modal */}
+            {showSkipConfirm && (
+                <div
+                    className="modal-overlay"
+                    onClick={() => setShowSkipConfirm(false)}
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'rgba(0, 0, 0, 0.7)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1000,
+                        padding: '1rem'
+                    }}
+                >
+                    <div
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                            background: 'var(--color-background)',
+                            borderRadius: '16px',
+                            padding: '1.5rem',
+                            width: '100%',
+                            maxWidth: '400px'
+                        }}
+                    >
+                        <h3 className="heading-4 mb-sm">Skip this challenge?</h3>
+                        <p className="text-secondary mb-lg">
+                            Are you sure you want to skip this challenge? You can always come back to it later.
+                        </p>
+                        <div className="flex gap-md">
+                            <button
+                                onClick={() => setShowSkipConfirm(false)}
+                                className="btn btn-secondary"
+                                style={{ flex: 1 }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSkip}
+                                className="btn btn-primary"
+                                style={{ flex: 1, background: 'var(--color-error)' }}
+                            >
+                                Skip
                             </button>
                         </div>
                     </div>

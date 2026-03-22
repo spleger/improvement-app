@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Mic, CheckCircle2, Circle, ChevronRight, Flame, Trash2, Target } from 'lucide-react';
-import PageHeader from '../components/PageHeader';
+import { Plus, Mic, CheckCircle2, Circle, ChevronRight, Flame, MoreVertical, Trash2, Edit2, X, Target } from 'lucide-react';
+import BottomNavigation from '../components/BottomNavigation';
 import CreateHabitModal from './CreateHabitModal';
 import HabitVoiceLogger from './HabitVoiceLogger';
 
@@ -129,13 +129,23 @@ export default function HabitsPage() {
     const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
     return (
-        <div className="page habits-page">
+        <div className="habits-page">
             {/* Header */}
-            <PageHeader
-                icon="✅"
-                title="Habits"
-                subtitle="Build consistency, one day at a time"
-            />
+            <header className="habits-header">
+                <div>
+                    <h1>Habits</h1>
+                    <p className="habits-subtitle">Build consistency, one day at a time</p>
+                </div>
+                {!loading && (
+                    <button
+                        className="voice-log-btn"
+                        onClick={() => setShowVoiceLogger(true)}
+                    >
+                        <Mic size={20} />
+                        <span>Voice Log</span>
+                    </button>
+                )}
+            </header>
 
             {/* Progress Summary */}
             <div className="habits-summary">
@@ -173,26 +183,7 @@ export default function HabitsPage() {
             {/* Habits List */}
             <div className="habits-list">
                 {loading ? (
-                    <div className="habits-list">
-                        {[1, 2, 3, 4].map(i => (
-                            <div key={i} className="habit-card loading-breathe">
-                                <div className="habit-main">
-                                    {/* Toggle Skeleton */}
-                                    <div className="skeleton-breathe" style={{ width: '28px', height: '28px', borderRadius: 'var(--radius-full)' }} />
-                                    {/* Info Skeleton */}
-                                    <div className="habit-info" style={{ cursor: 'default' }}>
-                                        <div className="habit-name-row">
-                                            <div className="skeleton-breathe" style={{ width: '24px', height: '24px', borderRadius: 'var(--radius-sm)' }} />
-                                            <div className="skeleton-breathe" style={{ height: '18px', width: '120px', borderRadius: 'var(--radius-sm)' }} />
-                                        </div>
-                                        <div className="skeleton-breathe" style={{ height: '12px', width: '80px', borderRadius: 'var(--radius-sm)', marginTop: 'var(--spacing-xs)' }} />
-                                    </div>
-                                    {/* Expand Skeleton */}
-                                    <div className="skeleton-breathe" style={{ width: '20px', height: '20px', borderRadius: 'var(--radius-sm)' }} />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                    <div className="loading-state">Loading habits...</div>
                 ) : habits.length === 0 ? (
                     <div className="empty-state">
                         <div className="empty-icon">✅</div>
@@ -284,21 +275,11 @@ export default function HabitsPage() {
                 )}
             </div>
 
-            {/* Voice Log FAB */}
-            <button
-                className="voice-log-fab"
-                onClick={() => setShowVoiceLogger(true)}
-                title="Voice Log"
-            >
-                <Mic size={24} />
-            </button>
-
             {/* Add Habit FAB */}
             {habits.length > 0 && (
                 <button
                     className="add-habit-fab"
                     onClick={() => setShowCreateModal(true)}
-                    title="Add Habit"
                 >
                     <Plus size={24} />
                 </button>
@@ -325,32 +306,69 @@ export default function HabitsPage() {
                 />
             )}
 
-
+            <BottomNavigation />
 
             <style jsx>{`
                 .habits-page {
-                    padding-bottom: calc(var(--spacing-xl) + 80px + env(safe-area-inset-bottom));
+                    min-height: 100vh;
+                    background: var(--color-background);
+                    padding: 20px 20px 100px;
+                }
+
+                .habits-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    margin-bottom: 24px;
+                }
+
+                .habits-header h1 {
+                    font-size: 2rem;
+                    font-weight: 700;
+                    color: var(--color-text);
+                    margin: 0;
+                }
+
+                .habits-subtitle {
+                    color: var(--color-text-muted);
+                    font-size: 0.9rem;
+                    margin-top: 4px;
+                }
+
+                .voice-log-btn {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 10px 16px;
+                    background: var(--gradient-primary);
+                    border: none;
+                    border-radius: 12px;
+                    color: white;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: transform 0.2s, box-shadow 0.2s;
+                }
+
+                .voice-log-btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
                 }
 
                 .habits-summary {
                     background: var(--color-surface);
-                    backdrop-filter: var(--glass-blur);
-                    -webkit-backdrop-filter: var(--glass-blur);
-                    border-radius: var(--radius-lg);
-                    padding: var(--spacing-lg);
-                    margin-bottom: var(--spacing-xl);
+                    border-radius: 20px;
+                    padding: 20px;
+                    margin-bottom: 24px;
                     display: flex;
                     align-items: center;
-                    gap: var(--spacing-xl);
-                    border: var(--glass-border);
-                    box-shadow: var(--glass-shadow);
+                    gap: 24px;
+                    border: 1px solid var(--color-border);
                 }
 
                 .summary-ring {
                     position: relative;
                     width: 80px;
                     height: 80px;
-                    flex-shrink: 0;
                 }
 
                 .circular-chart {
@@ -366,7 +384,7 @@ export default function HabitsPage() {
 
                 .circle-progress {
                     fill: none;
-                    stroke: var(--color-accent);
+                    stroke: var(--color-primary);
                     stroke-width: 3;
                     stroke-linecap: round;
                     transform: rotate(-90deg);
@@ -393,12 +411,11 @@ export default function HabitsPage() {
                     font-size: 0.7rem;
                     color: var(--color-text-muted);
                     text-transform: uppercase;
-                    letter-spacing: 0.05em;
                 }
 
                 .mini-calendar {
                     display: flex;
-                    gap: var(--spacing-sm);
+                    gap: 8px;
                     flex: 1;
                     justify-content: space-around;
                 }
@@ -407,7 +424,7 @@ export default function HabitsPage() {
                     display: flex;
                     flex-direction: column;
                     align-items: center;
-                    gap: var(--spacing-xs);
+                    gap: 6px;
                 }
 
                 .day-name {
@@ -424,66 +441,60 @@ export default function HabitsPage() {
                 }
 
                 .day-dot.today {
-                    background: var(--color-accent);
-                    box-shadow: 0 0 8px var(--color-accent);
+                    background: var(--color-primary);
+                    box-shadow: 0 0 8px var(--color-primary);
                 }
 
                 .habits-list {
                     display: flex;
                     flex-direction: column;
-                    gap: var(--spacing-md);
+                    gap: 12px;
                 }
 
                 .loading-state, .empty-state {
                     text-align: center;
-                    padding: var(--spacing-2xl) var(--spacing-xl);
+                    padding: 48px 24px;
                     color: var(--color-text-muted);
                 }
 
                 .empty-state {
                     background: var(--color-surface);
-                    backdrop-filter: var(--glass-blur);
-                    -webkit-backdrop-filter: var(--glass-blur);
-                    border-radius: var(--radius-lg);
-                    border: var(--glass-border);
-                    box-shadow: var(--glass-shadow);
+                    border-radius: 20px;
+                    border: 1px solid var(--color-border);
                 }
 
                 .empty-icon {
                     font-size: 3rem;
-                    margin-bottom: var(--spacing-lg);
+                    margin-bottom: 16px;
                 }
 
                 .empty-state h3 {
                     color: var(--color-text);
-                    margin-bottom: var(--spacing-sm);
+                    margin-bottom: 8px;
                 }
 
                 .habit-card {
                     background: var(--color-surface);
-                    backdrop-filter: var(--glass-blur);
-                    -webkit-backdrop-filter: var(--glass-blur);
-                    border-radius: var(--radius-lg);
-                    border: var(--glass-border);
-                    box-shadow: var(--glass-shadow);
+                    border-radius: 16px;
+                    border: 1px solid var(--color-border);
                     overflow: hidden;
-                    transition: all var(--transition-normal);
+                    transition: all 0.2s;
                 }
 
                 .habit-card.completed {
                     border-color: var(--color-success);
-                    background: linear-gradient(135deg, var(--color-surface), rgba(16, 185, 129, 0.1));
+                    background: linear-gradient(135deg, var(--color-surface), rgba(34, 197, 94, 0.05));
                 }
 
                 .habit-card.expanded {
-                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
                 }
 
                 .habit-main {
                     display: flex;
                     align-items: center;
-                    padding: var(--spacing-lg);
-                    gap: var(--spacing-md);
+                    padding: 16px;
+                    gap: 12px;
                 }
 
                 .habit-toggle {
@@ -491,7 +502,7 @@ export default function HabitsPage() {
                     border: none;
                     padding: 0;
                     cursor: pointer;
-                    transition: transform var(--transition-fast);
+                    transition: transform 0.2s;
                 }
 
                 .habit-toggle:hover {
@@ -518,7 +529,7 @@ export default function HabitsPage() {
                 .habit-name-row {
                     display: flex;
                     align-items: center;
-                    gap: var(--spacing-sm);
+                    gap: 8px;
                 }
 
                 .habit-icon {
@@ -543,10 +554,10 @@ export default function HabitsPage() {
                 .habit-goal {
                     display: flex;
                     align-items: center;
-                    gap: var(--spacing-xs);
+                    gap: 4px;
                     font-size: 0.75rem;
-                    color: var(--color-text-secondary);
-                    margin-top: var(--spacing-xs);
+                    color: var(--color-text-muted);
+                    margin-top: 4px;
                 }
 
                 .habit-expand {
@@ -554,13 +565,8 @@ export default function HabitsPage() {
                     border: none;
                     color: var(--color-text-muted);
                     cursor: pointer;
-                    padding: var(--spacing-sm);
-                    transition: transform var(--transition-fast);
-                    border-radius: var(--radius-md);
-                }
-
-                .habit-expand:hover {
-                    background: var(--color-surface-hover);
+                    padding: 8px;
+                    transition: transform 0.2s;
                 }
 
                 .habit-expand .rotated {
@@ -568,10 +574,10 @@ export default function HabitsPage() {
                 }
 
                 .habit-details {
-                    padding: 0 var(--spacing-lg) var(--spacing-lg);
+                    padding: 0 16px 16px;
                     border-top: 1px solid var(--color-border);
                     margin-top: -1px;
-                    padding-top: var(--spacing-lg);
+                    padding-top: 16px;
                     animation: slideDown 0.2s ease;
                 }
 
@@ -582,59 +588,52 @@ export default function HabitsPage() {
 
                 .note-input-wrapper {
                     display: flex;
-                    gap: var(--spacing-sm);
-                    margin-bottom: var(--spacing-md);
+                    gap: 8px;
+                    margin-bottom: 12px;
                 }
 
                 .note-input {
                     flex: 1;
-                    padding: var(--spacing-md);
+                    padding: 10px 14px;
                     border: 1px solid var(--color-border);
-                    border-radius: var(--radius-md);
+                    border-radius: 10px;
                     background: var(--color-background);
                     color: var(--color-text);
                     font-size: 0.9rem;
-                    transition: border-color var(--transition-fast);
                 }
 
                 .note-input:focus {
                     outline: none;
-                    border-color: var(--color-accent);
+                    border-color: var(--color-primary);
                 }
 
                 .save-note-btn {
-                    padding: var(--spacing-md) var(--spacing-lg);
-                    background: var(--gradient-primary);
+                    padding: 10px 16px;
+                    background: var(--color-primary);
                     color: white;
                     border: none;
-                    border-radius: var(--radius-md);
+                    border-radius: 10px;
                     font-weight: 600;
                     cursor: pointer;
-                    transition: all var(--transition-fast);
-                }
-
-                .save-note-btn:hover {
-                    transform: translateY(-2px);
-                    box-shadow: var(--shadow-md);
                 }
 
                 .habit-actions {
                     display: flex;
-                    gap: var(--spacing-sm);
+                    gap: 8px;
                 }
 
                 .habit-action-btn {
                     display: flex;
                     align-items: center;
-                    gap: var(--spacing-xs);
-                    padding: var(--spacing-sm) var(--spacing-md);
+                    gap: 6px;
+                    padding: 8px 12px;
                     background: var(--color-surface-2);
                     border: none;
-                    border-radius: var(--radius-md);
+                    border-radius: 8px;
                     color: var(--color-text-muted);
                     font-size: 0.85rem;
                     cursor: pointer;
-                    transition: all var(--transition-fast);
+                    transition: all 0.2s;
                 }
 
                 .habit-action-btn:hover {
@@ -648,7 +647,7 @@ export default function HabitsPage() {
                     right: 20px;
                     width: 56px;
                     height: 56px;
-                    border-radius: var(--radius-lg);
+                    border-radius: 16px;
                     background: var(--gradient-primary);
                     border: none;
                     color: white;
@@ -656,71 +655,28 @@ export default function HabitsPage() {
                     align-items: center;
                     justify-content: center;
                     cursor: pointer;
-                    box-shadow: 0 4px 20px rgba(13, 148, 136, 0.4);
-                    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+                    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
+                    transition: transform 0.2s, box-shadow 0.2s;
                     z-index: 10;
                 }
 
                 .add-habit-fab:hover {
                     transform: translateY(-2px) scale(1.05);
-                    box-shadow: 0 6px 24px rgba(13, 148, 136, 0.5);
-                }
-
-                .voice-log-fab {
-                    position: fixed;
-                    bottom: 90px;
-                    right: 86px;
-                    width: 56px;
-                    height: 56px;
-                    border-radius: var(--radius-lg);
-                    background: var(--color-surface);
-                    backdrop-filter: var(--glass-blur);
-                    -webkit-backdrop-filter: var(--glass-blur);
-                    border: var(--glass-border);
-                    color: var(--color-accent);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    cursor: pointer;
-                    box-shadow: var(--glass-shadow);
-                    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
-                    z-index: 10;
-                }
-
-                .voice-log-fab:hover {
-                    transform: translateY(-2px) scale(1.05);
-                    background: var(--color-surface-hover);
+                    box-shadow: 0 6px 24px rgba(139, 92, 246, 0.5);
                 }
 
                 .btn-primary-gradient {
                     display: inline-flex;
                     align-items: center;
-                    gap: var(--spacing-sm);
-                    padding: var(--spacing-md) var(--spacing-xl);
+                    gap: 8px;
+                    padding: 12px 24px;
                     background: var(--gradient-primary);
                     border: none;
-                    border-radius: var(--radius-md);
+                    border-radius: 12px;
                     color: white;
                     font-weight: 600;
                     cursor: pointer;
-                    margin-top: var(--spacing-lg);
-                    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
-                }
-
-                .btn-primary-gradient:hover {
-                    transform: translateY(-2px);
-                    box-shadow: var(--shadow-md);
-                }
-
-                @media (max-width: 640px) {
-                    .habits-summary {
-                        flex-direction: column;
-                        gap: var(--spacing-lg);
-                    }
-
-                    .mini-calendar {
-                        width: 100%;
-                    }
+                    margin-top: 16px;
                 }
             `}</style>
         </div>

@@ -1,19 +1,48 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown, Plus, Trash2, MoreHorizontal, Mic, Volume2, VolumeX, Loader2, Radio, RotateCcw } from 'lucide-react';
-import Link from 'next/link';
+import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown, Plus, Trash2, MoreHorizontal, Mic } from 'lucide-react';
 import { getIcon } from '@/lib/icons';
 import ChallengeProposal from './widgets/ChallengeProposal';
 import MoodLogWidget from './widgets/MoodLogWidget';
 import NewGoalWidget from './widgets/NewGoalWidget';
 import CreateCoachModal from './CreateCoachModal';
-import { ChatMessage } from '@/lib/types';
-import { useKeyboardOffset } from '@/hooks/useKeyboardOffset';
-import { useTTSAudio } from '@/hooks/useTTSAudio';
-import { useVoiceRecording } from '@/hooks/useVoiceRecording';
-import { parseSSEStream } from '@/lib/streaming';
-import { Coach, DEFAULT_COACHES } from '@/lib/coaches';
+
+/**
+ * Strip internal system prompt prefixes from user message text.
+ * These prefixes (e.g. [LIVE VOICE MODE - ...]) are meant only for the AI API
+ * and should never be displayed in the chat UI.
+ */
+function stripSystemPrefix(text: string): string {
+    return text.replace(/^\[LIVE VOICE MODE[^\]]*\]\s*/i, '').trim();
+}
+
+interface Message {
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: Date;
+}
+
+interface Coach {
+    id: string;
+    name: string;
+    icon: string;
+    color: string;
+    description: string;
+    type: 'default' | 'goal' | 'custom';
+    isGoalCoach?: boolean;
+    systemPrompt?: string;
+}
+
+const DEFAULT_COACHES: Coach[] = [
+    { id: 'general', name: 'General', icon: '🧠', color: '#8b5cf6', description: 'Holistic transformation', type: 'default' },
+    { id: 'health', name: 'Health', icon: '💪', color: '#ef4444', description: 'Fitness & vitality', type: 'default' },
+    { id: 'habits', name: 'Habits', icon: '🔄', color: '#f59e0b', description: 'Routine & consistency', type: 'default' },
+    { id: 'emotional', name: 'Emotional', icon: '💜', color: '#ec4899', description: 'EQ & resilience', type: 'default' },
+    { id: 'languages', name: 'Languages', icon: '🗣️', color: '#3b82f6', description: 'Fluency & immersion', type: 'default' },
+    { id: 'mobility', name: 'Mobility', icon: '🧘', color: '#10b981', description: 'Movement & flexibility', type: 'default' },
+];
 
 const SUGGESTED_TOPICS = [
     "💪 I'm struggling with motivation",
@@ -22,15 +51,10 @@ const SUGGESTED_TOPICS = [
     "✨ Celebrate a recent win"
 ];
 
-interface ExpertChatProps {
-    onBack?: () => void;
-}
-
-export default function ExpertChat({ onBack }: ExpertChatProps) {
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
+export default function ExpertChat() {
+    const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [isStreaming, setIsStreaming] = useState(false);
 
     // Coach State
     const [coaches, setCoaches] = useState<Coach[]>(DEFAULT_COACHES);
@@ -39,26 +63,7 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
     const [showCreateModal, setShowCreateModal] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLTextAreaElement>(null);
-    const chatContainerRef = useRef<HTMLDivElement>(null);
-
-    // Voice Recording
-    const { isRecording, isTranscribing, handleVoiceInput } = useVoiceRecording({
-        onTranscription: (text) => {
-            setInput(prev => prev + (prev ? ' ' : '') + text);
-            inputRef.current?.focus();
-        },
-    });
-
-    // TTS Audio
-    const { isMuted, isPlayingAudio, toggleMute, playTTSAudio } = useTTSAudio({
-        storageKey: 'expertChatMuted',
-        textTransform: (text) => text.replace(/<<<\{.*?\}>>>/g, '').trim(),
-    });
-
-    // Conversation Reset State
-    const [showResetConfirm, setShowResetConfirm] = useState(false);
-    const [isResetting, setIsResetting] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     // Save selected coach to localStorage when it changes (skip initial render)
     const isInitialMount = useRef(true);
@@ -71,16 +76,6 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
             localStorage.setItem('selectedCoachId', selectedCoach.id);
         }
     }, [selectedCoach]);
-
-    // Auto-resize textarea
-    useEffect(() => {
-        if (inputRef.current) {
-            inputRef.current.style.height = '52px'; // Reset height to calculate correct scrollHeight
-            inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`;
-        }
-    }, [input]);
-
-    useKeyboardOffset(chatContainerRef);
 
     // Initial Data Fetch
     useEffect(() => {
@@ -213,7 +208,7 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
                     const loadedMessages = data.data.messages.map((msg: any, index: number) => ({
                         id: msg.id || diffId(index),
                         role: msg.role,
-                        content: msg.role === 'user' ? msg.content.replace(/^\[LIVE VOICE MODE[^\]]*\]\s*/, '') : msg.content,
+                        content: msg.content,
                         timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date()
                     }));
 
@@ -232,21 +227,13 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
     }, [selectedCoach]);
 
     useEffect(() => {
-        // Only scroll on initial load or if explicitly requested
-        // We DO NOT scroll on every message update to allow user to read previous text
-        if (messages.length > 0 && !isStreaming) {
-            // Check if it was a user message just sent (last message is user)
-            const lastMsg = messages[messages.length - 1];
-            if (lastMsg.role === 'user') {
-                scrollToBottom();
-            }
-        }
-    }, [messages.length, isStreaming]);
+        scrollToBottom();
+    }, [messages]);
 
     const sendMessage = async (content: string) => {
         if (!content.trim()) return;
 
-        const userMessage: ChatMessage = {
+        const userMessage: Message = {
             id: Date.now().toString(),
             role: 'user',
             content: content.trim(),
@@ -257,18 +244,8 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
         setInput('');
         setIsLoading(true);
 
-        // Create placeholder assistant message for streaming
-        const assistantMessageId = (Date.now() + 1).toString();
-        const assistantMessage: ChatMessage = {
-            id: assistantMessageId,
-            role: 'assistant',
-            content: '',
-            timestamp: new Date()
-        };
-        setMessages(prev => [...prev, assistantMessage]);
-
         try {
-            const response = await fetch('/api/expert/chat/stream', {
+            const response = await fetch('/api/expert/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -278,53 +255,36 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
                 })
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+            const data = await response.json();
 
-            const reader = response.body?.getReader();
-            if (!reader) {
-                throw new Error('No response body');
-            }
-
-            setIsLoading(false);
-            setIsStreaming(true);
-
-            let accumulatedText = '';
-
-            for await (const event of parseSSEStream(reader)) {
-                if (event.done) continue;
-                if (event.text) {
-                    accumulatedText += event.text;
-                    setMessages(prev => prev.map(msg =>
-                        msg.id === assistantMessageId
-                            ? { ...msg, content: msg.content + event.text }
-                            : msg
-                    ));
-                } else if (event.error) {
-                    setMessages(prev => prev.map(msg =>
-                        msg.id === assistantMessageId
-                            ? { ...msg, content: "I'm having trouble connecting. Please try again." }
-                            : msg
-                    ));
-                }
-            }
-
-            if (accumulatedText) {
-                playTTSAudio(accumulatedText);
+            if (data.success && data.data.reply) {
+                const assistantMessage: Message = {
+                    id: (Date.now() + 1).toString(),
+                    role: 'assistant',
+                    content: data.data.reply,
+                    timestamp: new Date()
+                };
+                setMessages(prev => [...prev, assistantMessage]);
+            } else {
+                const fallbackMessage: Message = {
+                    id: (Date.now() + 1).toString(),
+                    role: 'assistant',
+                    content: "I understand you're working on your transformation. Could you tell me more?",
+                    timestamp: new Date()
+                };
+                setMessages(prev => [...prev, fallbackMessage]);
             }
         } catch (error) {
-            // Update the assistant message with error
-            setMessages(prev => prev.map(msg =>
-                msg.id === assistantMessageId
-                    ? { ...msg, content: "I'm having trouble connecting. Please try again." }
-                    : msg
-            ));
+            const errorMessage: Message = {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: "I'm having trouble connecting. Please try again.",
+                timestamp: new Date()
+            };
+            setMessages(prev => [...prev, errorMessage]);
         } finally {
             setIsLoading(false);
-            setIsStreaming(false);
-            // Force blur to close keyboard on mobile
-            inputRef.current?.blur();
+            inputRef.current?.focus();
         }
     };
 
@@ -342,7 +302,7 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
     };
 
     const handleCreateCoach = (newCoach: any) => {
-        const createdCoach: Coach = {
+        setCoaches(prev => [...prev, {
             id: newCoach.id,
             name: newCoach.name,
             icon: newCoach.icon,
@@ -350,45 +310,12 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
             description: 'Custom AI Coach',
             type: 'custom',
             systemPrompt: newCoach.systemPrompt
-        };
-        setCoaches(prev => [...prev, createdCoach]);
-        // Auto-select the newly created coach
-        setSelectedCoach(createdCoach);
+        }]);
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         sendMessage(input);
-    };
-
-    // Handle input focus to ensure visibility when keyboard appears
-    const handleInputFocus = () => {
-        // Small delay to wait for keyboard animation
-        setTimeout(() => {
-            inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }, 300);
-    };
-
-
-    // Reset conversation with memory extraction
-    const handleResetConversation = async () => {
-        if (isResetting) return;
-        setIsResetting(true);
-        try {
-            const response = await fetch('/api/expert/conversation/reset', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ coachId: selectedCoach.id }),
-            });
-            if (response.ok) {
-                setMessages([]);
-                setShowResetConfirm(false);
-            }
-        } catch (error) {
-            console.error('Failed to reset conversation:', error);
-        } finally {
-            setIsResetting(false);
-        }
     };
 
     // Group coaches
@@ -397,84 +324,21 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
     const customCoaches = coaches.filter(c => c.type === 'custom');
 
     return (
-        <div className="expert-chat" ref={chatContainerRef}>
+        <div className="expert-chat">
             {/* Header with Coach Selector */}
             <div className="chat-header">
-                <div className="header-row">
-                    {onBack && (
-                        <button onClick={onBack} className="btn-icon" style={{ marginRight: '8px' }}>
-                            ←
-                        </button>
-                    )}
-                    <button
-                        className="coach-selector-btn"
-                        onClick={() => setShowCoachSelector(!showCoachSelector)}
-                    >
-                        <div className="coach-avatar" style={{ background: selectedCoach.color }}>
-                            <span>{selectedCoach.icon}</span>
-                        </div>
-                        <div className="coach-info">
-                            <span className="coach-name">{selectedCoach.name} {selectedCoach.type === 'goal' ? '' : 'Coach'}</span>
-                            <span className="coach-desc">{selectedCoach.description}</span>
-                        </div>
-                        <ChevronDown size={20} className={`chevron ${showCoachSelector ? 'open' : ''}`} />
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setShowResetConfirm(true)}
-                        className="audio-toggle-btn"
-                        title="Reset conversation"
-                        disabled={messages.length === 0 || isResetting}
-                    >
-                        <RotateCcw size={18} className={isResetting ? 'spin-icon' : ''} />
-                    </button>
-                    <button
-                        type="button"
-                        onClick={toggleMute}
-                        className={`audio-toggle-btn ${isMuted ? 'muted' : ''} ${isPlayingAudio ? 'playing' : ''}`}
-                        title={isMuted ? 'Unmute AI voice' : 'Mute AI voice'}
-                    >
-                        {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-                    </button>
-                </div>
-
-                {/* Reset Confirmation */}
-                {showResetConfirm && (
-                    <div className="reset-confirm-bar">
-                        <span>Clear chat? Key insights will be remembered.</span>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                            <button
-                                onClick={handleResetConversation}
-                                disabled={isResetting}
-                                style={{
-                                    padding: '4px 12px',
-                                    borderRadius: '8px',
-                                    border: 'none',
-                                    background: 'var(--color-error, #ef4444)',
-                                    color: 'white',
-                                    fontSize: '0.75rem',
-                                    cursor: 'pointer',
-                                }}
-                            >
-                                {isResetting ? 'Resetting...' : 'Reset'}
-                            </button>
-                            <button
-                                onClick={() => setShowResetConfirm(false)}
-                                style={{
-                                    padding: '4px 12px',
-                                    borderRadius: '8px',
-                                    border: '1px solid var(--color-border)',
-                                    background: 'transparent',
-                                    color: 'var(--color-text-secondary)',
-                                    fontSize: '0.75rem',
-                                    cursor: 'pointer',
-                                }}
-                            >
-                                Cancel
-                            </button>
-                        </div>
+                <button
+                    className="coach-selector-btn"
+                    onClick={() => setShowCoachSelector(!showCoachSelector)}
+                >
+                    <div className="coach-avatar" style={{ background: selectedCoach.color }}>
+                        <span>{selectedCoach.icon}</span>
                     </div>
-                )}
+                    <div className="coach-info">
+                        <span className="coach-name">{selectedCoach.name} {selectedCoach.type === 'goal' ? '' : 'Coach'}</span>
+                    </div>
+                    <ChevronDown size={20} className={`chevron ${showCoachSelector ? 'open' : ''}`} />
+                </button>
 
                 {showCoachSelector && (
                     <div className="coach-dropdown custom-scrollbar">
@@ -562,25 +426,24 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
                 )}
 
                 {messages.map(message => (
-                    <div key={message.id} className={`message ${message.role}`} style={{ gridTemplateColumns: '1fr' }}>
-                        {/* Avatar hidden to maximize text space per feedback */}
-                        {/* 
+                    <div key={message.id} className={`message ${message.role}`}>
                         {message.role === 'assistant' && (
                             <div className="message-avatar" style={{ background: selectedCoach.color }}>
                                 {selectedCoach.icon}
                             </div>
                         )}
-                        */}
-                        <div className="message-bubble" style={{ maxWidth: '100%', margin: 0 }}>
-                            {renderMessageContent(message.content)}
+                        <div className="message-bubble">
+                            {renderMessageContent(
+                                message.role === 'user'
+                                    ? stripSystemPrefix(message.content)
+                                    : message.content
+                            )}
                         </div>
-                        {/* 
                         {message.role === 'user' && (
                             <div className="message-avatar user-avatar">
                                 <User size={16} />
                             </div>
                         )}
-                        */}
                     </div>
                 ))}
 
@@ -618,31 +481,20 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
             <form onSubmit={handleSubmit} className="chat-input-form">
                 <button
                     type="button"
-                    onClick={handleVoiceInput}
-                    className={`mic-btn ${isRecording ? 'recording' : ''} ${isTranscribing ? 'transcribing' : ''}`}
-                    disabled={isLoading || isTranscribing}
-                    title={isRecording ? 'Stop recording' : isTranscribing ? 'Transcribing...' : 'Voice input'}
+                    className="voice-btn"
+                    title="Voice input (coming soon)"
+                    disabled={isLoading}
                 >
-                    {isTranscribing ? <Loader2 size={20} className="spin-icon" /> : <Mic size={20} />}
+                    <Mic size={20} />
                 </button>
-                <Link href="/expert/live" className="mic-btn" title="Live Voice Mode">
-                    <Radio size={20} />
-                </Link>
-                <textarea
+                <input
                     ref={inputRef}
+                    type="text"
                     value={input}
                     onChange={e => setInput(e.target.value)}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            handleSubmit(e);
-                        }
-                    }}
-                    onFocus={handleInputFocus}
-                    placeholder={isTranscribing ? 'Transcribing...' : `Message ${selectedCoach.name}...`}
-                    className="chat-input custom-scrollbar"
-                    disabled={isLoading || isTranscribing}
-                    rows={1}
+                    placeholder={`Message ${selectedCoach.name}...`}
+                    className="chat-input"
+                    disabled={isLoading}
                 />
                 <button
                     type="submit"
@@ -650,6 +502,20 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
                     disabled={isLoading || !input.trim()}
                 >
                     <Send size={20} />
+                </button>
+                <button
+                    type="button"
+                    className="live-mode-btn"
+                    title="Live voice mode"
+                    disabled={isLoading}
+                >
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="4" y1="12" x2="4" y2="12" />
+                        <line x1="8" y1="8" x2="8" y2="16" />
+                        <line x1="12" y1="4" x2="12" y2="20" />
+                        <line x1="16" y1="8" x2="16" y2="16" />
+                        <line x1="20" y1="12" x2="20" y2="12" />
+                    </svg>
                 </button>
             </form>
 
@@ -662,26 +528,14 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
 
             <style jsx>{`
                 .expert-chat {
-                    --keyboard-offset: 0px;
-                    --nav-height: 64px;
                     display: flex;
                     flex-direction: column;
+                    height: calc(100vh - 80px);
                     min-height: 400px;
-                    background: var(--color-surface);
-                    border-radius: 24px;
-                    border: 1px solid var(--color-border);
+                    background: var(--color-background);
                     overflow: hidden;
-                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-                    position: fixed;
-                    top: calc(var(--nav-height) + max(16px, env(safe-area-inset-top)));
-                    left: 16px;
-                    right: 16px;
-                    height: calc(100vh - var(--nav-height) - max(16px, env(safe-area-inset-top)) - 80px - env(safe-area-inset-bottom) - var(--keyboard-offset));
-                    height: calc(100dvh - var(--nav-height) - max(16px, env(safe-area-inset-top)) - 80px - env(safe-area-inset-bottom) - var(--keyboard-offset));
-                    z-index: 10;
-                    overscroll-behavior: none;
-                    will-change: height;
-                    transition: height 0.1s ease-out;
+                    position: relative;
+                    width: 100%;
                 }
 
                 .chat-header {
@@ -692,69 +546,11 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
                     z-index: 20;
                 }
 
-                .header-row {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                }
-
-                .reset-confirm-bar {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    padding: 8px 16px;
-                    background: var(--color-surface-2);
-                    border-top: 1px solid var(--color-border);
-                    font-size: 0.75rem;
-                    color: var(--color-text-secondary);
-                    animation: slideDown 0.15s ease-out;
-                }
-
-                @keyframes slideDown {
-                    from { opacity: 0; transform: translateY(-4px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-
-                .audio-toggle-btn {
-                    width: 44px;
-                    height: 44px;
-                    background: var(--color-surface-2);
-                    border: 1px solid var(--color-border);
-                    border-radius: 12px;
-                    color: var(--color-text-muted);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                    flex-shrink: 0;
-                }
-
-                .audio-toggle-btn:hover {
-                    color: var(--color-primary);
-                    border-color: var(--color-primary);
-                }
-
-                .audio-toggle-btn.muted {
-                    color: var(--color-text-muted);
-                    opacity: 0.6;
-                }
-
-                .audio-toggle-btn.playing {
-                    color: var(--color-primary);
-                    animation: pulse 1.5s infinite;
-                }
-
-                @keyframes pulse {
-                    0%, 100% { opacity: 1; }
-                    50% { opacity: 0.6; }
-                }
-
                 .coach-selector-btn {
                     display: flex;
                     align-items: center;
                     gap: 12px;
-                    flex: 1;
+                    width: 100%;
                     padding: 8px 12px;
                     background: var(--color-surface-2);
                     border: 1px solid var(--color-border);
@@ -768,13 +564,13 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
                 }
 
                 .coach-avatar {
-                    width: 44px;
-                    height: 44px;
-                    border-radius: 14px;
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 10px;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    font-size: 1.5rem;
+                    font-size: 1.2rem;
                     color: white;
                     flex-shrink: 0;
                 }
@@ -787,14 +583,9 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
                 .coach-name {
                     display: block;
                     font-weight: 600;
-                    font-size: 1rem;
+                    font-size: 0.95rem;
                     color: var(--color-text);
-                }
-
-                .coach-desc {
-                    display: block;
-                    font-size: 0.8rem;
-                    color: var(--color-text-muted);
+                    line-height: 1.2;
                 }
 
                 .chevron {
@@ -811,13 +602,13 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
                     top: calc(100% + 8px);
                     left: 16px;
                     right: 16px;
-                    background: var(--color-background);
+                    background: var(--color-surface);
                     border: 1px solid var(--color-border);
                     border-radius: 16px;
                     padding: 12px;
                     z-index: 100;
-                    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.25);
-                    max-height: 60vh;
+                    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2);
+                    max-height: 400px;
                     overflow-y: auto;
                     animation: slideDown 0.2s ease-out;
                 }
@@ -839,7 +630,7 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
 
                 .dropdown-grid {
                     display: grid;
-                    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+                    grid-template-columns: repeat(3, 1fr);
                     gap: 12px;
                     margin-bottom: 16px;
                 }
@@ -847,16 +638,12 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
                 .chat-messages {
                     flex: 1;
                     overflow-y: auto;
-                    overflow-x: hidden;
                     padding: 20px;
                     display: flex;
                     flex-direction: column;
                     gap: 16px;
                     background-image: radial-gradient(var(--color-surface-2) 1px, transparent 1px);
                     background-size: 20px 20px;
-                    overscroll-behavior: contain;
-                    -webkit-overflow-scrolling: touch;
-                    touch-action: pan-y;
                 }
 
                 .empty-state {
@@ -969,32 +756,13 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
 
                 .quick-actions {
                     display: flex;
-                    flex-direction: row;
-                    flex-wrap: nowrap;
-                    align-items: center;
-                    gap: 10px;
-                    padding: 8px 20px 16px;
-                    overflow-x: auto;
-                    overflow-y: hidden;
-                    -webkit-overflow-scrolling: touch;
-                    scroll-snap-type: x proximity;
-                    scroll-padding: 0 20px;
-                    scrollbar-width: none;
-                    -ms-overflow-style: none;
-                    flex-shrink: 0;
-                    max-height: 60px;
-                    touch-action: pan-x;
-                }
-
-                .quick-actions::-webkit-scrollbar {
-                    display: none;
+                    flex-wrap: wrap;
+                    gap: 8px;
+                    padding: 0 20px 16px;
                 }
 
                 .quick-action-btn {
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
-                    padding: 10px 16px;
+                    padding: 8px 14px;
                     background: var(--color-surface);
                     border: 1px solid var(--color-border);
                     border-radius: 20px;
@@ -1002,19 +770,6 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
                     color: var(--color-text);
                     cursor: pointer;
                     transition: all 0.2s;
-                    white-space: nowrap;
-                    flex: 0 0 auto;
-                    scroll-snap-align: center;
-                    min-width: fit-content;
-                    height: 40px;
-                }
-
-                .quick-action-btn:first-child {
-                    margin-left: 0;
-                }
-
-                .quick-action-btn:last-child {
-                    margin-right: 0;
                 }
 
                 .quick-action-btn:hover:not(:disabled) {
@@ -1030,16 +785,12 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
 
                 .chat-input-form {
                     display: flex;
-                    align-items: flex-end;
+                    align-items: center;
                     gap: 8px;
-                    padding: 16px;
-                    padding-bottom: max(16px, env(safe-area-inset-bottom));
+                    padding: 12px 16px;
                     border-top: 1px solid var(--color-border);
-                    background: var(--color-surface);
-                    flex-shrink: 0;
-                    overflow: visible;
-                    position: relative;
-                    z-index: 15;
+                    background: rgba(var(--color-surface-rgb), 0.85);
+                    backdrop-filter: blur(12px);
                 }
 
                 .chat-input {
@@ -1052,11 +803,6 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
                     color: var(--color-text);
                     outline: none;
                     transition: border-color 0.2s;
-                    resize: none;
-                    height: 52px;
-                    min-height: 52px;
-                    max-height: 120px;
-                    line-height: 1.5;
                 }
 
                 .chat-input:focus {
@@ -1068,12 +814,11 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
                 }
 
                 .send-btn {
-                    width: 52px;
-                    height: 52px;
-                    min-width: 52px;
+                    width: 48px;
+                    height: 48px;
                     background: var(--gradient-primary);
                     border: none;
-                    border-radius: 16px;
+                    border-radius: 50%;
                     color: white;
                     display: flex;
                     align-items: center;
@@ -1093,13 +838,12 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
                     cursor: not-allowed;
                 }
 
-                .mic-btn {
-                    width: 44px;
-                    height: 44px;
-                    min-width: 44px;
+                .voice-btn {
+                    width: 48px;
+                    height: 48px;
                     background: transparent;
-                    border: none;
-                    border-radius: 12px;
+                    border: 2px solid var(--color-border);
+                    border-radius: 50%;
                     color: var(--color-text-muted);
                     display: flex;
                     align-items: center;
@@ -1109,48 +853,42 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
                     flex-shrink: 0;
                 }
 
-                .mic-btn:hover:not(:disabled) {
-                    color: var(--color-accent);
-                    background: var(--color-surface-2);
+                .voice-btn:hover:not(:disabled) {
+                    border-color: var(--color-primary);
+                    color: var(--color-primary);
+                    background: var(--color-primary-light);
                 }
 
-                .mic-btn.recording {
-                    color: white;
-                    background: #ef4444;
-                    animation: breathe 1.5s ease-in-out infinite;
-                }
-                
-                @keyframes breathe {
-                    0%, 100% { 
-                        transform: scale(1);
-                        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
-                    }
-                    50% { 
-                        transform: scale(1.08);
-                        box-shadow: 0 0 0 12px rgba(239, 68, 68, 0);
-                    }
-                }
-
-                .mic-btn.transcribing {
-                    color: white;
-                    background: var(--color-primary, #8b5cf6);
-                    opacity: 1;
-                }
-                
-                .spin-icon {
-                    animation: spin 1s linear infinite;
-                }
-                
-                @keyframes spin {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                }
-
-                .mic-btn:disabled {
-                    opacity: 0.4;
+                .voice-btn:disabled {
+                    opacity: 0.5;
                     cursor: not-allowed;
                 }
-                
+
+                .live-mode-btn {
+                    width: 48px;
+                    height: 48px;
+                    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                    border: none;
+                    border-radius: 50%;
+                    color: white;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    flex-shrink: 0;
+                    box-shadow: 0 2px 12px rgba(99, 102, 241, 0.3);
+                }
+
+                .live-mode-btn:hover:not(:disabled) {
+                    transform: scale(1.08);
+                    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.5);
+                }
+
+                .live-mode-btn:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
 
                 .group:hover .group-hover-visible {
                     opacity: 1 !important;
@@ -1166,54 +904,12 @@ export default function ExpertChat({ onBack }: ExpertChatProps) {
                 }
 
                 @media (max-width: 640px) {
-                    .expert-chat {
-                        left: 8px;
-                        right: 8px;
-                        border-radius: 16px;
-                        top: calc(var(--nav-height) + max(8px, env(safe-area-inset-top)));
-                        height: calc(100vh - var(--nav-height) - max(8px, env(safe-area-inset-top)) - 70px - env(safe-area-inset-bottom) - var(--keyboard-offset));
-                        height: calc(100dvh - var(--nav-height) - max(8px, env(safe-area-inset-top)) - 70px - env(safe-area-inset-bottom) - var(--keyboard-offset));
+                    .coach-dropdown {
+                        grid-template-columns: repeat(2, 1fr);
                     }
-
+                    
                     .message-bubble {
                         max-width: 85%;
-                    }
-
-                    .chat-input-form {
-                        padding: 12px;
-                        padding-bottom: max(12px, env(safe-area-inset-bottom));
-                        gap: 6px;
-                    }
-
-                    .send-btn {
-                        width: 48px;
-                        height: 48px;
-                        min-width: 48px;
-                        border-radius: 14px;
-                    }
-
-                    .mic-btn {
-                        width: 40px;
-                        height: 40px;
-                        min-width: 40px;
-                    }
-
-                    .chat-input {
-                        padding: 12px 14px;
-                        height: 48px;
-                        min-height: 48px;
-                    }
-
-                    .quick-actions {
-                        padding: 8px 12px 12px;
-                        gap: 8px;
-                        scroll-padding: 0 12px;
-                    }
-
-                    .quick-action-btn {
-                        padding: 8px 14px;
-                        font-size: 0.8rem;
-                        height: 36px;
                     }
                 }
             `}</style>

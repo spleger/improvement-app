@@ -27,11 +27,6 @@ export default function DailySurveyForm() {
         try {
             const payload = {
                 ...formData,
-                energyLevel: Math.round(formData.energyLevel),
-                motivationLevel: Math.round(formData.motivationLevel),
-                overallMood: Math.round(formData.overallMood),
-                sleepQuality: Math.round(formData.sleepQuality),
-                stressLevel: Math.round(formData.stressLevel),
                 completionLevel: showExtended ? 'extended' : 'minimum'
             };
 
@@ -77,7 +72,9 @@ export default function DailySurveyForm() {
         onChange: (v: number) => void;
         leftEmoji: string;
         rightEmoji: string;
-    }) => (
+    }) => {
+        const fillPercent = ((value - 1) / 9) * 100;
+        return (
         <div className="form-group">
             <label className="form-label">{label}</label>
             <div className="slider-container">
@@ -85,20 +82,23 @@ export default function DailySurveyForm() {
                     type="range"
                     min="1"
                     max="10"
-                    step="any"
+                    step="0.1"
                     value={value}
                     onChange={e => onChange(parseFloat(e.target.value))}
                     className="slider"
-                    style={{ '--slider-progress': `${((value - 1) / 9) * 100}%`, padding: '16px 0' } as React.CSSProperties}
+                    style={{
+                        background: `linear-gradient(to right, #667eea 0%, #764ba2 ${fillPercent}%, var(--color-surface-2) ${fillPercent}%)`
+                    }}
                 />
                 <div className="slider-labels">
                     <span>{leftEmoji}</span>
                     <span>{rightEmoji}</span>
                 </div>
-                <div className="slider-value">{Math.round(value)}/10</div>
+                <div className="slider-value">{Number.isInteger(value) ? value : value.toFixed(1)}</div>
             </div>
         </div>
     );
+    };
 
     return (
         <>

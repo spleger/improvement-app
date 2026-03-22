@@ -7,6 +7,7 @@ import { getIcon } from '@/lib/icons';
 interface Goal {
     id: string;
     title: string;
+    status?: string;
     domain?: { icon?: string };
 }
 
@@ -28,12 +29,15 @@ export default function CreateHabitModal({ onClose, onCreated }: CreateHabitModa
     const [error, setError] = useState('');
 
     useEffect(() => {
-        // Fetch goals for linking
+        // Fetch goals for linking (only active goals)
         fetch('/api/goals')
             .then(res => res.json())
             .then(data => {
                 if (data.success && data.data.goals) {
-                    setGoals(data.data.goals);
+                    const activeGoals = data.data.goals.filter(
+                        (g: Goal) => !g.status || g.status === 'active'
+                    );
+                    setGoals(activeGoals);
                 }
             })
             .catch(console.error);
@@ -322,7 +326,7 @@ export default function CreateHabitModal({ onClose, onCreated }: CreateHabitModa
                     .frequency-btn.selected {
                         border-color: var(--color-primary);
                         background: var(--color-primary);
-                        color: white;
+                        color: black;
                     }
 
                     .error-message {
@@ -350,6 +354,7 @@ export default function CreateHabitModal({ onClose, onCreated }: CreateHabitModa
                         cursor: pointer;
                         transition: all 0.2s;
                         white-space: nowrap;
+                        min-width: 140px;
                     }
 
                     .btn-secondary {

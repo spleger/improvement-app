@@ -2,255 +2,148 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, useEffect } from 'react';
-
-const HIDDEN_ROUTES = ['/login', '/register', '/onboarding'];
+import { useState, useRef, useEffect } from 'react';
 
 export default function BottomNavigation() {
     const pathname = usePathname();
-    const [showTrackingMenu, setShowTrackingMenu] = useState(false);
+    const [trackingOpen, setTrackingOpen] = useState(false);
+    const trackingRef = useRef<HTMLDivElement>(null);
 
-    // Determine active tab based on pathname
-    // Home, Tracking (covers /habits, /diary, /survey), Progress, Expert
-    const getActiveTab = () => {
-        if (pathname === '/') return 'home';
-        if (pathname?.startsWith('/progress')) return 'progress';
-        if (pathname?.startsWith('/habits') || pathname?.startsWith('/diary') || pathname?.startsWith('/survey')) return 'tracking';
-        if (pathname?.startsWith('/expert')) return 'expert';
-        return '';
-    };
-
-    const active = getActiveTab();
-
-    // Close tracking menu when clicking outside
+    // Close submenu when clicking outside
     useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            const target = event.target as HTMLElement;
-            if (!target.closest('.tracking-submenu-container')) {
-                setShowTrackingMenu(false);
+        function handleClickOutside(event: MouseEvent) {
+            if (trackingRef.current && !trackingRef.current.contains(event.target as Node)) {
+                setTrackingOpen(false);
             }
-        };
-
-        if (showTrackingMenu) {
-            document.addEventListener('click', handleClickOutside);
         }
+        if (trackingOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [trackingOpen]);
 
-        return () => {
-            document.removeEventListener('click', handleClickOutside);
-        };
-    }, [showTrackingMenu]);
-
-    // Close menu on route change
+    // Close submenu on route change
     useEffect(() => {
-        setShowTrackingMenu(false);
+        setTrackingOpen(false);
     }, [pathname]);
 
-    if (HIDDEN_ROUTES.some(route => pathname?.startsWith(route))) {
-        return null;
-    }
+    // Determine active tab based on pathname
+    const isTrackingActive = pathname?.startsWith('/habits')
+        || pathname?.startsWith('/diary')
+        || pathname?.startsWith('/survey');
 
-    const trackingSubmenu = [
-        { id: 'habits', label: 'Daily Habits', href: '/habits' },
-        { id: 'diary', label: 'Voice Diary', href: '/diary' },
-        { id: 'checkin', label: 'Check-in', href: '/survey' },
+    const active = pathname === '/' ? 'home'
+        : pathname?.startsWith('/progress') ? 'progress'
+            : isTrackingActive ? 'tracking'
+                : pathname?.startsWith('/expert') ? 'expert'
+                    : pathname?.startsWith('/profile') ? 'profile'
+                        : '';
+
+    const trackingItems = [
+        { label: 'Daily Habits', href: '/habits' },
+        { label: 'Voice Diary', href: '/diary' },
+        { label: 'Check-in', href: '/survey' },
+    ];
+
+    const navItems = [
+        { id: 'home', icon: '\u{1F3E0}', label: 'Home', href: '/' },
+        { id: 'tracking', icon: '\u{2705}', label: 'Tracking', href: null },
+        { id: 'progress', icon: '\u{1F4CA}', label: 'Progress', href: '/progress' },
+        { id: 'expert', icon: '\u{1F4AC}', label: 'Expert', href: '/expert' },
+        { id: 'profile', icon: '\u{1F464}', label: 'Profile', href: '/profile' },
     ];
 
     return (
         <nav className="nav-bottom">
             <div className="nav-bottom-inner">
-                {/* Home */}
-                <Link
-                    href="/"
-                    className={`nav-item ${active === 'home' ? 'active' : ''}`}
-                >
-                    <span className="nav-item-icon">🏠</span>
-                    <span className="nav-item-label">Home</span>
-                </Link>
-
-                {/* Tracking with submenu */}
-                <div className="tracking-submenu-container">
-                    <button
-                        className={`nav-item ${active === 'tracking' ? 'active' : ''}`}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setShowTrackingMenu(!showTrackingMenu);
-                        }}
-                        aria-label="Tracking"
-                        aria-expanded={showTrackingMenu}
-                    >
-                        <span className="nav-item-icon">📋</span>
-                        <span className="nav-item-label">Tracking</span>
-                    </button>
-
-                    {showTrackingMenu && (
-                        <div className="tracking-submenu-dropdown">
-                            {trackingSubmenu.map(item => (
-                                <Link
-                                    key={item.id}
-                                    href={item.href}
-                                    className="tracking-submenu-item"
+                {navItems.map(item => {
+                    if (item.id === 'tracking') {
+                        return (
+                            <div
+                                key={item.id}
+                                ref={trackingRef}
+                                style={{ position: 'relative' }}
+                            >
+                                <button
+                                    onClick={() => setTrackingOpen(prev => !prev)}
+                                    className={`nav-item ${active === 'tracking' ? 'active' : ''}`}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        font: 'inherit',
+                                    }}
+                                    aria-expanded={trackingOpen}
+                                    aria-haspopup="true"
                                 >
-                                    {/* <span className="tracking-submenu-icon">{item.icon}</span> */}
-                                    <span className="tracking-submenu-label">{item.label}</span>
-                                </Link>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                                    <span className="nav-item-icon">{item.icon}</span>
+                                    <span className="nav-item-label">{item.label}</span>
+                                </button>
 
-                {/* Progress */}
-                <Link
-                    href="/progress"
-                    className={`nav-item ${active === 'progress' ? 'active' : ''}`}
-                >
-                    <span className="nav-item-icon">📊</span>
-                    <span className="nav-item-label">Progress</span>
-                </Link>
+                                {trackingOpen && (
+                                    <div
+                                        style={{
+                                            position: 'absolute',
+                                            bottom: 'calc(100% + 12px)',
+                                            left: '50%',
+                                            transform: 'translateX(-50%)',
+                                            zIndex: 200,
+                                            background: 'var(--color-surface, #1e1e2e)',
+                                            borderRadius: '16px',
+                                            padding: '0.5rem',
+                                            boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.3)',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: '0.375rem',
+                                            minWidth: '160px',
+                                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        }}
+                                    >
+                                        {trackingItems.map(sub => (
+                                            <Link
+                                                key={sub.href}
+                                                href={sub.href}
+                                                onClick={() => setTrackingOpen(false)}
+                                                style={{
+                                                    display: 'block',
+                                                    padding: '0.625rem 1rem',
+                                                    borderRadius: '12px',
+                                                    background: pathname?.startsWith(sub.href)
+                                                        ? 'rgba(var(--color-highlight-rgb, 99, 102, 241), 0.2)'
+                                                        : 'rgba(255, 255, 255, 0.06)',
+                                                    color: pathname?.startsWith(sub.href)
+                                                        ? 'var(--color-highlight, #6366f1)'
+                                                        : 'var(--color-text, #e0e0e0)',
+                                                    fontSize: '0.9375rem',
+                                                    fontWeight: 500,
+                                                    letterSpacing: '0.05em',
+                                                    textDecoration: 'none',
+                                                    textAlign: 'center',
+                                                    whiteSpace: 'nowrap',
+                                                    transition: 'background 0.15s ease',
+                                                }}
+                                            >
+                                                {sub.label}
+                                            </Link>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    }
 
-                {/* Expert */}
-                <Link
-                    href="/expert"
-                    className={`nav-item ${active === 'expert' ? 'active' : ''}`}
-                >
-                    <span className="nav-item-icon">💬</span>
-                    <span className="nav-item-label">Expert</span>
-                </Link>
+                    return (
+                        <Link
+                            key={item.id}
+                            href={item.href!}
+                            className={`nav-item ${active === item.id ? 'active' : ''}`}
+                        >
+                            <span className="nav-item-icon">{item.icon}</span>
+                            <span className="nav-item-label">{item.label}</span>
+                        </Link>
+                    );
+                })}
             </div>
-
-            <style jsx>{`
-                .nav-bottom {
-                    position: fixed;
-                    bottom: 0;
-                    left: 0;
-                    right: 0;
-                    background: rgba(12, 12, 20, 0.95);
-                    border-top: 1px solid rgba(255, 255, 255, 0.06);
-                    z-index: 100;
-                    padding-bottom: env(safe-area-inset-bottom);
-                    backdrop-filter: blur(12px);
-                    -webkit-backdrop-filter: blur(12px);
-                }
-
-                .nav-bottom-inner {
-                    display: flex;
-                    justify-content: space-around;
-                    align-items: center;
-                    height: 60px;
-                    max-width: 600px;
-                    margin: 0 auto;
-                }
-
-                .nav-item {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    text-decoration: none;
-                    color: var(--color-text-secondary);
-                    font-size: 0.75rem;
-                    gap: 4px;
-                    padding: 4px;
-                    border-radius: 8px;
-                    transition: all var(--transition-fast);
-                    flex: 1;
-                    height: 100%;
-                    background: none;
-                    border: none;
-                    cursor: pointer;
-                }
-
-                .nav-item.active {
-                    color: var(--color-accent);
-                    background: rgba(13, 148, 136, 0.12);
-                    border-radius: 12px;
-                    font-weight: 600;
-                }
-
-                .nav-item.active .nav-item-label {
-                    border-bottom: 2px solid var(--color-accent);
-                    padding-bottom: 1px;
-                }
-
-                .nav-item-icon {
-                    font-size: 1.25rem;
-                }
-
-                .nav-item-label {
-                    font-weight: 500;
-                }
-
-                .tracking-submenu-container {
-                    position: relative;
-                }
-
-                .tracking-submenu-dropdown {
-                    position: absolute;
-                    bottom: calc(100% + 8px);
-                    left: 50%;
-                    transform: translateX(-50%);
-                    background: rgba(18, 18, 30, 0.95);
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                    border-radius: 20px; /* More rounded container */
-                    padding: 6px;
-                    width: max-content;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 4px;
-                    box-shadow: var(--shadow-lg);
-                    z-index: 110;
-                    animation: slideUp 0.15s ease-out;
-                }
-
-                @keyframes slideUp {
-                    from {
-                        opacity: 0;
-                        transform: translateX(-50%) translateY(8px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateX(-50%) translateY(0);
-                    }
-                }
-
-                .tracking-submenu-item {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center; /* Center text */
-                    gap: var(--spacing-sm);
-                    padding: 10px 24px;
-                    border-radius: 10px;
-                    text-decoration: none;
-                    color: var(--color-text-primary);
-                    background: var(--color-surface-2);
-                    border: 1px solid var(--color-border); /* Explicit border */
-                    transition: all var(--transition-fast);
-                    font-weight: 600; /* Bolder text */
-                }
-
-                .tracking-submenu-item:hover {
-                    background: var(--color-surface-hover);
-                    border-color: var(--color-primary);
-                    transform: translateY(-2px); /* Slight lift */
-                    box-shadow: var(--shadow-sm);
-                }
-
-                /* Icon removed from DOM, style not needed, but keeping for safety if used elsewhere or future */
-                .tracking-submenu-icon {
-                    display: none; /* Hide if still present */
-                }
-
-                .tracking-submenu-label {
-                    font-size: 0.8rem;
-                    font-weight: 500;
-                }
-
-                /* Override nav-item styles for button */
-                .tracking-submenu-container .nav-item {
-                    background: none;
-                    border: none;
-                    cursor: pointer;
-                }
-            `}</style>
         </nav>
     );
 }
