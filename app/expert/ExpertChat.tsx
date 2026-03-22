@@ -536,6 +536,7 @@ export default function ExpertChat() {
                     overflow: hidden;
                     position: relative;
                     width: 100%;
+                    padding-top: 56px;
                 }
 
                 .chat-header {
@@ -907,9 +908,26 @@ export default function ExpertChat() {
                     .coach-dropdown {
                         grid-template-columns: repeat(2, 1fr);
                     }
-                    
+
                     .message-bubble {
                         max-width: 85%;
+                    }
+
+                    .chat-input-form {
+                        padding: 10px 12px;
+                        gap: 6px;
+                    }
+
+                    .voice-btn,
+                    .send-btn,
+                    .live-mode-btn {
+                        width: 40px;
+                        height: 40px;
+                    }
+
+                    .chat-input {
+                        padding: 10px 14px;
+                        font-size: 0.9375rem;
                     }
                 }
             `}</style>
