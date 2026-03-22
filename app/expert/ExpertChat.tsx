@@ -13,26 +13,7 @@ import { useKeyboardOffset } from '@/hooks/useKeyboardOffset';
 import { useTTSAudio } from '@/hooks/useTTSAudio';
 import { useVoiceRecording } from '@/hooks/useVoiceRecording';
 import { parseSSEStream } from '@/lib/streaming';
-
-interface Coach {
-    id: string;
-    name: string;
-    icon: string;
-    color: string;
-    description: string;
-    type: 'default' | 'goal' | 'custom';
-    isGoalCoach?: boolean;
-    systemPrompt?: string;
-}
-
-const DEFAULT_COACHES: Coach[] = [
-    { id: 'general', name: 'General', icon: '🧠', color: '#8b5cf6', description: 'Holistic transformation', type: 'default' },
-    { id: 'health', name: 'Health', icon: '💪', color: '#ef4444', description: 'Fitness & vitality', type: 'default' },
-    { id: 'habits', name: 'Habits', icon: '🔄', color: '#f59e0b', description: 'Routine & consistency', type: 'default' },
-    { id: 'emotional', name: 'Emotional', icon: '💜', color: '#ec4899', description: 'EQ & resilience', type: 'default' },
-    { id: 'languages', name: 'Languages', icon: '🗣️', color: '#3b82f6', description: 'Fluency & immersion', type: 'default' },
-    { id: 'mobility', name: 'Mobility', icon: '🧘', color: '#10b981', description: 'Movement & flexibility', type: 'default' },
-];
+import { Coach, DEFAULT_COACHES } from '@/lib/coaches';
 
 const SUGGESTED_TOPICS = [
     "💪 I'm struggling with motivation",

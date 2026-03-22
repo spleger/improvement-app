@@ -5,28 +5,8 @@ import { ArrowLeft, Mic, MicOff, Volume2, VolumeX, Loader2, ChevronDown, Message
 import Link from 'next/link';
 import { getIcon } from '@/lib/icons';
 import { useVAD } from '@/hooks/useVAD';
-
-// Coach interface
-interface Coach {
-    id: string;
-    name: string;
-    icon: string;
-    color: string;
-    description: string;
-    type: 'default' | 'goal' | 'custom';
-    isGoalCoach?: boolean;
-    systemPrompt?: string;
-}
-
-// Default coaches
-const DEFAULT_COACHES: Coach[] = [
-    { id: 'general', name: 'General', icon: '🧠', color: '#8b5cf6', description: 'Holistic transformation', type: 'default' },
-    { id: 'health', name: 'Health', icon: '💪', color: '#ef4444', description: 'Fitness & vitality', type: 'default' },
-    { id: 'habits', name: 'Habits', icon: '🔄', color: '#f59e0b', description: 'Routine & consistency', type: 'default' },
-    { id: 'emotional', name: 'Emotional', icon: '💜', color: '#ec4899', description: 'EQ & resilience', type: 'default' },
-    { id: 'languages', name: 'Languages', icon: '🗣️', color: '#3b82f6', description: 'Fluency & immersion', type: 'default' },
-    { id: 'mobility', name: 'Mobility', icon: '🧘', color: '#10b981', description: 'Movement & flexibility', type: 'default' },
-];
+import { Coach, DEFAULT_COACHES } from '@/lib/coaches';
+import { ChatMessage } from '@/lib/types';
 
 // State machine types
 type OrbState = 'idle' | 'listening' | 'processing' | 'speaking' | 'error';
@@ -34,13 +14,6 @@ type ErrorType = 'mic_denied' | 'mic_unavailable' | 'chat_failed' | 'generic' | 
 
 const TRANSCRIPTION_TIMEOUT = 30000;
 const CHAT_TIMEOUT = 60000;
-
-interface Message {
-    id: string;
-    role: 'user' | 'assistant';
-    content: string;
-    timestamp: Date;
-}
 
 const diffId = (idx: number) => `hist-${Date.now()}-${idx}`;
 
@@ -90,7 +63,7 @@ export default function LiveVoiceChat() {
     const recordingStartTimeRef = useRef<number>(0);
 
     // Chat
-    const [messages, setMessages] = useState<Message[]>([]);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [coaches, setCoaches] = useState<Coach[]>(DEFAULT_COACHES);
     const [selectedCoach, setSelectedCoach] = useState<Coach>(DEFAULT_COACHES[0]);
     const [showCoachSelector, setShowCoachSelector] = useState(false);
@@ -317,7 +290,7 @@ export default function LiveVoiceChat() {
     }, []);
 
     // Sending Message
-    const sendMessage = useCallback(async (text: string, currentHistory: Message[]) => {
+    const sendMessage = useCallback(async (text: string, currentHistory: ChatMessage[]) => {
         if (chatAbortControllerRef.current) {
             chatAbortControllerRef.current.abort();
         }
@@ -327,7 +300,7 @@ export default function LiveVoiceChat() {
         const timeoutId = setTimeout(() => controller.abort(), CHAT_TIMEOUT);
 
         const assistantMessageId = `msg-${Date.now() + 1}`;
-        const assistantMessage: Message = {
+        const assistantMessage: ChatMessage = {
             id: assistantMessageId,
             role: 'assistant',
             content: '',
@@ -494,7 +467,7 @@ export default function LiveVoiceChat() {
             const text = transData.data?.text;
 
             if (text && text.trim().length > 0) {
-                const userMsg: Message = { id: Date.now().toString(), role: 'user', content: text, timestamp: new Date() };
+                const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', content: text, timestamp: new Date() };
                 setMessages(prev => [...prev, userMsg]);
                 await sendMessage(text, [...messages, userMsg]);
             } else {
