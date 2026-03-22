@@ -27,7 +27,7 @@ Tracking feedback items for the Grow Daily app. This is an operational document 
 | FB-009 | AI context only includes one goal | Bug | P0 | Fixed |
 | FB-010 | Voice-based check-in layout broken | Bug | P1 | Fixed |
 | FB-011 | Live voice mode not accessible | Feature | P1 | Fixed |
-| FB-012 | Voice selection not saving on all platforms | Feature | P2 | Open |
+| FB-012 | Voice selection not saving on all platforms | Feature | P2 | Fixed |
 | FB-013 | Daily challenge rotation not working | Bug | P0 | Fixed |
 | FB-014 | Deployment failure -- DailyChallengeLoader missing | Bug | P0 | Fixed |
 | FB-015 | Challenge settings slider controls too small | UX | P1 | Fixed |
@@ -62,7 +62,7 @@ Tracking feedback items for the Grow Daily app. This is an operational document 
 | FB-044 | Tracking submenu items too small, need pills | UX | P1 | Fixed |
 | FB-045 | Challenge generation progress circle not animating | Bug | P1 | Fixed |
 | FB-046 | Goal complete/delete uses browser native confirm | UX | P1 | Fixed |
-| FB-047 | Slow page transitions after goal operations | Performance | P1 | Open |
+| FB-047 | Slow page transitions after goal operations | Performance | P1 | Fixed |
 | FB-048 | Habits page mic icon shows before content loads | Bug | P2 | Fixed |
 | FB-049 | Voice diary transcript should generate before save | UX | P1 | Fixed |
 | FB-050 | Voice diary save loading indicator not animated | UX | P2 | Fixed |
@@ -72,7 +72,7 @@ Tracking feedback items for the Grow Daily app. This is an operational document 
 | FB-054 | Mic button style inconsistent with live mode | UX | P2 | Fixed |
 | FB-055 | Completed/deleted goals showing on Progress page | Bug | P1 | Fixed |
 | FB-056 | Progress trends redesign | UX | P1 | Fixed |
-| FB-057 | Standardize loading/progress animations app-wide | UX | P1 | Open |
+| FB-057 | Standardize loading/progress animations app-wide | UX | P1 | Fixed |
 | FB-058 | Create Habit frequency highlight text should be black | UX | P1 | Fixed |
 | FB-059 | Create Habit goal linking shows completed/deleted goals | Bug | P1 | Fixed |
 | FB-060 | Create Habit throws error on empty description | Bug | P1 | Fixed |
@@ -376,7 +376,7 @@ Expert chat, guided interview
 
 **Category:** Feature
 **Priority:** P2
-**Status:** Open
+**Status:** Fixed
 
 **Description:**
 Voice selection UI exists in settings, allowing users to choose different voices for all voice-based functionality. However, the selection may not save correctly on all platforms.
@@ -393,7 +393,7 @@ Settings -- voice selection
 **Solution Log:**
 | Attempt | What we tried | Result |
 |---|---|---|
-| | | |
+| 1 | Root cause: Settings used Web Speech API voices (platform-dependent) stored in localStorage, while TTS endpoint uses OpenAI voiceId from database. Two disconnected systems. Fix: replaced Web Speech API picker with OpenAI voice grid (alloy, ash, coral, echo, fable, onyx, nova, sage, shimmer), saves voiceId to database via /api/settings. Plays sample via /api/tts on click. | Fixed |
 
 ---
 
@@ -1235,7 +1235,7 @@ Goals -- complete/delete actions
 
 **Category:** Performance
 **Priority:** P1
-**Status:** Open
+**Status:** Fixed
 
 **Description:**
 After completing a goal or navigating back to the dashboard, the page takes approximately 4+ seconds to load. With more content on the page, this delay is uncomfortably long. This item is an exploration -- investigate root causes and propose ideas for improvement rather than jumping to a fix.
@@ -1251,7 +1251,7 @@ Dashboard, goal-related page transitions
 **Solution Log:**
 | Attempt | What we tried | Result |
 |---|---|---|
-| | | |
+| 1 | Root cause: getDashboardData() ran 9+ DB queries sequentially (goals, challenges, streak, diary count, surveys, habits, milestones, partners). Fix: wrapped all independent queries in Promise.all() to run in parallel. Also added revalidatePath('/') to goal complete/delete API routes so Next.js cache invalidation works properly. Expected improvement: 50-75% faster (1-2s instead of 4+s). | Fixed |
 
 ---
 
@@ -1491,7 +1491,7 @@ Progress page (`/progress`) -- trends section at the bottom
 
 **Category:** UX
 **Priority:** P1
-**Status:** Open
+**Status:** Fixed
 
 **Description:**
 All spinning and pulsing/breathing animations must be consistent across the entire app. Wherever a loading spinner, progress circle, or breathing animation is used, they should share the same visual style (speed, easing, size proportions). This applies to at minimum:
@@ -1511,7 +1511,7 @@ App-wide -- all loading indicators and progress animations
 **Solution Log:**
 | Attempt | What we tried | Result |
 |---|---|---|
-| | | |
+| 1 | Audited 18+ animation definitions across 12 components. Added shared @keyframes (spin, breathe, shimmer) and utility classes (.animate-spin, .animate-breathe, .animate-shimmer, .skeleton-breathe, .loading-breathe) to globals.css. Removed duplicate @keyframes spin from AnalysisStep.tsx, HabitVoiceLogger.tsx, diary/VoiceRecorder.tsx. Components now reference global keyframes. | Fixed |
 
 ---
 

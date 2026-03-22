@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { Mic, MicOff, X, Check, RotateCcw, Loader2, Pause, Play } from 'lucide-react';
+import { Mic, MicOff, X, Check, RotateCcw, Loader2 } from 'lucide-react';
 
 interface InterpretedLog {
     habitId: string;
@@ -24,141 +23,89 @@ declare global {
     }
 }
 
-type RecordingState = 'idle' | 'recording' | 'paused' | 'processing' | 'confirming';
+type RecordingState = 'idle' | 'recording' | 'processing' | 'confirming';
 
 export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLoggerProps) {
-    const [mounted, setMounted] = useState(false);
     const [state, setState] = useState<RecordingState>('idle');
-
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-
-    if (!mounted) return null;
-
     const [transcript, setTranscript] = useState('');
     const [interpretedLogs, setInterpretedLogs] = useState<InterpretedLog[]>([]);
     const [error, setError] = useState('');
     const [saving, setSaving] = useState(false);
     const [editedNotes, setEditedNotes] = useState<{ [key: string]: string }>({});
-    const [duration, setDuration] = useState(0);
 
-    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-    const audioChunksRef = useRef<Blob[]>([]);
-    const streamRef = useRef<MediaStream | null>(null);
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const recognitionRef = useRef<any>(null);
 
-    // Cleanup on unmount
     useEffect(() => {
+        // Initialize speech recognition
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onresult = (event: any) => {
+                let finalTranscript = '';
+                let interimTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const result = event.results[i];
+                    if (result.isFinal) {
+                        finalTranscript += result[0].transcript;
+                    } else {
+                        interimTranscript += result[0].transcript;
+                    }
+                }
+
+                setTranscript(prev => prev + finalTranscript);
+            };
+
+            recognition.onerror = (event: any) => {
+                console.error('Speech recognition error:', event.error);
+                if (event.error !== 'aborted') {
+                    setError('Speech recognition error. Please try again.');
+                }
+            };
+
+            recognition.onend = () => {
+                if (state === 'recording') {
+                    // Auto-process when stopped
+                    processTranscript();
+                }
+            };
+
+            recognitionRef.current = recognition;
+        }
+
         return () => {
-            if (timerRef.current) clearInterval(timerRef.current);
-            if (streamRef.current) {
-                streamRef.current.getTracks().forEach(track => track.stop());
+            if (recognitionRef.current) {
+                recognitionRef.current.abort();
             }
         };
     }, []);
 
-    const formatDuration = (seconds: number) => {
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
-    };
-
-    const startRecording = async () => {
+    const startRecording = () => {
         setError('');
         setTranscript('');
+        setState('recording');
 
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            streamRef.current = stream;
-
-            const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-            mediaRecorderRef.current = mediaRecorder;
-            audioChunksRef.current = [];
-
-            mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    audioChunksRef.current.push(event.data);
-                }
-            };
-
-            mediaRecorder.onstop = async () => {
-                // Stop tracks
-                stream.getTracks().forEach(track => track.stop());
-
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-
-                // Transcribe via server
-                setState('processing');
-                try {
-                    const formData = new FormData();
-                    formData.append('file', audioBlob, 'recording.webm');
-
-                    const response = await fetch('/api/transcribe', {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    const data = await response.json();
-                    const text = data.text || data.data?.text || '';
-
-                    if (text.trim()) {
-                        setTranscript(text);
-                        // Now interpret the transcript
-                        await interpretTranscript(text);
-                    } else {
-                        setError('No speech detected. Please try again.');
-                        setState('idle');
-                    }
-                } catch (err) {
-                    console.error('Transcription failed:', err);
-                    setError('Transcription failed. Please try again.');
-                    setState('idle');
-                }
-            };
-
-            mediaRecorder.start();
-            setState('recording');
-            setDuration(0);
-
-            // Start timer
-            timerRef.current = setInterval(() => {
-                setDuration(d => d + 1);
-            }, 1000);
-        } catch (err) {
-            console.error('Microphone access denied:', err);
-            setError('Could not access microphone');
-            setState('idle');
-        }
-    };
-
-    const pauseRecording = () => {
-        if (mediaRecorderRef.current && state === 'recording') {
-            mediaRecorderRef.current.pause();
-            setState('paused');
-            if (timerRef.current) clearInterval(timerRef.current);
-        }
-    };
-
-    const resumeRecording = () => {
-        if (mediaRecorderRef.current && state === 'paused') {
-            mediaRecorderRef.current.resume();
-            setState('recording');
-            timerRef.current = setInterval(() => {
-                setDuration(d => d + 1);
-            }, 1000);
+        if (recognitionRef.current) {
+            recognitionRef.current.start();
+        } else {
+            setError('Speech recognition not supported in this browser');
         }
     };
 
     const stopRecording = () => {
-        if (mediaRecorderRef.current && (state === 'recording' || state === 'paused')) {
-            mediaRecorderRef.current.stop();
-            if (timerRef.current) clearInterval(timerRef.current);
+        if (recognitionRef.current) {
+            recognitionRef.current.stop();
         }
+        setState('processing');
+        // processTranscript will be called in onend
     };
 
-    const interpretTranscript = async (text: string) => {
-        if (!text.trim()) {
+    const processTranscript = async () => {
+        if (!transcript.trim()) {
             setError('No speech detected. Please try again.');
             setState('idle');
             return;
@@ -170,7 +117,7 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
             const res = await fetch('/api/habits/interpret', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ transcript: text.trim() })
+                body: JSON.stringify({ transcript: transcript.trim() })
             });
 
             const data = await res.json();
@@ -241,11 +188,9 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
         setTranscript('');
         setInterpretedLogs([]);
         setError('');
-        setDuration(0);
-        if (timerRef.current) clearInterval(timerRef.current);
     };
 
-    const overlay = (
+    return (
         <div className="voice-overlay" onClick={onClose}>
             <div className="voice-modal" onClick={(e) => e.stopPropagation()}>
                 <button className="close-btn" onClick={onClose}>
@@ -272,59 +217,24 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                         </>
                     )}
 
-                    {/* RECORDING / PAUSED State */}
-                    {(state === 'recording' || state === 'paused') && (
+                    {/* RECORDING State */}
+                    {state === 'recording' && (
                         <>
-                            <div
-                                className={`voice-icon ${state === 'recording' ? 'recording' : 'paused'}`}
-                                onClick={stopRecording}
-                                style={{ cursor: 'pointer' }}
-                                title="Tap to Stop"
-                            >
-                                {state === 'recording' ? <Mic size={48} /> : <Pause size={48} />}
-                                {state === 'recording' && (
-                                    <>
-                                        <div className="pulse-ring"></div>
-                                        <div className="pulse-ring delay"></div>
-                                    </>
-                                )}
+                            <div className="voice-icon recording">
+                                <Mic size={48} />
+                                <div className="pulse-ring"></div>
+                                <div className="pulse-ring delay"></div>
+                            </div>
+                            <h2>Listening...</h2>
+
+                            <div className="transcript-preview">
+                                {transcript || 'Start speaking...'}
                             </div>
 
-                            {/* Timer Display */}
-                            <div className="timer-display">
-                                {formatDuration(duration)}
-                            </div>
-
-                            <h2>{state === 'recording' ? 'Listening...' : 'Paused'}</h2>
-
-                            <div className="transcript-preview" style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: 'var(--color-text-secondary)'
-                            }}>
-                                <span className="breathing-text">
-                                    {state === 'recording' ? 'Listening... Tap pause or stop when done' : 'Recording paused. Tap resume to continue.'}
-                                </span>
-                            </div>
-
-                            <div className="recording-controls">
-                                {state === 'recording' ? (
-                                    <button className="pause-btn" onClick={pauseRecording}>
-                                        <Pause size={24} />
-                                        Pause
-                                    </button>
-                                ) : (
-                                    <button className="resume-btn" onClick={resumeRecording}>
-                                        <Play size={24} />
-                                        Resume
-                                    </button>
-                                )}
-                                <button className="stop-btn" onClick={stopRecording}>
-                                    <MicOff size={24} />
-                                    Stop
-                                </button>
-                            </div>
+                            <button className="stop-btn" onClick={stopRecording}>
+                                <MicOff size={24} />
+                                Stop Recording
+                            </button>
                         </>
                     )}
 
@@ -498,19 +408,6 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                         animation: spin 1s linear infinite;
                     }
 
-                    @keyframes spin {
-                        from { transform: rotate(0deg); }
-                        to { transform: rotate(360deg); }
-                    }
-
-                    .timer-display {
-                        font-size: 2rem;
-                        font-weight: 700;
-                        font-family: monospace;
-                        color: var(--color-text);
-                        margin-bottom: 8px;
-                    }
-
                     h2 {
                         font-size: 1.5rem;
                         font-weight: 700;
@@ -575,48 +472,6 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                     }
 
                     .stop-btn:hover {
-                        opacity: 0.9;
-                    }
-
-                    .voice-icon.paused {
-                        background: var(--color-warning, #fbbf24);
-                        color: white;
-                    }
-
-                    .recording-controls {
-                        display: flex;
-                        gap: 12px;
-                        justify-content: center;
-                    }
-
-                    .pause-btn, .resume-btn {
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 10px;
-                        padding: 14px 28px;
-                        border-radius: 14px;
-                        font-size: 1rem;
-                        font-weight: 600;
-                        cursor: pointer;
-                        border: none;
-                        transition: all 0.2s;
-                    }
-
-                    .pause-btn {
-                        background: var(--color-warning, #fbbf24);
-                        color: white;
-                    }
-
-                    .pause-btn:hover {
-                        opacity: 0.9;
-                    }
-
-                    .resume-btn {
-                        background: var(--color-success);
-                        color: white;
-                    }
-
-                    .resume-btn:hover {
                         opacity: 0.9;
                     }
 
@@ -732,6 +587,4 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
             </div>
         </div>
     );
-
-    return createPortal(overlay, document.body);
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 
 interface Preferences {
     displayName?: string;
@@ -17,7 +17,20 @@ interface Preferences {
     dailyReminderTime?: string;
     streakReminders?: boolean;
     theme?: string;
+    voiceId?: string | null;
 }
+
+const OPENAI_VOICES = [
+    { id: 'alloy', label: 'Alloy', desc: 'Neutral and balanced' },
+    { id: 'ash', label: 'Ash', desc: 'Warm and clear' },
+    { id: 'coral', label: 'Coral', desc: 'Bright and expressive' },
+    { id: 'echo', label: 'Echo', desc: 'Smooth and resonant' },
+    { id: 'fable', label: 'Fable', desc: 'Storytelling quality' },
+    { id: 'onyx', label: 'Onyx', desc: 'Deep and authoritative' },
+    { id: 'nova', label: 'Nova', desc: 'Friendly and upbeat' },
+    { id: 'sage', label: 'Sage', desc: 'Calm and thoughtful' },
+    { id: 'shimmer', label: 'Shimmer', desc: 'Light and energetic' },
+] as const;
 
 const DEFAULT_PREFS: Preferences = {
     displayName: '',
@@ -32,7 +45,8 @@ const DEFAULT_PREFS: Preferences = {
     notificationsEnabled: true,
     dailyReminderTime: '09:00',
     streakReminders: true,
-    theme: 'minimal'
+    theme: 'minimal',
+    voiceId: 'nova',
 };
 
 export default function SettingsForm({ initialPreferences }: { initialPreferences: Preferences | null }) {
@@ -40,58 +54,45 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [focusInput, setFocusInput] = useState('');
-    const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-    const [selectedVoice, setSelectedVoice] = useState<string>('');
     const [playingVoice, setPlayingVoice] = useState<string | null>(null);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
 
-    // Load available voices from Web Speech API
-    useEffect(() => {
-        const loadVoices = () => {
-            if (typeof window === 'undefined' || !window.speechSynthesis) return;
-            const voices = speechSynthesis.getVoices();
-            if (voices.length > 0) {
-                // Filter to English voices for relevance, keep a reasonable list
-                const englishVoices = voices.filter(v => v.lang.startsWith('en'));
-                setAvailableVoices(englishVoices.length > 0 ? englishVoices : voices.slice(0, 12));
+    const playVoiceSample = useCallback(async (voiceId: string) => {
+        // Stop any currently playing audio
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
+        }
+        setPlayingVoice(voiceId);
+        try {
+            const response = await fetch('/api/tts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: 'Hello, I am your AI coach.', voiceId }),
+            });
+            if (!response.ok) {
+                setPlayingVoice(null);
+                return;
             }
-        };
-        loadVoices();
-        if (typeof window !== 'undefined' && window.speechSynthesis) {
-            speechSynthesis.addEventListener('voiceschanged', loadVoices);
-            return () => speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+            audioRef.current = audio;
+            audio.onended = () => {
+                setPlayingVoice(null);
+                URL.revokeObjectURL(url);
+                audioRef.current = null;
+            };
+            audio.onerror = () => {
+                setPlayingVoice(null);
+                URL.revokeObjectURL(url);
+                audioRef.current = null;
+            };
+            await audio.play();
+        } catch {
+            setPlayingVoice(null);
         }
     }, []);
-
-    // Load saved voice preference from localStorage
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('aiVoicePreference');
-            if (saved) setSelectedVoice(saved);
-        }
-    }, []);
-
-    const playVoiceSample = useCallback((voiceName: string) => {
-        if (typeof window === 'undefined' || !window.speechSynthesis) return;
-        const utterance = new SpeechSynthesisUtterance('Hello, I am your AI coach.');
-        const voices = speechSynthesis.getVoices();
-        const voice = voices.find(v => v.name === voiceName);
-        if (voice) utterance.voice = voice;
-        utterance.rate = 1.0;
-        utterance.pitch = 1.0;
-        setPlayingVoice(voiceName);
-        utterance.onend = () => setPlayingVoice(null);
-        utterance.onerror = () => setPlayingVoice(null);
-        speechSynthesis.cancel();
-        speechSynthesis.speak(utterance);
-    }, []);
-
-    const selectVoice = useCallback((voiceName: string) => {
-        setSelectedVoice(voiceName);
-        if (typeof window !== 'undefined') {
-            localStorage.setItem('aiVoicePreference', voiceName);
-        }
-        playVoiceSample(voiceName);
-    }, [playVoiceSample]);
 
     const updatePref = (key: keyof Preferences, value: any) => {
         setPrefs(prev => ({ ...prev, [key]: value }));
@@ -264,7 +265,7 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
 
                 <div className="form-group">
                     <label className="form-label">I want challenges that focus on:</label>
-                    <div className="flex items-center gap-2 mb-sm">
+                    <div className="flex gap-sm mb-sm">
                         <input
                             type="text"
                             value={focusInput}
@@ -272,15 +273,9 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                             onKeyDown={e => e.key === 'Enter' && addFocusArea()}
                             placeholder="e.g., speaking, morning routines, facing fears"
                             className="form-input"
-                            style={{ flex: 1, minWidth: 0 }}
+                            style={{ flex: 1 }}
                         />
-                        <button
-                            onClick={addFocusArea}
-                            className="btn btn-secondary"
-                            style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem', flexShrink: 0 }}
-                        >
-                            + Add
-                        </button>
+                        <button onClick={addFocusArea} className="btn btn-secondary">Add</button>
                     </div>
                     {prefs.focusAreas && prefs.focusAreas.length > 0 && (
                         <div className="flex gap-sm flex-wrap">
@@ -313,24 +308,30 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
 
                 <div className="form-group">
                     <label className="form-label">How should the AI coach you?</label>
-                    <div className="flex gap-2 flex-wrap">
+                    <div className="flex flex-col gap-sm">
                         {[
-                            { value: 'encouraging', label: 'Encouraging' },
-                            { value: 'tough-love', label: 'Tough Love' },
-                            { value: 'scientific', label: 'Scientific' },
-                            { value: 'casual', label: 'Casual Friend' }
+                            { value: 'encouraging', label: 'Encouraging', desc: 'Supportive, celebrates wins, gentle pushes', emoji: '🌟' },
+                            { value: 'tough-love', label: 'Tough Love', desc: 'Direct, no excuses, pushes hard', emoji: '💪' },
+                            { value: 'scientific', label: 'Scientific', desc: 'Data-driven, research-based, analytical', emoji: '🔬' },
+                            { value: 'casual', label: 'Casual Friend', desc: 'Relaxed, conversational, humorous', emoji: '😊' }
                         ].map(opt => (
                             <button
                                 key={opt.value}
                                 onClick={() => updatePref('aiPersonality', opt.value)}
-                                className={`btn ${prefs.aiPersonality === opt.value ? 'btn-primary' : 'btn-secondary'}`}
+                                className={`card ${prefs.aiPersonality === opt.value ? 'card-highlight' : 'card-surface'}`}
                                 style={{
-                                    padding: '0.35rem 0.75rem',
-                                    fontSize: '0.85rem',
-                                    borderRadius: '9999px',
+                                    textAlign: 'left',
+                                    cursor: 'pointer',
+                                    border: prefs.aiPersonality === opt.value ? '2px solid var(--color-primary)' : '2px solid transparent'
                                 }}
                             >
-                                {opt.label}
+                                <div className="flex items-center gap-md">
+                                    <span style={{ fontSize: '1.5rem' }}>{opt.emoji}</span>
+                                    <div>
+                                        <div className="heading-5">{opt.label}</div>
+                                        <div className="text-small text-muted">{opt.desc}</div>
+                                    </div>
+                                </div>
                             </button>
                         ))}
                     </div>
@@ -355,32 +356,89 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
             </section>
 
             {/* AI Voice Section */}
-            {availableVoices.length > 0 && (
-                <section className="card mb-lg">
-                    <h2 className="heading-4 mb-md">AI Voice</h2>
-                    <p className="text-small text-muted mb-md">
-                        Select a voice for AI speech. Click to hear a sample.
-                    </p>
+            <section className="card mb-lg">
+                <h2 className="heading-4 mb-md">AI Voice</h2>
+                <p className="text-small text-muted mb-md">
+                    Select a voice for AI speech. Click to hear a sample.
+                </p>
 
-                    <div className="flex gap-2 flex-wrap">
-                        {availableVoices.map(voice => (
-                            <button
-                                key={voice.name}
-                                onClick={() => selectVoice(voice.name)}
-                                className={`btn ${selectedVoice === voice.name ? 'btn-primary' : 'btn-secondary'}`}
-                                style={{
-                                    padding: '0.35rem 0.75rem',
-                                    fontSize: '0.85rem',
-                                    borderRadius: '9999px',
-                                    opacity: playingVoice === voice.name ? 0.7 : 1,
-                                }}
-                            >
-                                {playingVoice === voice.name ? '...' : ''} {voice.name.replace(/Microsoft |Google /, '')}
-                            </button>
-                        ))}
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                    gap: '0.5rem',
+                }}>
+                    {OPENAI_VOICES.map(voice => (
+                        <button
+                            key={voice.id}
+                            onClick={() => {
+                                updatePref('voiceId', voice.id);
+                                playVoiceSample(voice.id);
+                            }}
+                            className={`card ${prefs.voiceId === voice.id ? 'card-highlight' : 'card-surface'}`}
+                            style={{
+                                textAlign: 'center',
+                                cursor: 'pointer',
+                                padding: '0.75rem 0.5rem',
+                                border: prefs.voiceId === voice.id ? '2px solid var(--color-primary)' : '2px solid transparent',
+                                opacity: playingVoice === voice.id ? 0.7 : 1,
+                            }}
+                        >
+                            <div className="heading-5" style={{ fontSize: '0.9rem' }}>
+                                {playingVoice === voice.id ? '...' : ''} {voice.label}
+                            </div>
+                            <div className="text-tiny text-muted">{voice.desc}</div>
+                        </button>
+                    ))}
+                </div>
+            </section>
+
+            {/* Notifications Section */}
+            <section className="card mb-lg">
+                <h2 className="heading-4 mb-md">Notifications</h2>
+
+                <div className="form-group">
+                    <label className="flex items-center gap-md" style={{ cursor: 'pointer' }}>
+                        <input
+                            type="checkbox"
+                            checked={prefs.notificationsEnabled}
+                            onChange={e => updatePref('notificationsEnabled', e.target.checked)}
+                            style={{ width: '20px', height: '20px' }}
+                        />
+                        <div>
+                            <div className="heading-5">Daily Reminders</div>
+                            <div className="text-small text-muted">Get reminded about your challenges</div>
+                        </div>
+                    </label>
+                </div>
+
+                {prefs.notificationsEnabled && (
+                    <div className="form-group">
+                        <label className="form-label">Reminder Time</label>
+                        <input
+                            type="time"
+                            value={prefs.dailyReminderTime}
+                            onChange={e => updatePref('dailyReminderTime', e.target.value)}
+                            className="form-input"
+                            style={{ maxWidth: '150px' }}
+                        />
                     </div>
-                </section>
-            )}
+                )}
+
+                <div className="form-group">
+                    <label className="flex items-center gap-md" style={{ cursor: 'pointer' }}>
+                        <input
+                            type="checkbox"
+                            checked={prefs.streakReminders}
+                            onChange={e => updatePref('streakReminders', e.target.checked)}
+                            style={{ width: '20px', height: '20px' }}
+                        />
+                        <div>
+                            <div className="heading-5">Streak Protection</div>
+                            <div className="text-small text-muted">Warn me before I lose my streak</div>
+                        </div>
+                    </label>
+                </div>
+            </section>
 
             {/* Save Button */}
             <div className="mb-xl">
@@ -390,7 +448,7 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                     disabled={saving}
                     style={{ padding: '1rem', fontSize: '1.125rem' }}
                 >
-                    {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Settings'}
+                    {saving ? '⏳ Saving...' : saved ? '✅ Saved!' : '💾 Save Settings'}
                 </button>
             </div>
         </div>

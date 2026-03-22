@@ -4,39 +4,27 @@ import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 
 async function getDashboardData(userId: string) {
-    // Get ALL user's goals (not just active)
-    const allGoals = await db.getGoalsByUserId(userId);
+    // Run all independent DB queries in parallel
+    const [allGoals, todayChallenges, completedChallenges, streak, diaryCount, recentSurveys, habitStats, allMilestones, partners] =
+        await Promise.all([
+            db.getGoalsByUserId(userId),
+            db.getTodayChallenges(userId),
+            db.getCompletedChallengesCount(userId),
+            db.calculateStreak(userId),
+            db.getDiaryEntriesCount(userId),
+            db.getSurveysByUserId(userId, 7),
+            db.getHabitStats(userId, 7),
+            db.getMilestonesByUserId(userId),
+            db.getPartnersByUserId(userId),
+        ]);
+
     const activeGoals = allGoals.filter(g => g.status === 'active');
-
-    // Get ALL today's challenges (multiple!)
-    const todayChallenges = await db.getTodayChallenges(userId);
-
-    // Get completed challenges count
-    const completedChallenges = await db.getCompletedChallengesCount(userId);
-
-    // Calculate streak
-    const streak = await db.calculateStreak(userId);
-
-    // Get diary entries count
-    const diaryCount = await db.getDiaryEntriesCount(userId);
-
-    // Get average mood from surveys
-    const recentSurveys = await db.getSurveysByUserId(userId, 7);
     const avgMood = recentSurveys.length > 0
         ? recentSurveys.reduce((sum, s) => sum + s.overallMood, 0) / recentSurveys.length
         : 0;
+    const recentMilestones = allMilestones.filter(m => m.celebrated).slice(0, 3);
 
-    // Get habit stats
-    const habitStats = await db.getHabitStats(userId, 7);
-
-    // Get recent celebrated milestones for display
-    const allMilestones = await db.getMilestonesByUserId(userId);
-    const recentMilestones = allMilestones
-        .filter(m => m.celebrated)
-        .slice(0, 3);
-
-    // Get accountability partners with stats
-    const partners = await db.getPartnersByUserId(userId);
+    // Get accountability partner stats (parallel per partner)
     let partnersWithStats: { id: string; partnerUserId: string; displayName: string; stats: { streak: number; weekChallenges: number; habitRate: number } }[] = [];
     if (partners.length > 0) {
         partnersWithStats = await Promise.all(
@@ -47,7 +35,6 @@ async function getDashboardData(userId: string) {
         );
     }
 
-    // Calculate overall progress
     const totalChallengesCompleted = todayChallenges.filter(c => c.status === 'completed').length;
     const totalChallengesTotal = todayChallenges.length;
 

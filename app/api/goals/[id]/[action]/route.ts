@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 
@@ -31,8 +32,10 @@ export async function POST(
             updatedGoal = await db.updateGoalStatus(id, 'archived');
         } else if (action === 'complete') {
             updatedGoal = await db.updateGoalStatus(id, 'completed');
+            revalidatePath('/');
         } else if (action === 'delete') {
             await db.deleteGoal(id);
+            revalidatePath('/');
             return NextResponse.json({ success: true, message: 'Goal deleted' });
         } else if (action === 'levelup') {
             // Archive old one

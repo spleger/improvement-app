@@ -11,11 +11,6 @@ export default function AnalysisStep() {
                     animation: fadeIn 0.5s ease;
                 }
 
-                @keyframes fadeIn {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
-                }
-
                 .analysis-spinner {
                     width: 60px;
                     height: 60px;
@@ -24,10 +19,6 @@ export default function AnalysisStep() {
                     border-top-color: #3b82f6;
                     border-radius: 50%;
                     animation: spin 1s linear infinite;
-                }
-
-                @keyframes spin {
-                    to { transform: rotate(360deg); }
                 }
 
                 .analysis-title {

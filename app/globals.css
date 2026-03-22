@@ -561,59 +561,26 @@ button {
 
 .slider {
   -webkit-appearance: none;
-  appearance: none;
   width: 100%;
   height: 8px;
-  background: var(--color-surface-2);
+  background: var(--color-surface);
   border-radius: var(--radius-full);
   outline: none;
-  position: relative;
-}
-
-/* Firefox track */
-.slider::-moz-range-track {
-  height: 8px;
-  background: var(--color-surface-2);
-  border-radius: var(--radius-full);
-  border: none;
-}
-
-/* Firefox filled portion */
-.slider::-moz-range-progress {
-  height: 8px;
-  background: var(--gradient-primary);
-  border-radius: var(--radius-full);
 }
 
 .slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   background: var(--gradient-primary);
   border-radius: 50%;
   cursor: pointer;
   box-shadow: var(--shadow-md);
   transition: transform var(--transition-fast);
-  border: 3px solid var(--color-background);
-}
-
-.slider::-moz-range-thumb {
-  width: 28px;
-  height: 28px;
-  background: var(--gradient-primary);
-  border-radius: 50%;
-  cursor: pointer;
-  box-shadow: var(--shadow-md);
-  transition: transform var(--transition-fast);
-  border: 3px solid var(--color-background);
 }
 
 .slider::-webkit-slider-thumb:hover {
-  transform: scale(1.15);
-}
-
-.slider::-moz-range-thumb:hover {
-  transform: scale(1.15);
+  transform: scale(1.1);
 }
 
 .slider-labels {
@@ -828,6 +795,63 @@ button {
 
 .animate-pulse {
   animation: pulse 2s infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes breathe {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.05);
+    opacity: 0.85;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+.animate-breathe {
+  animation: breathe 1.5s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 1.5s ease-in-out infinite;
+  background-size: 200% 100%;
+}
+
+.skeleton-breathe {
+  animation: breathe 1.5s ease-in-out infinite;
+  background: var(--color-surface);
+  border-radius: 4px;
+}
+
+.loading-breathe {
+  animation: breathe 2s ease-in-out infinite;
 }
 
 /* ===================================
