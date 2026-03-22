@@ -11,17 +11,19 @@ export default async function ProfilePage() {
         redirect('/login');
     }
 
-    // Get all user data
-    const userData = await db.getUserById(user.userId);
-    const goals = await db.getGoalsByUserId(user.userId);
-    const challenges = await db.getChallengesByUserId(user.userId, { limit: 100 });
-    const streak = await db.calculateStreak(user.userId);
-    const diaryCount = await db.getDiaryEntriesCount(user.userId);
+    // Get all user data in parallel to reduce connection hold time
+    const [userData, goals, challenges, streak, diaryCount, apiUsage] = await Promise.all([
+        db.getUserById(user.userId),
+        db.getGoalsByUserId(user.userId),
+        db.getChallengesByUserId(user.userId, { limit: 100 }),
+        db.calculateStreak(user.userId),
+        db.getDiaryEntriesCount(user.userId),
+        db.getApiUsageTotals(user.userId),
+    ]);
 
     const completedChallenges = challenges.filter(c => c.status === 'completed').length;
     const activeGoals = goals.filter(g => g.status === 'active').length;
     const completedGoals = goals.filter(g => g.status === 'completed').length;
-    const apiUsage = await db.getApiUsageTotals(user.userId);
 
     // Calculate total days in journey
     const firstGoal = goals[goals.length - 1];
