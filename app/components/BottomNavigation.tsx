@@ -53,8 +53,9 @@ export default function BottomNavigation() {
         { id: 'profile', icon: '\u{1F464}', label: 'Profile', href: '/profile' },
     ];
 
-    // Hide bottom nav on expert chat (it has its own input bar)
-    if (pathname?.startsWith('/expert')) {
+    // Hide bottom nav on auth/onboarding pages and expert chat (has its own input bar)
+    const hiddenRoutes = ['/login', '/register', '/onboarding', '/expert'];
+    if (hiddenRoutes.some(route => pathname?.startsWith(route))) {
         return null;
     }
 

@@ -96,16 +96,14 @@ export default function NewGoalForm({ domains }: Props) {
                                     textAlign: 'left',
                                     border: formData.domainId === domain.id ? `2px solid ${domain.color}` : '2px solid transparent',
                                     transition: 'all 0.2s',
-                                    hyphens: 'auto',
-                                    wordBreak: 'break-word',
-                                    overflow: 'visible'
+                                    overflow: 'hidden'
                                 }}
                             >
                                 <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>
                                     {domainIcons[domain.icon || ''] || ''}
                                 </div>
-                                <div className="heading-4" style={{ hyphens: 'auto', wordBreak: 'break-word' }} lang="en">{domain.name}</div>
-                                <p className="text-small text-muted" style={{ marginTop: '0.25rem', hyphens: 'auto', wordBreak: 'break-word' }} lang="en">
+                                <div className="heading-4" style={{ fontSize: 'clamp(0.85rem, 3.5vw, 1.1rem)' }}>{domain.name}</div>
+                                <p className="text-small text-muted" style={{ marginTop: '0.25rem' }}>
                                     {domain.description}
                                 </p>
                             </button>

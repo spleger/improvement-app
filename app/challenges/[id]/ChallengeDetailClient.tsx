@@ -130,7 +130,6 @@ export default function ChallengeDetailClient({ challengeId, isCompleted }: Prop
                     }}
                 >
                     <div
-                        className="modal"
                         onClick={e => e.stopPropagation()}
                         style={{
                             background: 'var(--color-background)',
@@ -140,7 +139,8 @@ export default function ChallengeDetailClient({ challengeId, isCompleted }: Prop
                             height: '100%',
                             display: 'flex',
                             flexDirection: 'column',
-                            overflow: 'hidden'
+                            overflow: 'hidden',
+                            padding: 0
                         }}
                     >
                         {/* Modal Header - Fixed */}
