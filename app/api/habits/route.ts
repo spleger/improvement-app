@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,22 +15,46 @@ export async function GET(request: NextRequest) {
 
         const includeInactive = request.nextUrl.searchParams.get('includeInactive') === 'true';
 
-        // Fetch habits and today's logs in parallel
-        const [habits, todayLogs] = await Promise.all([
+        // Fetch habits, today's logs, AND all streak logs in parallel (3 queries, not N+2)
+        const streakStart = new Date();
+        streakStart.setDate(streakStart.getDate() - 60);
+        streakStart.setUTCHours(0, 0, 0, 0);
+
+        const [habits, todayLogs, allStreakLogs] = await Promise.all([
             db.getHabitsByUserId(user.userId, includeInactive),
-            db.getHabitLogsForDate(user.userId, new Date())
+            db.getHabitLogsForDate(user.userId, new Date()),
+            prisma.habitLog.findMany({
+                where: { habit: { userId: user.userId }, logDate: { gte: streakStart } },
+                orderBy: { logDate: 'desc' },
+            }),
         ]);
 
-        // Bulk-fetch all habit streaks in parallel (instead of N+1 sequential)
-        const streaks = await Promise.all(habits.map(h => db.calculateHabitStreak(h.id)));
-
-        const habitsWithStatus = habits.map((habit, i) => {
+        // Calculate streaks in memory from bulk-fetched logs (0 extra queries)
+        const habitsWithStatus = habits.map((habit) => {
             const todayLog = todayLogs.find(l => l.habitId === habit.id);
+            const habitLogs = allStreakLogs.filter(l => l.habitId === habit.id);
+
+            let streak = 0;
+            const checkDate = new Date();
+            checkDate.setUTCHours(0, 0, 0, 0);
+            for (let i = 0; i < 60; i++) {
+                const dateStr = checkDate.toISOString().split('T')[0];
+                const log = habitLogs.find(l => new Date(l.logDate).toISOString().split('T')[0] === dateStr);
+                if (log && log.completed) {
+                    streak++;
+                    checkDate.setDate(checkDate.getDate() - 1);
+                } else if (i > 0) {
+                    break;
+                } else {
+                    checkDate.setDate(checkDate.getDate() - 1);
+                }
+            }
+
             return {
                 ...habit,
                 completedToday: todayLog?.completed || false,
                 todayNotes: todayLog?.notes || null,
-                streak: streaks[i]
+                streak,
             };
         });
 

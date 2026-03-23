@@ -42,17 +42,43 @@ export const VALID_VOICE_IDS = [
 
 export type VoiceId = typeof VALID_VOICE_IDS[number];
 
+// ==================== CONTEXT CACHE ====================
+
+const contextCache = new Map<string, { data: UserContext; expires: number }>();
+const CACHE_TTL_MS = 30_000; // 30 seconds
+
+function getCachedContext(userId: string): UserContext | null {
+    const entry = contextCache.get(userId);
+    if (entry && Date.now() < entry.expires) return entry.data;
+    if (entry) contextCache.delete(userId);
+    return null;
+}
+
+function setCachedContext(userId: string, data: UserContext): void {
+    contextCache.set(userId, { data, expires: Date.now() + CACHE_TTL_MS });
+    // Evict stale entries if cache grows large
+    if (contextCache.size > 50) {
+        const now = Date.now();
+        contextCache.forEach((val, key) => {
+            if (now >= val.expires) contextCache.delete(key);
+        });
+    }
+}
+
 // ==================== CONTEXT GATHERING ====================
 
 /**
  * Gather comprehensive user context for AI interactions.
  * Fetches all relevant user data including goals, challenges, preferences, habits, and mood data.
+ * Results are cached for 30s to avoid redundant DB queries across rapid AI interactions.
  *
  * @param userId - The user's ID
  * @returns User context object or null on error
  */
 export async function getUserContext(userId: string): Promise<UserContext | null> {
     try {
+        const cached = getCachedContext(userId);
+        if (cached) return cached;
         // Fetch all independent data in parallel
         const [
             allGoals,
@@ -98,7 +124,7 @@ export async function getUserContext(userId: string): Promise<UserContext | null
             ? Math.ceil((Date.now() - new Date(activeGoal.startedAt).getTime()) / (1000 * 60 * 60 * 24))
             : 0;
 
-        return {
+        const result: UserContext = {
             activeGoal,
             allActiveGoals,
             todayChallenge,
@@ -115,6 +141,8 @@ export async function getUserContext(userId: string): Promise<UserContext | null
             todayHabitLogs,
             onboardingAnswers
         };
+        setCachedContext(userId, result);
+        return result;
     } catch (error) {
         console.error('Error fetching user context:', error);
         return null;

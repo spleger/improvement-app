@@ -9,11 +9,13 @@ export default async function ProfilePage() {
         redirect('/login');
     }
 
-    // Get all user data
-    const goals = await db.getGoalsByUserId(user.userId);
-    const challenges = await db.getChallengesByUserId(user.userId, { limit: 100 });
-    const streak = await db.calculateStreak(user.userId);
-    const diaryCount = await db.getDiaryEntriesCount(user.userId);
+    // Get all user data in parallel (was sequential -- ~600ms wasted)
+    const [goals, challenges, streak, diaryCount] = await Promise.all([
+        db.getGoalsByUserId(user.userId),
+        db.getChallengesByUserId(user.userId, { limit: 100 }),
+        db.calculateStreak(user.userId),
+        db.getDiaryEntriesCount(user.userId),
+    ]);
 
     const completedChallenges = challenges.filter(c => c.status === 'completed').length;
     const activeGoals = goals.filter(g => g.status === 'active').length;

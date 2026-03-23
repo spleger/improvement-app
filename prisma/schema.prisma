@@ -178,7 +178,7 @@ model DiaryEntry {
   goal      Goal?      @relation(fields: [goalId], references: [id], onDelete: SetNull)
   challenge Challenge? @relation(fields: [challengeId], references: [id], onDelete: SetNull)
 
-  @@index([userId])
+  @@index([userId, createdAt])
   @@index([createdAt])
 }
 
