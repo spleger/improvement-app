@@ -84,10 +84,8 @@ export default function DailySurveyForm() {
                     max="10"
                     value={value}
                     onChange={e => onChange(parseInt(e.target.value))}
-                    className="slider"
-                    style={{
-                        background: `linear-gradient(to right, #667eea 0%, #764ba2 ${fillPercent}%, var(--color-surface-2) ${fillPercent}%)`
-                    }}
+                    className="slider slider-filled"
+                    style={{ '--slider-fill': `${fillPercent}%` } as React.CSSProperties}
                 />
                 <div className="slider-labels">
                     <span>{leftEmoji}</span>

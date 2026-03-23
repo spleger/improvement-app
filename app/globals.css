@@ -569,6 +569,10 @@ button {
   outline: none;
 }
 
+.slider.slider-filled {
+  background: linear-gradient(to right, #667eea 0%, #764ba2 var(--slider-fill, 50%), var(--color-surface-2) var(--slider-fill, 50%));
+}
+
 .slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 24px;
@@ -1004,10 +1008,9 @@ button {
     flex: 1 1 auto;
   }
 
-  /* Expert chat sizing for mobile */
+  /* Expert chat is full-screen -- no max-height cap */
   .expert-chat {
-    max-height: calc(100vh - 200px) !important;
-    border-radius: 16px;
+    border-radius: 0;
   }
 
   /* Stats grid mobile adjustments */
