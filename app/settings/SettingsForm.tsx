@@ -339,14 +339,34 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
 
                 <div className="form-group mt-md">
                     <label className="flex items-center gap-md" style={{ cursor: 'pointer' }}>
-                        <input
-                            type="checkbox"
-                            checked={prefs.includeScientificBasis}
-                            onChange={e => updatePref('includeScientificBasis', e.target.checked)}
-                            style={{ width: '20px', height: '20px' }}
-                        />
+                        <div
+                            onClick={() => updatePref('includeScientificBasis', !prefs.includeScientificBasis)}
+                            style={{
+                                width: '48px',
+                                height: '28px',
+                                borderRadius: '14px',
+                                background: prefs.includeScientificBasis ? 'var(--gradient-primary)' : 'var(--color-surface-2)',
+                                border: prefs.includeScientificBasis ? 'none' : '2px solid var(--color-border)',
+                                position: 'relative',
+                                transition: 'all 0.2s ease',
+                                cursor: 'pointer',
+                                flexShrink: 0,
+                            }}
+                        >
+                            <div style={{
+                                width: '22px',
+                                height: '22px',
+                                borderRadius: '50%',
+                                background: 'white',
+                                position: 'absolute',
+                                top: prefs.includeScientificBasis ? '3px' : '1px',
+                                left: prefs.includeScientificBasis ? '23px' : '1px',
+                                transition: 'all 0.2s ease',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                            }} />
+                        </div>
                         <div>
-                            <div className="heading-5">📚 Include Scientific Basis</div>
+                            <div className="heading-5">Include Scientific Basis</div>
                             <div className="text-small text-muted">
                                 Show why each challenge works based on research
                             </div>

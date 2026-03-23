@@ -82,9 +82,8 @@ export default function DailySurveyForm() {
                     type="range"
                     min="1"
                     max="10"
-                    step="any"
                     value={value}
-                    onChange={e => onChange(Math.round(parseFloat(e.target.value)))}
+                    onChange={e => onChange(parseInt(e.target.value))}
                     className="slider"
                     style={{
                         background: `linear-gradient(to right, #667eea 0%, #764ba2 ${fillPercent}%, var(--color-surface-2) ${fillPercent}%)`

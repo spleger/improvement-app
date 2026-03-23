@@ -12,11 +12,14 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { text } = body;
+        const { text, voiceId: requestedVoiceId } = body;
 
-        // Fetch user preferences to get voiceId with fallback to 'nova'
-        const prefs = await db.getUserPreferences(user.userId);
-        const voice = prefs?.voiceId || 'nova';
+        // Use voiceId from request (for preview) or fall back to saved preference
+        let voice = requestedVoiceId;
+        if (!voice) {
+            const prefs = await db.getUserPreferences(user.userId);
+            voice = prefs?.voiceId || 'nova';
+        }
 
         if (!text || typeof text !== 'string') {
             return NextResponse.json({ error: 'No text provided' }, { status: 400 });

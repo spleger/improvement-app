@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown, Plus, Trash2, MoreHorizontal, Mic, ArrowLeft } from 'lucide-react';
+import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown, Plus, Trash2, MoreHorizontal, Mic, ArrowLeft, RotateCcw } from 'lucide-react';
 import { getIcon } from '@/lib/icons';
 import ChallengeProposal from './widgets/ChallengeProposal';
 import MoodLogWidget from './widgets/MoodLogWidget';
@@ -66,7 +66,7 @@ export default function ExpertChat() {
     const [showCreateModal, setShowCreateModal] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const inputRef = useRef<HTMLTextAreaElement>(null);
     const recognitionRef = useRef<any>(null);
 
     // Save selected coach to localStorage when it changes (skip initial render)
@@ -96,9 +96,9 @@ export default function ExpertChat() {
 
                 let newCoaches = [...DEFAULT_COACHES];
 
-                // Add Goal Coaches
+                // Add Goal Coaches (active only)
                 if (goalsData.success && goalsData.data.goals) {
-                    const goalCoaches = goalsData.data.goals.map((goal: any) => ({
+                    const goalCoaches = goalsData.data.goals.filter((goal: any) => goal.status === 'active').map((goal: any) => ({
                         id: goal.id, // Use actual Goal ID. Backend now checks this.
                         name: goal.title, // Coach Name = Goal Title
                         icon: getIcon(goal.domain?.icon),
@@ -346,6 +346,10 @@ export default function ExpertChat() {
                 transcript += event.results[i][0].transcript;
             }
             setInput(transcript);
+            // Auto-scroll textarea to show latest transcribed text
+            if (inputRef.current) {
+                inputRef.current.scrollTop = inputRef.current.scrollHeight;
+            }
         };
 
         recognition.onerror = () => {
@@ -370,11 +374,11 @@ export default function ExpertChat() {
         <div className="expert-chat">
             {/* Header with Back Button + Coach Selector */}
             <div className="chat-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
                 <button
                     className="back-btn"
-                    onClick={() => router.back()}
-                    title="Go back"
+                    onClick={() => router.push('/')}
+                    title="Go home"
                 >
                     <ArrowLeft size={20} />
                 </button>
@@ -389,6 +393,21 @@ export default function ExpertChat() {
                         <span className="coach-name">{selectedCoach.name} {selectedCoach.type === 'goal' ? '' : 'Coach'}</span>
                     </div>
                     <ChevronDown size={20} className={`chevron ${showCoachSelector ? 'open' : ''}`} />
+                </button>
+                <button
+                    className="back-btn"
+                    onClick={async () => {
+                        if (!confirm('Reset this conversation?')) return;
+                        try {
+                            await fetch(`/api/expert/chat?coachId=${selectedCoach.id}`, { method: 'DELETE' });
+                            setMessages([]);
+                        } catch (err) {
+                            console.error(err);
+                        }
+                    }}
+                    title="Reset conversation"
+                >
+                    <RotateCcw size={18} />
                 </button>
                 </div>
 
@@ -540,14 +559,20 @@ export default function ExpertChat() {
                 >
                     <Mic size={20} />
                 </button>
-                <input
+                <textarea
                     ref={inputRef}
-                    type="text"
                     value={input}
                     onChange={e => setInput(e.target.value)}
+                    onKeyDown={e => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            if (input.trim() && !isLoading) sendMessage(input);
+                        }
+                    }}
                     placeholder={`Message ${selectedCoach.name}...`}
                     className="chat-input"
                     disabled={isLoading}
+                    rows={3}
                 />
                 <button
                     type="submit"
@@ -583,7 +608,7 @@ export default function ExpertChat() {
                 .expert-chat {
                     display: flex;
                     flex-direction: column;
-                    height: calc(100vh - 60px);
+                    height: calc(100dvh - 60px);
                     min-height: 400px;
                     background: var(--color-background);
                     overflow: hidden;
@@ -847,7 +872,7 @@ export default function ExpertChat() {
 
                 .chat-input-form {
                     display: flex;
-                    align-items: center;
+                    align-items: flex-end;
                     gap: 8px;
                     padding: 12px 16px;
                     border-top: 1px solid var(--color-border);
@@ -857,7 +882,7 @@ export default function ExpertChat() {
 
                 .chat-input {
                     flex: 1;
-                    padding: 14px 20px;
+                    padding: 10px 16px;
                     background: var(--color-surface);
                     border: 2px solid var(--color-border);
                     border-radius: 16px;
@@ -865,6 +890,9 @@ export default function ExpertChat() {
                     color: var(--color-text);
                     outline: none;
                     transition: border-color 0.2s;
+                    resize: none;
+                    font-family: inherit;
+                    line-height: 1.4;
                 }
 
                 .chat-input:focus {
@@ -1014,7 +1042,7 @@ export default function ExpertChat() {
                     }
 
                     .chat-input {
-                        padding: 10px 14px;
+                        padding: 8px 12px;
                         font-size: 0.9375rem;
                     }
                 }

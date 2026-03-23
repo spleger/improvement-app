@@ -521,6 +521,31 @@ export async function GET(request: NextRequest) {
     }
 }
 
+// DELETE /api/expert/chat - Reset (clear) conversation for a coach
+export async function DELETE(request: NextRequest) {
+    try {
+        const user = await getCurrentUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const coachId = request.nextUrl.searchParams.get('coachId') || 'general';
+        const conversation = await db.getExpertConversation(user.userId, coachId);
+
+        if (conversation && conversation.id) {
+            await db.updateConversationMessages(conversation.id, []);
+        }
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error('Error resetting conversation:', error);
+        return NextResponse.json(
+            { success: false, error: 'Internal server error' },
+            { status: 500 }
+        );
+    }
+}
+
 // Fallback responses with context
 function getFallbackResponse(message: string, context: any, errorMsg?: string): string {
     const goalName = context?.activeGoal?.title || 'your goal';
