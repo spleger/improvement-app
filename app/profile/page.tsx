@@ -3,6 +3,33 @@ import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 
+function GoalCard({ goal }: { goal: { id: string; title: string; status: string; domain?: { name: string } | null; startedAt: Date } }) {
+    return (
+        <div className="card">
+            <div className="flex items-center gap-md">
+                <div style={{ flex: 1 }}>
+                    <div className="heading-4">{
+                        (() => {
+                            const match = goal.title.match(/^(.+?)(\s*\([^)]+\))$/);
+                            if (match) {
+                                return <>{match[1]}<span style={{ whiteSpace: 'nowrap' }}>{match[2]}</span></>;
+                            }
+                            return goal.title;
+                        })()
+                    }</div>
+                    <div className="text-small text-muted">
+                        {goal.domain?.name || 'General'} --
+                        Started {new Date(goal.startedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </div>
+                </div>
+                <span className={`text-tiny ${goal.status === 'active' ? 'text-success' : 'text-muted'}`}>
+                    {goal.status}
+                </span>
+            </div>
+        </div>
+    );
+}
+
 export default async function ProfilePage() {
     const user = await getCurrentUser();
     if (!user) {
@@ -83,7 +110,7 @@ export default async function ProfilePage() {
                 </div>
             </section>
 
-            {/* Active Goals */}
+            {/* Goals */}
             <section className="mb-lg">
                 <div className="flex justify-between items-center mb-md">
                     <h2 className="heading-4">Your Goals</h2>
@@ -98,36 +125,44 @@ export default async function ProfilePage() {
                     </div>
                 ) : (
                     <div className="flex flex-col gap-md">
-                        {goals.map(goal => (
-                            <div key={goal.id} className="card">
-                                <div className="flex items-center gap-md">
-                                    <span style={{
-                                        fontSize: '1.5rem',
-                                        opacity: goal.status === 'completed' ? 0.5 : 1
-                                    }}>
-                                        {goal.status === 'completed' ? '✅' : '🎯'}
-                                    </span>
-                                    <div style={{ flex: 1 }}>
-                                        <div className="heading-4">{
-                                            (() => {
-                                                const match = goal.title.match(/^(.+?)(\s*\([^)]+\))$/);
-                                                if (match) {
-                                                    return <>{match[1]}<span style={{ whiteSpace: 'nowrap' }}>{match[2]}</span></>;
-                                                }
-                                                return goal.title;
-                                            })()
-                                        }</div>
-                                        <div className="text-small text-muted">
-                                            {goal.domain?.name || 'General'} •
-                                            Started {new Date(goal.startedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                        </div>
-                                    </div>
-                                    <span className={`text-tiny ${goal.status === 'active' ? 'text-success' : 'text-muted'} `}>
-                                        {goal.status}
-                                    </span>
-                                </div>
-                            </div>
+                        {/* Active Goals - always visible */}
+                        {goals.filter(g => g.status === 'active').map(goal => (
+                            <GoalCard key={goal.id} goal={goal} />
                         ))}
+
+                        {/* Completed Goals - collapsed by default */}
+                        {goals.filter(g => g.status === 'completed').length > 0 && (
+                            <details className="goal-section">
+                                <summary className="card flex items-center gap-md" style={{ cursor: 'pointer', listStyle: 'none' }}>
+                                    <span className="text-muted" style={{ fontSize: '0.75rem' }}>&#9654;</span>
+                                    <span className="heading-4" style={{ flex: 1 }}>
+                                        Completed ({goals.filter(g => g.status === 'completed').length})
+                                    </span>
+                                </summary>
+                                <div className="flex flex-col gap-md mt-sm">
+                                    {goals.filter(g => g.status === 'completed').map(goal => (
+                                        <GoalCard key={goal.id} goal={goal} />
+                                    ))}
+                                </div>
+                            </details>
+                        )}
+
+                        {/* Archived Goals - collapsed by default */}
+                        {goals.filter(g => g.status === 'archived').length > 0 && (
+                            <details className="goal-section">
+                                <summary className="card flex items-center gap-md" style={{ cursor: 'pointer', listStyle: 'none' }}>
+                                    <span className="text-muted" style={{ fontSize: '0.75rem' }}>&#9654;</span>
+                                    <span className="heading-4" style={{ flex: 1 }}>
+                                        Archived ({goals.filter(g => g.status === 'archived').length})
+                                    </span>
+                                </summary>
+                                <div className="flex flex-col gap-md mt-sm">
+                                    {goals.filter(g => g.status === 'archived').map(goal => (
+                                        <GoalCard key={goal.id} goal={goal} />
+                                    ))}
+                                </div>
+                            </details>
+                        )}
                     </div>
                 )}
             </section>
