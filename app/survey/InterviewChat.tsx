@@ -803,7 +803,7 @@ export default function InterviewChat({ initialStage = 'mood', onStageChange, on
                 }
 
                 .message.user .message-bubble {
-                    background: var(--color-primary);
+                    background: var(--gradient-primary);
                     color: white;
                     border-bottom-right-radius: 4px;
                     /* margin-right: 44px; Removed since avatar is gone */

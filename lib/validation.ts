@@ -67,7 +67,7 @@ export const SettingsSchema = z.object({
 });
 
 export const DiaryCreateSchema = z.object({
-    transcript: z.string().max(50000).optional(),
+    transcript: z.string().min(1, 'Transcript is required').max(50000),
     audioDurationSeconds: z.number().min(0).optional(),
     moodScore: z.number().int().min(1).max(10).optional(),
 });

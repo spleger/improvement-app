@@ -206,9 +206,9 @@ function ChallengeCard({ challenge }: { challenge: any }) {
     const isRealityShift = challenge.isRealityShift;
 
     const getDifficultyColor = (d: number) => {
-        if (d <= 3) return '#22c55e';
-        if (d <= 6) return '#f59e0b';
-        return '#ef4444';
+        if (d <= 3) return '#16a34a';
+        if (d <= 6) return '#d97706';
+        return '#dc2626';
     };
 
     const getDifficultyLabel = (d: number) => {

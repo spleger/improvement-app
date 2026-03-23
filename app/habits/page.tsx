@@ -609,7 +609,7 @@ export default function HabitsPage() {
 
                 .save-note-btn {
                     padding: 10px 16px;
-                    background: var(--color-primary);
+                    background: var(--gradient-primary);
                     color: white;
                     border: none;
                     border-radius: 10px;

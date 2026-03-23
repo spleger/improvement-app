@@ -210,24 +210,36 @@ export default function VoiceRecorder() {
     };
 
     const saveRecording = async () => {
+        const trimmed = transcript.trim();
+        if (!trimmed) {
+            setError('No speech was captured. Please try recording again and speak clearly.');
+            return;
+        }
+
         setState('processing');
 
-        // Save to API
         try {
             const response = await fetch('/api/diary', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    transcript: transcript.trim() || 'No transcript captured',
+                    transcript: trimmed,
                     audioDurationSeconds: duration,
                     moodScore
                 })
             });
 
-            setState('saved');
+            if (response.ok) {
+                setState('saved');
+            } else {
+                const data = await response.json().catch(() => ({}));
+                setError(data.error || 'Failed to save entry. Please try again.');
+                setState('stopped');
+            }
         } catch (err) {
             console.error('Error saving:', err);
-            setState('saved'); // Still show as saved for demo
+            setError('Network error. Please try again.');
+            setState('stopped');
         }
     };
 

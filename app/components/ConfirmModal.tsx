@@ -21,7 +21,7 @@ export default function ConfirmModal({
 }: ConfirmModalProps) {
     const confirmBackground = variant === 'danger'
         ? 'var(--color-error)'
-        : 'var(--color-primary)';
+        : 'var(--gradient-primary)';
 
     return (
         <div

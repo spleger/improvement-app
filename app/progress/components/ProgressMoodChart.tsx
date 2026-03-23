@@ -34,7 +34,7 @@ export function ProgressMoodChart({
                                     fontSize: '0.75rem',
                                     fontWeight: 600,
                                     color: selectedMetric === metric ? 'white' : 'var(--color-text-secondary)',
-                                    background: selectedMetric === metric ? 'var(--color-primary)' : 'transparent',
+                                    background: selectedMetric === metric ? 'var(--gradient-primary)' : 'transparent',
                                     border: 'none',
                                     cursor: 'pointer',
                                     transition: 'all var(--transition-fast)',

@@ -35,11 +35,7 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
 
     const recognitionRef = useRef<any>(null);
     const transcriptRef = useRef('');
-
-    // Keep transcriptRef in sync
-    useEffect(() => {
-        transcriptRef.current = transcript;
-    }, [transcript]);
+    const recordingRef = useRef(false);
 
     useEffect(() => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -50,16 +46,39 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
             recognition.lang = 'en-US';
 
             recognition.onresult = (event: any) => {
-                let fullTranscript = '';
-                for (let i = 0; i < event.results.length; i++) {
-                    fullTranscript += event.results[i][0].transcript;
+                let finalText = '';
+                let interimText = '';
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const text = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalText += text + ' ';
+                    } else {
+                        interimText += text;
+                    }
                 }
-                setTranscript(fullTranscript);
+
+                if (finalText) {
+                    transcriptRef.current = transcriptRef.current + finalText;
+                }
+                // Display final + interim so user sees live feedback
+                setTranscript(transcriptRef.current + interimText);
+            };
+
+            recognition.onend = () => {
+                // Auto-restart if still recording (recognition stops after silence)
+                if (recordingRef.current) {
+                    try {
+                        recognitionRef.current?.start();
+                    } catch (e) {
+                        // Already started or component unmounted
+                    }
+                }
             };
 
             recognition.onerror = (event: any) => {
                 console.error('Speech recognition error:', event.error);
-                if (event.error !== 'aborted') {
+                if (event.error !== 'aborted' && event.error !== 'no-speech') {
                     setError('Speech recognition error. Please try again.');
                 }
             };
@@ -68,6 +87,7 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
         }
 
         return () => {
+            recordingRef.current = false;
             if (recognitionRef.current) {
                 recognitionRef.current.abort();
             }
@@ -114,21 +134,30 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
         setError('');
         setTranscript('');
         transcriptRef.current = '';
+        recordingRef.current = true;
         setState('recording');
 
         if (recognitionRef.current) {
-            recognitionRef.current.start();
+            try {
+                recognitionRef.current.start();
+            } catch (e) {
+                console.log('Recognition start error:', e);
+            }
         } else {
             setError('Speech recognition not supported in this browser');
         }
     };
 
     const stopRecording = () => {
+        recordingRef.current = false;
         if (recognitionRef.current) {
-            recognitionRef.current.stop();
+            try {
+                recognitionRef.current.stop();
+            } catch (e) {
+                // Already stopped
+            }
         }
-        // Process directly instead of relying on onend callback
-        // (onend closure captures stale state)
+        // Process directly using ref (avoids stale closure)
         processTranscript(transcriptRef.current);
     };
 
@@ -175,6 +204,7 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
     };
 
     const reset = () => {
+        recordingRef.current = false;
         setState('idle');
         setTranscript('');
         transcriptRef.current = '';
@@ -406,7 +436,7 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                 }
 
                 .voice-icon.processing {
-                    background: var(--color-primary);
+                    background: var(--gradient-primary);
                     color: white;
                 }
 
@@ -626,7 +656,7 @@ export default function HabitVoiceLogger({ onClose, onLogged }: HabitVoiceLogger
                 }
 
                 .confirm-btn {
-                    background: var(--color-success);
+                    background: var(--gradient-success);
                     color: white;
                 }
 

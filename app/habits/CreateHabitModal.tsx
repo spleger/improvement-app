@@ -324,9 +324,9 @@ export default function CreateHabitModal({ onClose, onCreated }: CreateHabitModa
                     }
 
                     .frequency-btn.selected {
-                        border-color: var(--color-primary);
-                        background: var(--color-primary);
-                        color: black;
+                        border-color: transparent;
+                        background: var(--gradient-primary);
+                        color: white;
                     }
 
                     .error-message {
