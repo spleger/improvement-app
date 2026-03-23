@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown, Plus, Trash2, MoreHorizontal, Mic, ArrowLeft, RotateCcw } from 'lucide-react';
 import { getIcon } from '@/lib/icons';
@@ -367,9 +367,9 @@ export default function ExpertChat() {
     }, [isRecording]);
 
     // Group coaches
-    const defaultCoaches = coaches.filter(c => c.type === 'default');
-    const goalCoaches = coaches.filter(c => c.type === 'goal');
-    const customCoaches = coaches.filter(c => c.type === 'custom');
+    const defaultCoaches = useMemo(() => coaches.filter(c => c.type === 'default'), [coaches]);
+    const goalCoaches = useMemo(() => coaches.filter(c => c.type === 'goal'), [coaches]);
+    const customCoaches = useMemo(() => coaches.filter(c => c.type === 'custom'), [coaches]);
 
     return (
         <div className="expert-chat">
