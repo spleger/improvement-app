@@ -64,6 +64,7 @@ export default function ExpertChat() {
     const [selectedCoach, setSelectedCoach] = useState<Coach>(DEFAULT_COACHES[0]);
     const [showCoachSelector, setShowCoachSelector] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showResetConfirm, setShowResetConfirm] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -396,15 +397,7 @@ export default function ExpertChat() {
                 </button>
                 <button
                     className="back-btn"
-                    onClick={async () => {
-                        if (!confirm('Reset this conversation?')) return;
-                        try {
-                            await fetch(`/api/expert/chat?coachId=${selectedCoach.id}`, { method: 'DELETE' });
-                            setMessages([]);
-                        } catch (err) {
-                            console.error(err);
-                        }
-                    }}
+                    onClick={() => setShowResetConfirm(true)}
                     title="Reset conversation"
                 >
                     <RotateCcw size={18} />
@@ -604,11 +597,36 @@ export default function ExpertChat() {
                 />
             )}
 
+            {showResetConfirm && (
+                <div className="reset-overlay" onClick={() => setShowResetConfirm(false)}>
+                    <div className="reset-dialog" onClick={e => e.stopPropagation()}>
+                        <h3>Start fresh?</h3>
+                        <p>This will clear the conversation history. Your goals, progress, and preferences are always remembered -- the coach will still know you.</p>
+                        <div className="reset-actions">
+                            <button className="reset-cancel" onClick={() => setShowResetConfirm(false)}>
+                                Cancel
+                            </button>
+                            <button className="reset-confirm" onClick={async () => {
+                                setShowResetConfirm(false);
+                                try {
+                                    await fetch(`/api/expert/chat?coachId=${selectedCoach.id}`, { method: 'DELETE' });
+                                    setMessages([]);
+                                } catch (err) {
+                                    console.error(err);
+                                }
+                            }}>
+                                Reset
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <style jsx>{`
                 .expert-chat {
                     display: flex;
                     flex-direction: column;
-                    height: calc(100dvh - 60px);
+                    height: 100dvh;
                     min-height: 400px;
                     background: var(--color-background);
                     overflow: hidden;
@@ -1018,6 +1036,68 @@ export default function ExpertChat() {
                 .custom-scrollbar::-webkit-scrollbar-thumb {
                     background: var(--color-border);
                     border-radius: 3px;
+                }
+
+                .reset-overlay {
+                    position: fixed;
+                    inset: 0;
+                    background: rgba(0, 0, 0, 0.6);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 200;
+                    padding: 24px;
+                    backdrop-filter: blur(4px);
+                }
+
+                .reset-dialog {
+                    background: var(--color-surface);
+                    border-radius: 20px;
+                    padding: 28px 24px 24px;
+                    max-width: 340px;
+                    width: 100%;
+                    animation: modalIn 0.2s ease-out;
+                    text-align: center;
+                }
+
+                .reset-dialog h3 {
+                    font-size: 1.2rem;
+                    font-weight: 700;
+                    color: var(--color-text);
+                    margin-bottom: 12px;
+                }
+
+                .reset-dialog p {
+                    font-size: 0.9rem;
+                    color: var(--color-text-muted);
+                    line-height: 1.5;
+                    margin-bottom: 24px;
+                }
+
+                .reset-actions {
+                    display: flex;
+                    gap: 12px;
+                }
+
+                .reset-cancel, .reset-confirm {
+                    flex: 1;
+                    padding: 12px;
+                    border-radius: 12px;
+                    font-weight: 600;
+                    font-size: 0.95rem;
+                    cursor: pointer;
+                    border: none;
+                    transition: all 0.15s ease;
+                }
+
+                .reset-cancel {
+                    background: var(--color-surface-2);
+                    color: var(--color-text);
+                }
+
+                .reset-confirm {
+                    background: var(--color-error);
+                    color: white;
                 }
 
                 @media (max-width: 640px) {

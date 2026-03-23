@@ -26,22 +26,20 @@ export default function GoalSelector({ goals, selectedGoalId }: { goals: Goal[];
     return (
         <div style={{
             display: 'flex',
+            flexDirection: 'column',
             gap: '8px',
             marginBottom: '1rem',
-            overflowX: 'auto',
-            scrollbarWidth: 'none',
         }}>
             <button
                 onClick={() => handleChange('all')}
                 style={{
-                    padding: '8px 16px',
-                    borderRadius: '9999px',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
                     fontSize: '0.875rem',
-                    fontWeight: 500,
+                    fontWeight: 600,
                     border: 'none',
                     cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0,
+                    textAlign: 'left',
                     background: !selectedGoalId ? 'var(--gradient-primary)' : 'var(--color-surface)',
                     color: !selectedGoalId ? 'white' : 'var(--color-text-muted)',
                     transition: 'all 150ms ease',
@@ -54,14 +52,13 @@ export default function GoalSelector({ goals, selectedGoalId }: { goals: Goal[];
                     key={goal.id}
                     onClick={() => handleChange(goal.id)}
                     style={{
-                        padding: '8px 16px',
-                        borderRadius: '9999px',
+                        padding: '12px 16px',
+                        borderRadius: '12px',
                         fontSize: '0.875rem',
-                        fontWeight: 500,
+                        fontWeight: 600,
                         border: 'none',
                         cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        flexShrink: 0,
+                        textAlign: 'left',
                         background: selectedGoalId === goal.id ? 'var(--gradient-primary)' : 'var(--color-surface)',
                         color: selectedGoalId === goal.id ? 'white' : 'var(--color-text-muted)',
                         transition: 'all 150ms ease',

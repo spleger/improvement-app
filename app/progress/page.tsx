@@ -85,12 +85,7 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
         <div className="page animate-fade-in">
             {/* Header */}
             <div className="page-header">
-                <h1 className="heading-2">📊 Your Progress</h1>
-                {activeGoal && (
-                    <p className="text-secondary" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
-                        Day {dayInJourney} of your <strong>{activeGoal.title}</strong> journey
-                    </p>
-                )}
+                <h1 className="heading-2">Your Progress</h1>
             </div>
 
             {/* Goal Selector */}

@@ -11,7 +11,7 @@ interface OngoingChallenge {
     totalDays: number;
 }
 
-const HIDDEN_ROUTES = ['/login', '/register', '/onboarding'];
+const HIDDEN_ROUTES = ['/login', '/register', '/onboarding', '/expert'];
 
 export default function TopNavigation() {
     const pathname = usePathname();
