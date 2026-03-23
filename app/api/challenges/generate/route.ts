@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as db from '@/lib/db';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
+import { ANTHROPIC_MODEL } from '@/lib/anthropic';
 
 const ANTHROPIC_API_KEY_RAW = process.env.ANTHROPIC_API_KEY;
 // Sanitize: strip quotes and whitespace
@@ -231,7 +232,7 @@ export async function POST(request: NextRequest) {
                     'anthropic-version': '2023-06-01'
                 },
                 body: JSON.stringify({
-                    model: 'claude-3-5-haiku-20241022',
+                    model: ANTHROPIC_MODEL,
                     max_tokens: 1000,
                     system: SYSTEM_PROMPT,
                     messages: [{ role: 'user', content: userMessage }]
@@ -306,17 +307,17 @@ export async function POST(request: NextRequest) {
 
             // Fallback: Create a simple challenge based on context
             const errorMsg = aiError instanceof Error ? aiError.message : String(aiError);
-            const keyInfo = ANTHROPIC_API_KEY ? `Key present (len: ${ANTHROPIC_API_KEY.length}, start: ${ANTHROPIC_API_KEY.slice(0, 5)})` : 'Key is MISSING in Vercel env';
+            console.error('Challenge generation fallback triggered:', errorMsg);
 
             const fallbackChallenge = await db.createChallenge({
                 userId: user.userId,
                 goalId: context.goal.id,
                 title: `Day ${context.dayInJourney} Focus`,
-                description: `Spend 15-20 minutes focused on your goal: ${context.goal.title}. (Debug: ${errorMsg} | ${keyInfo})`,
+                description: `Spend 15-20 minutes working toward your goal: ${context.goal.title}. Reflect on what progress you can make today.`,
                 difficulty: 3,
                 isRealityShift: false,
                 scheduledDate: new Date(),
-                personalizationNotes: `⚠️ NOTE: This is a fallback challenge because our AI coach is temporarily offline.\nError: ${errorMsg}\nDiagnostic: ${keyInfo}`
+                personalizationNotes: `Fallback challenge (AI temporarily unavailable).`
             });
 
             return NextResponse.json({

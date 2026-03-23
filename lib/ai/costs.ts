@@ -12,7 +12,8 @@ const prisma = new PrismaClient();
 // Pricing per million tokens (in cents)
 const PRICING: Record<string, { input: number; output: number }> = {
     'claude-sonnet-4-6': { input: 300, output: 1500 },      // $3/M in, $15/M out
-    'claude-3-5-haiku-20241022': { input: 100, output: 500 }, // $1/M in, $5/M out
+    'claude-haiku-4-5-20251001': { input: 100, output: 500 },  // $1/M in, $5/M out
+    'claude-3-5-haiku-20241022': { input: 100, output: 500 }, // legacy
     'claude-3-haiku-20240307': { input: 25, output: 125 },   // $0.25/M in, $1.25/M out
     'gpt-4o': { input: 250, output: 1000 },                  // $2.50/M in, $10/M out
 };

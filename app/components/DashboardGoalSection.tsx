@@ -113,11 +113,12 @@ export default function DashboardGoalSection({
                                     {/* Nested Challenges for this Goal */}
                                     {goalChallenges.length > 0 ? (
                                         <div style={{
-                                            marginLeft: '1rem',
+                                            marginLeft: '0.5rem',
                                             marginTop: '0.75rem',
-                                            paddingLeft: '1rem',
+                                            paddingLeft: '0.75rem',
                                             borderLeft: '3px solid var(--color-accent)',
-                                            position: 'relative'
+                                            position: 'relative',
+                                            overflow: 'hidden'
                                         }}>
                                             {/* Challenge count label */}
                                             <div style={{
@@ -163,10 +164,11 @@ export default function DashboardGoalSection({
                                         </div>
                                     ) : (
                                         <div style={{
-                                            marginLeft: '1rem',
+                                            marginLeft: '0.5rem',
                                             marginTop: '0.75rem',
-                                            paddingLeft: '1rem',
+                                            paddingLeft: '0.75rem',
                                             borderLeft: '3px dashed var(--color-border)',
+                                            overflow: 'hidden'
                                         }}>
                                             <DailyChallengeLoader goalId={goal.id} goalTitle={goal.title} />
                                         </div>

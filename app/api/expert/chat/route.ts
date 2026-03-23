@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { ANTHROPIC_MODEL } from '@/lib/anthropic';
 
 const ANTHROPIC_API_KEY_RAW = process.env.ANTHROPIC_API_KEY;
 // Sanitize: strip quotes and whitespace
@@ -395,7 +396,7 @@ export async function POST(request: NextRequest) {
                     'anthropic-version': '2023-06-01'
                 },
                 body: JSON.stringify({
-                    model: 'claude-3-5-haiku-20241022',
+                    model: ANTHROPIC_MODEL,
                     max_tokens: 1000,
                     system: systemPrompt,
                     messages
