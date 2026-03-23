@@ -298,10 +298,10 @@ export default function DiaryPage() {
         || grouped.lastMonth.length > 0;
 
     return (
-        <div className="container-page max-w-4xl mx-auto px-lg py-md space-y-lg">
-            <header className="mb-lg">
-                <h1 className="text-4xl font-bold gradient-text mb-sm">Voice Diary</h1>
-            </header>
+        <div className="page animate-fade-in">
+            <div className="page-header">
+                <h1 className="heading-2">Voice Diary</h1>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-lg">
                 {/* Recorder Section */}

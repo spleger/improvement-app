@@ -3,26 +3,36 @@ import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import ProgressTrendsChart from './components/ProgressTrendsChart';
+import GoalSelector from './components/GoalSelector';
 
 
-export default async function ProgressPage() {
+export default async function ProgressPage({ searchParams }: { searchParams: Promise<{ goalId?: string }> }) {
     const user = await getCurrentUser();
     if (!user) {
         redirect('/login');
     }
 
+    const params = await searchParams;
+    const selectedGoalId = params.goalId || null;
+
     // Get data
     const allChallenges = await db.getChallengesByUserId(user.userId, { limit: 30 });
     const surveys = await db.getSurveysByUserId(user.userId, 365);
 
-    const activeGoal = await db.getActiveGoalByUserId(user.userId);
-
     // Get all goals to filter out completed/deleted ones
     const allGoals = await db.getGoalsByUserId(user.userId);
-    const activeGoalIds = new Set(allGoals.filter(g => g.status === 'active').map(g => g.id));
+    const activeGoals = allGoals.filter(g => g.status === 'active');
+    const activeGoalIds = new Set(activeGoals.map(g => g.id));
 
-    // Only show challenges from active goals (or challenges without a goal)
-    const challenges = allChallenges.filter(c => !c.goalId || activeGoalIds.has(c.goalId));
+    // Find the selected or active goal for the header
+    const activeGoal = selectedGoalId
+        ? activeGoals.find(g => g.id === selectedGoalId) || null
+        : activeGoals[0] || null;
+
+    // Filter challenges by selected goal, or show all active goal challenges
+    const challenges = selectedGoalId
+        ? allChallenges.filter(c => c.goalId === selectedGoalId)
+        : allChallenges.filter(c => !c.goalId || activeGoalIds.has(c.goalId));
 
     const completedChallenges = challenges.filter(c => c.status === 'completed');
     const skippedChallenges = challenges.filter(c => c.status === 'skipped');
@@ -82,6 +92,12 @@ export default async function ProgressPage() {
                     </p>
                 )}
             </div>
+
+            {/* Goal Selector */}
+            <GoalSelector
+                goals={activeGoals.map(g => ({ id: g.id, title: g.title }))}
+                selectedGoalId={selectedGoalId}
+            />
 
             {/* Stats Overview */}
             <section className="mb-lg">
@@ -184,16 +200,6 @@ export default async function ProgressPage() {
                 </div>
             </section>
 
-            {/* Bottom Navigation */}
-            <nav className="nav-bottom">
-                <div className="nav-bottom-inner">
-                    <Link href="/" className="nav-item"><span className="nav-item-icon">🏠</span><span className="nav-item-label">Home</span></Link>
-                    <Link href="/progress" className="nav-item active"><span className="nav-item-icon">📊</span><span className="nav-item-label">Progress</span></Link>
-                    <Link href="/diary" className="nav-item"><span className="nav-item-icon">🎙️</span><span className="nav-item-label">Diary</span></Link>
-                    <Link href="/expert" className="nav-item"><span className="nav-item-icon">💬</span><span className="nav-item-label">Expert</span></Link>
-                    <Link href="/profile" className="nav-item"><span className="nav-item-icon">👤</span><span className="nav-item-label">Profile</span></Link>
-                </div>
-            </nav>
         </div>
     );
 }

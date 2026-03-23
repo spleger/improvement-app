@@ -165,7 +165,7 @@ export default function ProgressTrendsChart({ data }: { data: DataPoint[] }) {
                 flexWrap: 'wrap',
             }}>
                 {METRIC_OPTIONS.map(opt => {
-                    const isActive = activeMetric === opt.key;
+                    const isActive = activeMetric === opt.key || (activeMetric === 'all' && opt.key !== 'all');
                     return (
                         <button
                             key={opt.key}
@@ -178,10 +178,10 @@ export default function ProgressTrendsChart({ data }: { data: DataPoint[] }) {
                                 borderRadius: '9999px',
                                 fontSize: '0.813rem',
                                 fontWeight: 500,
-                                border: 'none',
+                                border: activeMetric === opt.key ? '1px solid ' + opt.color : '1px solid transparent',
                                 cursor: 'pointer',
                                 transition: 'all 150ms ease',
-                                background: 'transparent',
+                                background: activeMetric === opt.key ? 'rgba(20, 184, 166, 0.1)' : 'transparent',
                                 color: isActive ? opt.color : 'var(--color-text-muted)',
                                 opacity: isActive ? 1 : 0.6,
                             }}

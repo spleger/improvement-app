@@ -38,16 +38,6 @@ export default function SurveyPage() {
             </div>
 
             <DailySurveyForm />
-
-            {/* Talk to AI option */}
-            <div style={{ marginTop: 'var(--spacing-lg)', textAlign: 'center' }}>
-                <button
-                    onClick={() => setView('ai')}
-                    className="btn btn-secondary w-full"
-                >
-                    Talk to AI instead
-                </button>
-            </div>
         </div>
     );
 }
