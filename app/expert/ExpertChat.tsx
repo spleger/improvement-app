@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown, Plus, Trash2, MoreHorizontal, Mic } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown, Plus, Trash2, MoreHorizontal, Mic, ArrowLeft } from 'lucide-react';
 import { getIcon } from '@/lib/icons';
 import ChallengeProposal from './widgets/ChallengeProposal';
 import MoodLogWidget from './widgets/MoodLogWidget';
@@ -52,9 +53,11 @@ const SUGGESTED_TOPICS = [
 ];
 
 export default function ExpertChat() {
+    const router = useRouter();
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [isRecording, setIsRecording] = useState(false);
 
     // Coach State
     const [coaches, setCoaches] = useState<Coach[]>(DEFAULT_COACHES);
@@ -64,6 +67,7 @@ export default function ExpertChat() {
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const recognitionRef = useRef<any>(null);
 
     // Save selected coach to localStorage when it changes (skip initial render)
     const isInitialMount = useRef(true);
@@ -318,6 +322,45 @@ export default function ExpertChat() {
         sendMessage(input);
     };
 
+    const toggleVoiceRecording = useCallback(() => {
+        if (isRecording && recognitionRef.current) {
+            recognitionRef.current.stop();
+            setIsRecording(false);
+            return;
+        }
+
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert('Speech recognition is not supported in this browser.');
+            return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onresult = (event: any) => {
+            let transcript = '';
+            for (let i = 0; i < event.results.length; i++) {
+                transcript += event.results[i][0].transcript;
+            }
+            setInput(transcript);
+        };
+
+        recognition.onerror = () => {
+            setIsRecording(false);
+        };
+
+        recognition.onend = () => {
+            setIsRecording(false);
+        };
+
+        recognitionRef.current = recognition;
+        recognition.start();
+        setIsRecording(true);
+    }, [isRecording]);
+
     // Group coaches
     const defaultCoaches = coaches.filter(c => c.type === 'default');
     const goalCoaches = coaches.filter(c => c.type === 'goal');
@@ -325,8 +368,16 @@ export default function ExpertChat() {
 
     return (
         <div className="expert-chat">
-            {/* Header with Coach Selector */}
+            {/* Header with Back Button + Coach Selector */}
             <div className="chat-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                    className="back-btn"
+                    onClick={() => router.back()}
+                    title="Go back"
+                >
+                    <ArrowLeft size={20} />
+                </button>
                 <button
                     className="coach-selector-btn"
                     onClick={() => setShowCoachSelector(!showCoachSelector)}
@@ -339,6 +390,7 @@ export default function ExpertChat() {
                     </div>
                     <ChevronDown size={20} className={`chevron ${showCoachSelector ? 'open' : ''}`} />
                 </button>
+                </div>
 
                 {showCoachSelector && (
                     <div className="coach-dropdown custom-scrollbar">
@@ -481,8 +533,9 @@ export default function ExpertChat() {
             <form onSubmit={handleSubmit} className="chat-input-form">
                 <button
                     type="button"
-                    className="voice-btn"
-                    title="Voice input (coming soon)"
+                    className={`voice-btn ${isRecording ? 'recording' : ''}`}
+                    title={isRecording ? 'Stop recording' : 'Voice input'}
+                    onClick={toggleVoiceRecording}
                     disabled={isLoading}
                 >
                     <Mic size={20} />
@@ -507,7 +560,7 @@ export default function ExpertChat() {
                     type="button"
                     className="live-mode-btn"
                     title="Live voice mode"
-                    disabled={isLoading}
+                    onClick={() => router.push('/expert/live')}
                 >
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <line x1="4" y1="12" x2="4" y2="12" />
@@ -530,7 +583,7 @@ export default function ExpertChat() {
                 .expert-chat {
                     display: flex;
                     flex-direction: column;
-                    height: calc(100vh - 80px - 60px);
+                    height: calc(100vh - 60px);
                     min-height: 400px;
                     background: var(--color-background);
                     overflow: hidden;
@@ -756,9 +809,16 @@ export default function ExpertChat() {
 
                 .quick-actions {
                     display: flex;
-                    flex-wrap: wrap;
+                    flex-wrap: nowrap;
                     gap: 8px;
                     padding: 0 20px 16px;
+                    overflow-x: auto;
+                    -webkit-overflow-scrolling: touch;
+                    scrollbar-width: none;
+                }
+
+                .quick-actions::-webkit-scrollbar {
+                    display: none;
                 }
 
                 .quick-action-btn {
@@ -770,6 +830,8 @@ export default function ExpertChat() {
                     color: var(--color-text);
                     cursor: pointer;
                     transition: all 0.2s;
+                    white-space: nowrap;
+                    flex-shrink: 0;
                 }
 
                 .quick-action-btn:hover:not(:disabled) {
@@ -885,9 +947,36 @@ export default function ExpertChat() {
                     box-shadow: 0 4px 20px rgba(99, 102, 241, 0.5);
                 }
 
-                .live-mode-btn:disabled {
-                    opacity: 0.5;
-                    cursor: not-allowed;
+                .back-btn {
+                    width: 40px;
+                    height: 40px;
+                    background: transparent;
+                    border: 1px solid var(--color-border);
+                    border-radius: 12px;
+                    color: var(--color-text);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    flex-shrink: 0;
+                }
+
+                .back-btn:hover {
+                    background: var(--color-surface-2);
+                    border-color: var(--color-primary);
+                }
+
+                .voice-btn.recording {
+                    background: var(--color-error, #ef4444);
+                    border-color: var(--color-error, #ef4444);
+                    color: white;
+                    animation: pulse-recording 1.5s ease-in-out infinite;
+                }
+
+                @keyframes pulse-recording {
+                    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+                    50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
                 }
 
                 .group:hover .group-hover-visible {

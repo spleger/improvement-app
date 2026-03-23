@@ -298,12 +298,9 @@ export default function DiaryPage() {
         || grouped.lastMonth.length > 0;
 
     return (
-        <div className="container-page max-w-4xl mx-auto p-md space-y-lg">
+        <div className="container-page max-w-4xl mx-auto px-lg py-md space-y-lg">
             <header className="mb-lg">
                 <h1 className="text-4xl font-bold gradient-text mb-sm">Voice Diary</h1>
-                <p className="text-muted text-lg">
-                    Capture your daily reflections, wins, and blockers. Speak freely -- we handle the writing.
-                </p>
             </header>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-lg">

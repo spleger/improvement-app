@@ -53,6 +53,11 @@ export default function BottomNavigation() {
         { id: 'profile', icon: '\u{1F464}', label: 'Profile', href: '/profile' },
     ];
 
+    // Hide bottom nav on expert chat (it has its own input bar)
+    if (pathname?.startsWith('/expert')) {
+        return null;
+    }
+
     return (
         <nav className="nav-bottom">
             <div className="nav-bottom-inner">

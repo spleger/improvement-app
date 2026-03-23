@@ -82,9 +82,9 @@ export default function DailySurveyForm() {
                     type="range"
                     min="1"
                     max="10"
-                    step="0.1"
+                    step="1"
                     value={value}
-                    onChange={e => onChange(parseFloat(e.target.value))}
+                    onChange={e => onChange(parseInt(e.target.value, 10))}
                     className="slider"
                     style={{
                         background: `linear-gradient(to right, #667eea 0%, #764ba2 ${fillPercent}%, var(--color-surface-2) ${fillPercent}%)`
@@ -94,7 +94,7 @@ export default function DailySurveyForm() {
                     <span>{leftEmoji}</span>
                     <span>{rightEmoji}</span>
                 </div>
-                <div className="slider-value">{Number.isInteger(value) ? value : value.toFixed(1)}</div>
+                <div className="slider-value">{Math.round(value)}</div>
             </div>
         </div>
     );

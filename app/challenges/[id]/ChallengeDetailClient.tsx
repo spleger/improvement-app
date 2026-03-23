@@ -148,9 +148,7 @@ export default function ChallengeDetailClient({ challengeId, isCompleted }: Prop
                             padding: '1.5rem 1.5rem 1rem',
                             borderBottom: '1px solid var(--color-border)',
                             flexShrink: 0,
-                            maxWidth: '640px',
-                            width: '100%',
-                            margin: '0 auto'
+                            width: '100%'
                         }}>
                             <h2 className="heading-3 text-center">Challenge Complete!</h2>
                             <p className="text-center text-muted">Quick feedback to help the AI learn</p>
@@ -161,9 +159,7 @@ export default function ChallengeDetailClient({ challengeId, isCompleted }: Prop
                             padding: '1.5rem',
                             overflowY: 'auto',
                             flex: 1,
-                            maxWidth: '640px',
                             width: '100%',
-                            margin: '0 auto',
                             display: 'flex',
                             flexDirection: 'column',
                             justifyContent: 'center'
@@ -218,7 +214,7 @@ export default function ChallengeDetailClient({ challengeId, isCompleted }: Prop
                                     onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                                     placeholder="How did you feel? What did you learn?"
                                     className="form-input form-textarea"
-                                    rows={2}
+                                    rows={4}
                                     style={{ resize: 'none' }}
                                 />
                             </div>
@@ -230,9 +226,7 @@ export default function ChallengeDetailClient({ challengeId, isCompleted }: Prop
                             borderTop: '1px solid var(--color-border)',
                             flexShrink: 0,
                             background: 'var(--color-background)',
-                            maxWidth: '640px',
-                            width: '100%',
-                            margin: '0 auto'
+                            width: '100%'
                         }}>
                             <button
                                 onClick={handleComplete}
