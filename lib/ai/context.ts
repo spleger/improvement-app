@@ -53,34 +53,39 @@ export type VoiceId = typeof VALID_VOICE_IDS[number];
  */
 export async function getUserContext(userId: string): Promise<UserContext | null> {
     try {
-        // Get ALL active goals (not just one)
-        const allGoals = await db.getGoalsByUserId(userId);
+        // Fetch all independent data in parallel
+        const [
+            allGoals,
+            challenges,
+            todayChallenge,
+            streak,
+            preferences,
+            surveys,
+            habitStats,
+            todayHabitLogs,
+            userData,
+            recentDiary
+        ] = await Promise.all([
+            db.getGoalsByUserId(userId),
+            db.getChallengesByUserId(userId, { limit: 10 }),
+            db.getTodayChallenge(userId),
+            db.calculateStreak(userId),
+            db.getUserPreferences(userId),
+            db.getSurveysByUserId(userId, 7),
+            db.getHabitStats(userId, 7),
+            db.getHabitLogsForDate(userId, new Date()),
+            db.getUserById(userId),
+            db.getDiaryEntriesByUserId(userId, 3)
+        ]);
+
         const allActiveGoals = allGoals.filter((g: any) => g.status === 'active');
         const activeGoal = allActiveGoals[0] || null;
-
-        // Get recent challenges
-        const challenges = await db.getChallengesByUserId(userId, { limit: 10 });
         const completedChallenges = challenges.filter(c => c.status === 'completed');
-        const todayChallenge = await db.getTodayChallenge(userId);
 
-        // Get streak
-        const streak = await db.calculateStreak(userId);
-
-        // Get user preferences
-        const preferences = await db.getUserPreferences(userId);
-
-        // Get recent surveys for mood data
-        const surveys = await db.getSurveysByUserId(userId, 7);
         const avgMood = surveys.length > 0
             ? Math.round(surveys.reduce((sum, s) => sum + s.overallMood, 0) / surveys.length * 10) / 10
             : null;
 
-        // Get habit stats
-        const habitStats = await db.getHabitStats(userId, 7);
-        const todayHabitLogs = await db.getHabitLogsForDate(userId, new Date());
-
-        // Get onboarding answers for AI context
-        const userData = await db.getUserById(userId);
         let onboardingAnswers = null;
         if (userData?.onboardingData) {
             try {
@@ -89,7 +94,6 @@ export async function getUserContext(userId: string): Promise<UserContext | null
             } catch { /* ignore malformed JSON */ }
         }
 
-        // Calculate day in journey
         const dayInJourney = activeGoal
             ? Math.ceil((Date.now() - new Date(activeGoal.startedAt).getTime()) / (1000 * 60 * 60 * 24))
             : 0;
@@ -105,7 +109,7 @@ export async function getUserContext(userId: string): Promise<UserContext | null
             dayInJourney,
             recentChallenges: challenges.slice(0, 5),
             preferences,
-            recentDiary: await db.getDiaryEntriesByUserId(userId, 3),
+            recentDiary,
             recentSurveys: surveys.slice(0, 3),
             habitStats,
             todayHabitLogs,

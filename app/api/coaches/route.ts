@@ -10,7 +10,9 @@ export async function GET(request: NextRequest) {
         }
 
         const coaches = await db.getCustomCoachesByUserId(user.userId);
-        return NextResponse.json({ success: true, data: { coaches } });
+        const response = NextResponse.json({ success: true, data: { coaches } });
+        response.headers.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=120');
+        return response;
     } catch (error) {
         console.error('Error fetching coaches:', error);
         return NextResponse.json({ success: false, error: 'Failed to fetch coaches' }, { status: 500 });

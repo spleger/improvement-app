@@ -2,8 +2,13 @@ import Link from 'next/link';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import ProgressTrendsChart from './components/ProgressTrendsChart';
+import dynamic from 'next/dynamic';
 import GoalSelector from './components/GoalSelector';
+
+const ProgressTrendsChart = dynamic(() => import('./components/ProgressTrendsChart'), {
+    ssr: false,
+    loading: () => <div className="card" style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)' }}>Loading chart...</div>
+});
 
 
 export default async function ProgressPage({ searchParams }: { searchParams: Promise<{ goalId?: string }> }) {
@@ -15,12 +20,14 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
     const params = await searchParams;
     const selectedGoalId = params.goalId || null;
 
-    // Get data
-    const allChallenges = await db.getChallengesByUserId(user.userId, { limit: 30 });
-    const surveys = await db.getSurveysByUserId(user.userId, 365);
+    // Fetch all independent data in parallel
+    const [allChallenges, surveys, allGoals, streak] = await Promise.all([
+        db.getChallengesByUserId(user.userId, { limit: 30 }),
+        db.getSurveysByUserId(user.userId, 365),
+        db.getGoalsByUserId(user.userId),
+        db.calculateStreak(user.userId)
+    ]);
 
-    // Get all goals to filter out completed/deleted ones
-    const allGoals = await db.getGoalsByUserId(user.userId);
     const activeGoals = allGoals.filter(g => g.status === 'active');
     const activeGoalIds = new Set(activeGoals.map(g => g.id));
 
@@ -36,9 +43,6 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
 
     const completedChallenges = challenges.filter(c => c.status === 'completed');
     const skippedChallenges = challenges.filter(c => c.status === 'skipped');
-
-    // Calculate stats
-    const streak = await db.calculateStreak(user.userId);
     const completedCount = completedChallenges.length;
     const skippedCount = skippedChallenges.length;
     const totalCount = challenges.length;

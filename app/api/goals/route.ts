@@ -12,10 +12,12 @@ export async function GET(request: NextRequest) {
         }
         const goals = await db.getGoalsByUserId(user.userId);
 
-        return NextResponse.json({
+        const response = NextResponse.json({
             success: true,
             data: { goals }
         });
+        response.headers.set('Cache-Control', 'private, max-age=30, stale-while-revalidate=60');
+        return response;
     } catch (error) {
         console.error('Error fetching goals:', error);
         return NextResponse.json(

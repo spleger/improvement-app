@@ -13,28 +13,32 @@ export async function GET(request: NextRequest) {
         }
 
         const includeInactive = request.nextUrl.searchParams.get('includeInactive') === 'true';
-        const habits = await db.getHabitsByUserId(user.userId, includeInactive);
 
-        // Get today's logs
-        const today = new Date();
-        const todayLogs = await db.getHabitLogsForDate(user.userId, today);
+        // Fetch habits and today's logs in parallel
+        const [habits, todayLogs] = await Promise.all([
+            db.getHabitsByUserId(user.userId, includeInactive),
+            db.getHabitLogsForDate(user.userId, new Date())
+        ]);
 
-        // Get streaks for each habit
-        const habitsWithStatus = await Promise.all(habits.map(async (habit) => {
+        // Bulk-fetch all habit streaks in parallel (instead of N+1 sequential)
+        const streaks = await Promise.all(habits.map(h => db.calculateHabitStreak(h.id)));
+
+        const habitsWithStatus = habits.map((habit, i) => {
             const todayLog = todayLogs.find(l => l.habitId === habit.id);
-            const streak = await db.calculateHabitStreak(habit.id);
             return {
                 ...habit,
                 completedToday: todayLog?.completed || false,
                 todayNotes: todayLog?.notes || null,
-                streak
+                streak: streaks[i]
             };
-        }));
+        });
 
-        return NextResponse.json({
+        const response = NextResponse.json({
             success: true,
             data: { habits: habitsWithStatus }
         });
+        response.headers.set('Cache-Control', 'private, max-age=15, stale-while-revalidate=30');
+        return response;
     } catch (error) {
         console.error('Error fetching habits:', error);
         return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
