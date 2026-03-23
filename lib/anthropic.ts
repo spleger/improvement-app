@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 
-export const ANTHROPIC_MODEL = 'claude-3-5-haiku-20241022';
+export const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
 
 let _client: Anthropic | null = null;
 

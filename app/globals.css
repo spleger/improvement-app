@@ -81,6 +81,11 @@
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+
+  /* Glassmorphism */
+  --glass-blur: blur(12px);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.15);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 
@@ -288,6 +293,7 @@ button {
 .card {
   background: var(--color-background);
   border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
   box-shadow: var(--shadow-md);
   padding: var(--spacing-xl);
   transition: all var(--transition-normal);
@@ -305,6 +311,25 @@ button {
 .card-surface {
   background: var(--color-surface);
   box-shadow: none;
+}
+
+.card-glass {
+  background: var(--color-surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-radius: var(--radius-lg);
+  border: var(--glass-border);
+  padding: var(--spacing-lg);
+  box-shadow: var(--glass-shadow), 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+
+.card-glass-subtle {
+  background: rgba(30, 30, 40, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: var(--spacing-md);
 }
 
 /* ===================================

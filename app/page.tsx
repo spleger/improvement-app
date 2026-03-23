@@ -3,11 +3,13 @@ import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 
+export const dynamic = 'force-dynamic';
+
 async function safeFetch<T>(fn: () => Promise<T>, fallback: T, label: string): Promise<T> {
     try {
         return await fn();
     } catch (err) {
-        console.error(`Dashboard: ${label} failed:`, err);
+        console.error(`Dashboard: ${label} failed:`, err instanceof Error ? err.message : err);
         return fallback;
     }
 }
