@@ -3,19 +3,28 @@ import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 
+async function safeFetch<T>(fn: () => Promise<T>, fallback: T, label: string): Promise<T> {
+    try {
+        return await fn();
+    } catch (err) {
+        console.error(`Dashboard: ${label} failed:`, err);
+        return fallback;
+    }
+}
+
 async function getDashboardData(userId: string) {
-    // Run all independent DB queries in parallel
+    // Run all independent DB queries in parallel with individual error handling
     const [allGoals, todayChallenges, completedChallenges, streak, diaryCount, recentSurveys, habitStats, allMilestones, partners] =
         await Promise.all([
-            db.getGoalsByUserId(userId),
-            db.getTodayChallenges(userId),
-            db.getCompletedChallengesCount(userId),
-            db.calculateStreak(userId),
-            db.getDiaryEntriesCount(userId),
-            db.getSurveysByUserId(userId, 7),
-            db.getHabitStats(userId, 7),
-            db.getMilestonesByUserId(userId),
-            db.getPartnersByUserId(userId),
+            safeFetch(() => db.getGoalsByUserId(userId), [] as any[], 'getGoalsByUserId'),
+            safeFetch(() => db.getTodayChallenges(userId), [] as any[], 'getTodayChallenges'),
+            safeFetch(() => db.getCompletedChallengesCount(userId), 0, 'getCompletedChallengesCount'),
+            safeFetch(() => db.calculateStreak(userId), 0, 'calculateStreak'),
+            safeFetch(() => db.getDiaryEntriesCount(userId), 0, 'getDiaryEntriesCount'),
+            safeFetch(() => db.getSurveysByUserId(userId, 7), [] as any[], 'getSurveysByUserId'),
+            safeFetch(() => db.getHabitStats(userId, 7), { habits: [], totalHabits: 0, completedToday: 0, weeklyCompletionRate: 0 }, 'getHabitStats'),
+            safeFetch(() => db.getMilestonesByUserId(userId), [] as any[], 'getMilestonesByUserId'),
+            safeFetch(() => db.getPartnersByUserId(userId), [] as any[], 'getPartnersByUserId'),
         ]);
 
     const activeGoals = allGoals.filter(g => g.status === 'active');
@@ -27,12 +36,20 @@ async function getDashboardData(userId: string) {
     // Get accountability partner stats (parallel per partner)
     let partnersWithStats: { id: string; partnerUserId: string; displayName: string; stats: { streak: number; weekChallenges: number; habitRate: number } }[] = [];
     if (partners.length > 0) {
-        partnersWithStats = await Promise.all(
-            partners.map(async (p) => {
-                const stats = await db.getPartnerStats(p.partnerUserId);
-                return { ...p, stats: { streak: stats.streak, weekChallenges: stats.weekChallenges, habitRate: stats.habitRate } };
-            })
-        );
+        try {
+            partnersWithStats = await Promise.all(
+                partners.map(async (p) => {
+                    const stats = await safeFetch(
+                        () => db.getPartnerStats(p.partnerUserId),
+                        { streak: 0, weekChallenges: 0, habitRate: 0, activeGoals: [] },
+                        `getPartnerStats(${p.partnerUserId})`
+                    );
+                    return { ...p, stats: { streak: stats.streak, weekChallenges: stats.weekChallenges, habitRate: stats.habitRate } };
+                })
+            );
+        } catch (err) {
+            console.error('Dashboard: partnersWithStats failed:', err);
+        }
     }
 
     const totalChallengesCompleted = todayChallenges.filter(c => c.status === 'completed').length;
