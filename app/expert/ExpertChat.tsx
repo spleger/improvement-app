@@ -247,6 +247,7 @@ export default function ExpertChat() {
 
         setMessages(prev => [...prev, userMessage]);
         setInput('');
+        if (inputRef.current) inputRef.current.style.height = 'auto';
         setIsLoading(true);
 
         try {
@@ -555,7 +556,12 @@ export default function ExpertChat() {
                 <textarea
                     ref={inputRef}
                     value={input}
-                    onChange={e => setInput(e.target.value)}
+                    onChange={e => {
+                        setInput(e.target.value);
+                        const el = e.target;
+                        el.style.height = 'auto';
+                        el.style.height = Math.min(el.scrollHeight, 72) + 'px';
+                    }}
                     onKeyDown={e => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault();
@@ -565,7 +571,7 @@ export default function ExpertChat() {
                     placeholder={`Message ${selectedCoach.name}...`}
                     className="chat-input"
                     disabled={isLoading}
-                    rows={3}
+                    rows={1}
                 />
                 <button
                     type="submit"
