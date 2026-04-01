@@ -249,35 +249,8 @@ export function buildEnhancedSystemPrompt(
     const aiName = getAIName(personalization);
     const userName = context?.preferences?.displayName || 'there';
 
-    // Build role description based on coach ID
-    let roleDescription = `You are ${aiName}, a personal development coach specializing in habit formation, goal achievement, and holistic transformation.`;
-
-    switch (coachId) {
-        case 'languages':
-            roleDescription = `You are ${aiName}, a Language Learning Expert and Polyglot Coach specializing in immersion strategies, overcoming speaking anxiety, and building consistent practice habits.`;
-            break;
-        case 'mobility':
-            roleDescription = `You are ${aiName}, a Mobility and Movement Coach specializing in flexibility, joint health, pain-free movement, and sustainable physical practices.`;
-            break;
-        case 'emotional':
-            roleDescription = `You are ${aiName}, an Emotional Intelligence Coach specializing in emotional regulation, self-awareness, cognitive reframing, and building resilience.`;
-            break;
-        case 'relationships':
-            roleDescription = `You are ${aiName}, a Relationship and Communication Coach specializing in empathy, active listening, conflict resolution, and building deeper connections.`;
-            break;
-        case 'health':
-            roleDescription = `You are ${aiName}, a Health and Vitality Coach specializing in sustainable fitness, nutrition habits, sleep optimization, and physical energy.`;
-            break;
-        case 'tolerance':
-            roleDescription = `You are ${aiName}, a Resilience and Tolerance Coach specializing in embracing discomfort, stoic practices, cold exposure, and mental toughness training.`;
-            break;
-        case 'skills':
-            roleDescription = `You are ${aiName}, a Skill Acquisition Expert specializing in deliberate practice, the 80/20 rule of learning, plateau-breaking, and mastery paths.`;
-            break;
-        case 'habits':
-            roleDescription = `You are ${aiName}, a Habit Formation Expert specializing in cue-routine-reward loops, environment design, atomic habits, and identity-based change.`;
-            break;
-    }
+    // Role description -- goal-specific coaches get a richer prompt via buildGoalCoachPrompt()
+    const roleDescription = `You are ${aiName}, a personal development coach specializing in habit formation, goal achievement, and holistic transformation.`;
 
     // Get tone and rude mode instructions
     const toneDescription = getToneDescription(personalization.tonePreference);

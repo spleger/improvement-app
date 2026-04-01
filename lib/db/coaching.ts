@@ -89,6 +89,42 @@ export async function getLatestConversation(userId: string) {
     };
 }
 
+/**
+ * Get recent messages from all expert chat conversations EXCEPT the given coachId.
+ * Returns a condensed summary suitable for cross-coach context sharing.
+ */
+export async function getOtherCoachConversations(userId: string, excludeCoachId: string) {
+    const convs = await prisma.conversation.findMany({
+        where: {
+            userId,
+            conversationType: 'expert_chat'
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: 20,
+    });
+
+    const results: { coachId: string; recentMessages: { role: string; content: string }[] }[] = [];
+
+    for (const c of convs) {
+        const ctx = c.context ? JSON.parse(c.context) : {};
+        const cId = ctx.coachId || 'general';
+        if (cId === excludeCoachId) continue;
+
+        const messages = c.messages ? JSON.parse(c.messages) : [];
+        if (messages.length === 0) continue;
+
+        // Take the last 4 messages from each other conversation
+        const recent = messages.slice(-4).map((m: any) => ({
+            role: m.role,
+            content: typeof m.content === 'string' ? m.content.substring(0, 200) : ''
+        }));
+
+        results.push({ coachId: cId, recentMessages: recent });
+    }
+
+    return results.slice(0, 5); // Max 5 other conversations
+}
+
 export async function getExpertConversation(userId: string, coachId: string) {
     // Fetch recent expert chats and filter in code
     const convs = await prisma.conversation.findMany({

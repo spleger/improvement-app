@@ -38,11 +38,6 @@ interface Coach {
 
 const DEFAULT_COACHES: Coach[] = [
     { id: 'general', name: 'General', icon: '🧠', color: '#8b5cf6', description: 'Holistic transformation', type: 'default' },
-    { id: 'health', name: 'Health', icon: '💪', color: '#ef4444', description: 'Fitness & vitality', type: 'default' },
-    { id: 'habits', name: 'Habits', icon: '🔄', color: '#f59e0b', description: 'Routine & consistency', type: 'default' },
-    { id: 'emotional', name: 'Emotional', icon: '💜', color: '#ec4899', description: 'EQ & resilience', type: 'default' },
-    { id: 'languages', name: 'Languages', icon: '🗣️', color: '#3b82f6', description: 'Fluency & immersion', type: 'default' },
-    { id: 'mobility', name: 'Mobility', icon: '🧘', color: '#10b981', description: 'Movement & flexibility', type: 'default' },
 ];
 
 const SUGGESTED_TOPICS = [
@@ -435,8 +430,7 @@ export default function ExpertChat() {
                 {showCoachSelector && (
                     <div className="coach-dropdown custom-scrollbar">
 
-                        {/* Default Section */}
-                        <div className="dropdown-section-title">Default Coaches</div>
+                        {/* General + Goal coaches */}
                         <div className="dropdown-grid">
                             {defaultCoaches.map(coach => (
                                 <CoachOption
@@ -446,24 +440,15 @@ export default function ExpertChat() {
                                     onClick={() => { setSelectedCoach(coach); setShowCoachSelector(false); }}
                                 />
                             ))}
+                            {goalCoaches.map(coach => (
+                                <CoachOption
+                                    key={coach.id}
+                                    coach={coach}
+                                    isActive={selectedCoach.id === coach.id}
+                                    onClick={() => { setSelectedCoach(coach); setShowCoachSelector(false); }}
+                                />
+                            ))}
                         </div>
-
-                        {/* Goal Section */}
-                        {goalCoaches.length > 0 && (
-                            <>
-                                <div className="dropdown-section-title mt-2">Your Goals</div>
-                                <div className="dropdown-grid">
-                                    {goalCoaches.map(coach => (
-                                        <CoachOption
-                                            key={coach.id}
-                                            coach={coach}
-                                            isActive={selectedCoach.id === coach.id}
-                                            onClick={() => { setSelectedCoach(coach); setShowCoachSelector(false); }}
-                                        />
-                                    ))}
-                                </div>
-                            </>
-                        )}
 
                         {/* Custom Section */}
                         <div className="dropdown-section-title" style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

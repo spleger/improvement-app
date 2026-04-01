@@ -555,7 +555,7 @@ describe('AI Context Module', () => {
             expect(prompt).toContain('create_goal widget');
         });
 
-        it('applies different coach specializations', () => {
+        it('uses general role description for all coachIds (domain coaches removed)', () => {
             const context: UserContext = {
                 activeGoal: null,
                 allActiveGoals: [],
@@ -574,16 +574,12 @@ describe('AI Context Module', () => {
                 onboardingAnswers: null,
             };
 
+            const generalPrompt = buildEnhancedSystemPrompt(context, 'general');
+            expect(generalPrompt).toContain('personal development coach');
+
+            // Domain coachIds now resolve to the same general role
             const languagesPrompt = buildEnhancedSystemPrompt(context, 'languages');
-            expect(languagesPrompt).toContain('Language Learning Expert');
-            expect(languagesPrompt).toContain('immersion strategies');
-
-            const healthPrompt = buildEnhancedSystemPrompt(context, 'health');
-            expect(healthPrompt).toContain('Health and Vitality Coach');
-            expect(healthPrompt).toContain('sustainable fitness');
-
-            const emotionalPrompt = buildEnhancedSystemPrompt(context, 'emotional');
-            expect(emotionalPrompt).toContain('Emotional Intelligence Coach');
+            expect(languagesPrompt).toContain('personal development coach');
         });
 
         it('applies tone preference', () => {
