@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Send, Sparkles, MessageCircle, User, Bot, ChevronDown, Plus, Trash2, MoreHorizontal, Mic, ArrowLeft, RotateCcw } from 'lucide-react';
+import { Send, Sparkles, MessageCircle, Bot, ChevronDown, Plus, Trash2, MoreHorizontal, Mic, ArrowLeft, RotateCcw } from 'lucide-react';
 import { getIcon } from '@/lib/icons';
 import ChallengeProposal from './widgets/ChallengeProposal';
 import MoodLogWidget from './widgets/MoodLogWidget';
@@ -191,11 +191,38 @@ export default function ExpertChat() {
 
             if (!part.trim()) return null;
 
-            return (
-                <span key={index} style={{ whiteSpace: 'pre-wrap' }}>
-                    {part}
-                </span>
-            );
+            // Parse markdown: bold, italic, headers, lists
+            const lines = part.split('\n');
+            const elements: React.ReactNode[] = [];
+            lines.forEach((line, li) => {
+                if (li > 0) elements.push(<br key={`${index}-br-${li}`} />);
+
+                // Headers
+                const h3 = line.match(/^###\s+(.*)/);
+                if (h3) { elements.push(<strong key={`${index}-h-${li}`} style={{ display: 'block', fontSize: '1rem', marginTop: li > 0 ? '0.5em' : 0 }}>{h3[1]}</strong>); return; }
+                const h2 = line.match(/^##\s+(.*)/);
+                if (h2) { elements.push(<strong key={`${index}-h-${li}`} style={{ display: 'block', fontSize: '1.05rem', marginTop: li > 0 ? '0.5em' : 0 }}>{h2[1]}</strong>); return; }
+
+                // List items
+                const bullet = line.match(/^[-*]\s+(.*)/);
+                if (bullet) { line = '\u2022 ' + bullet[1]; }
+
+                // Inline bold and italic
+                const inlineParts = line.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+                inlineParts.forEach((seg, si) => {
+                    const boldMatch = seg.match(/^\*\*(.+)\*\*$/);
+                    const italicMatch = seg.match(/^\*(.+)\*$/);
+                    if (boldMatch) {
+                        elements.push(<strong key={`${index}-${li}-${si}`}>{boldMatch[1]}</strong>);
+                    } else if (italicMatch) {
+                        elements.push(<em key={`${index}-${li}-${si}`}>{italicMatch[1]}</em>);
+                    } else if (seg) {
+                        elements.push(<span key={`${index}-${li}-${si}`}>{seg}</span>);
+                    }
+                });
+            });
+
+            return <span key={index}>{elements}</span>;
         });
     };
 
@@ -492,11 +519,6 @@ export default function ExpertChat() {
 
                 {messages.map(message => (
                     <div key={message.id} className={`message ${message.role}`}>
-                        {message.role === 'assistant' && (
-                            <div className="message-avatar" style={{ background: selectedCoach.color }}>
-                                {selectedCoach.icon}
-                            </div>
-                        )}
                         <div className="message-bubble">
                             {renderMessageContent(
                                 message.role === 'user'
@@ -504,19 +526,11 @@ export default function ExpertChat() {
                                     : message.content
                             )}
                         </div>
-                        {message.role === 'user' && (
-                            <div className="message-avatar user-avatar">
-                                <User size={16} />
-                            </div>
-                        )}
                     </div>
                 ))}
 
                 {isLoading && (
                     <div className="message assistant">
-                        <div className="message-avatar" style={{ background: selectedCoach.color }}>
-                            {selectedCoach.icon}
-                        </div>
                         <div className="message-bubble typing">
                             <span></span><span></span><span></span>
                         </div>
@@ -797,26 +811,10 @@ export default function ExpertChat() {
                     flex-direction: row-reverse;
                 }
 
-                .message-avatar {
-                    width: 36px;
-                    height: 36px;
-                    border-radius: 12px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 1.1rem;
-                    flex-shrink: 0;
-                }
-
-                .user-avatar {
-                    background: var(--gradient-primary);
-                    color: white;
-                }
-
                 .message-bubble {
-                    max-width: 75%;
+                    width: 100%;
                     padding: 14px 18px;
-                    border-radius: 20px;
+                    border-radius: 16px;
                     line-height: 1.5;
                     font-size: 0.95rem;
                     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
@@ -825,13 +823,21 @@ export default function ExpertChat() {
                 .message.assistant .message-bubble {
                     background: var(--color-surface);
                     color: var(--color-text);
-                    border-bottom-left-radius: 6px;
+                    border-bottom-left-radius: 4px;
                 }
 
                 .message.user .message-bubble {
                     background: var(--gradient-primary);
                     color: white;
-                    border-bottom-right-radius: 6px;
+                    border-bottom-right-radius: 4px;
+                }
+
+                .message-bubble strong {
+                    font-weight: 700;
+                }
+
+                .message-bubble em {
+                    font-style: italic;
                 }
 
                 .message-bubble.typing {
@@ -1109,10 +1115,6 @@ export default function ExpertChat() {
                 @media (max-width: 640px) {
                     .coach-dropdown {
                         grid-template-columns: repeat(2, 1fr);
-                    }
-
-                    .message-bubble {
-                        max-width: 85%;
                     }
 
                     .chat-input-form {
