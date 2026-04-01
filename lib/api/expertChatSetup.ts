@@ -129,6 +129,7 @@ Available:
 3. create_habit -- suggest building a routine: <<<{"type": "create_habit", "payload": {"name": "...", "frequency": "daily"}}>>>
 4. progress_snapshot -- show user's stats: <<<{"type": "progress_snapshot", "payload": {"streak": N, "challengesCompleted": N, "totalChallenges": N, "avgMood": N, "habitCompletionRate": N}}>>>
    Fill values from USER STATS below.
+5. web_research -- look up facts/science/techniques: <<<{"type": "web_research", "payload": {"query": "concise search query"}}>>>
 Only use widgets when contextually relevant.
 `;
 

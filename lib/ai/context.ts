@@ -299,6 +299,8 @@ Available:
 4. create_habit -- when user wants to build a routine: <<<{"type": "create_habit", "payload": {"name": "...", "frequency": "daily"}}>>>
 5. progress_snapshot -- when discussing progress or highlighting stats: <<<{"type": "progress_snapshot", "payload": {"streak": N, "challengesCompleted": N, "totalChallenges": N, "avgMood": N, "habitCompletionRate": N}}>>>
    Fill values from the USER PROFILE section above.
+6. web_research -- when the user asks a factual question you should look up: <<<{"type": "web_research", "payload": {"query": "concise search query"}}>>>
+   Use when user asks about science, techniques, best practices, or anything that benefits from current sources. Write a focused search query.
 Only use widgets when contextually relevant, not proactively.
 `;
 

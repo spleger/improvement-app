@@ -9,6 +9,7 @@ import MoodLogWidget from './widgets/MoodLogWidget';
 import NewGoalWidget from './widgets/NewGoalWidget';
 import CreateHabitWidget from './widgets/CreateHabitWidget';
 import ProgressSnapshot from './widgets/ProgressSnapshot';
+import WebResearchWidget from './widgets/WebResearchWidget';
 import CreateCoachModal from './CreateCoachModal';
 
 /**
@@ -202,6 +203,12 @@ export default function ExpertChat() {
                                         avgMood={data.payload.avgMood}
                                         habitCompletionRate={data.payload.habitCompletionRate}
                                     />
+                                </div>
+                            );
+                        case 'web_research':
+                            return (
+                                <div key={index} className="my-3">
+                                    <WebResearchWidget query={data.payload.query} />
                                 </div>
                             );
                         default:
