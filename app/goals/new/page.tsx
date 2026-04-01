@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import * as db from '@/lib/db';
 import NewGoalForm from './NewGoalForm';
@@ -25,7 +26,9 @@ export default async function NewGoalPage() {
                 </p>
             </div>
 
-            <NewGoalForm domains={domains} />
+            <Suspense fallback={<div className="text-center text-muted p-8">Loading...</div>}>
+                <NewGoalForm domains={domains} />
+            </Suspense>
         </div>
     );
 }

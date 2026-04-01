@@ -292,9 +292,13 @@ Trigger widgets for actionable items. Output on a separate line:
 <<<{"type": "WIDGET_TYPE", "payload": { ... }}>>>
 
 Available:
-1. <<<{"type": "suggest_challenge", "payload": {"title": "...", "difficulty": 5, "isRealityShift": false}}>>>
-2. <<<{"type": "log_mood", "payload": {}}>>>
-3. <<<{"type": "create_goal", "payload": {"title": "...", "domainId": 1}}>>>
+1. suggest_challenge -- when suggesting a challenge: <<<{"type": "suggest_challenge", "payload": {"title": "...", "description": "Brief description", "difficulty": 5, "isRealityShift": false}}>>>
+2. check_in -- when asking about mood/energy/motivation: <<<{"type": "check_in", "payload": {}}>>>
+3. create_goal -- when user expresses a goal intention: <<<{"type": "create_goal", "payload": {"title": "...", "domainId": 1}}>>>
+   domainId: 1=Languages, 2=Mobility, 3=Emotional Growth, 4=Relationships, 5=Physical Health, 6=Tolerance, 7=Skills, 8=Habits
+4. create_habit -- when user wants to build a routine: <<<{"type": "create_habit", "payload": {"name": "...", "frequency": "daily"}}>>>
+5. progress_snapshot -- when discussing progress or highlighting stats: <<<{"type": "progress_snapshot", "payload": {"streak": N, "challengesCompleted": N, "totalChallenges": N, "avgMood": N, "habitCompletionRate": N}}>>>
+   Fill values from the USER PROFILE section above.
 Only use widgets when contextually relevant, not proactively.
 `;
 

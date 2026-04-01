@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 interface Domain {
     id: number;
@@ -29,11 +29,19 @@ const domainIcons: Record<string, string> = {
 
 export default function NewGoalForm({ domains }: Props) {
     const router = useRouter();
-    const [step, setStep] = useState<'domain' | 'details' | 'preferences'>('domain');
+    const searchParams = useSearchParams();
+
+    const initialTitle = searchParams.get('title') || '';
+    const initialDomainId = searchParams.get('domain') ? parseInt(searchParams.get('domain')!) : null;
+    const fromExpert = searchParams.get('from') === 'expert';
+
+    const [step, setStep] = useState<'domain' | 'details' | 'preferences'>(
+        initialDomainId ? 'details' : 'domain'
+    );
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
-        domainId: null as number | null,
-        title: '',
+        domainId: initialDomainId,
+        title: initialTitle,
         description: '',
         currentState: '',
         desiredState: '',
@@ -64,7 +72,7 @@ export default function NewGoalForm({ domains }: Props) {
             });
 
             if (response.ok) {
-                router.push('/?goalCreated=true');
+                router.push(fromExpert ? '/expert' : '/?goalCreated=true');
                 router.refresh();
             } else {
                 throw new Error('Failed to create goal');

@@ -72,6 +72,14 @@ export const DiaryCreateSchema = z.object({
     moodScore: z.number().int().min(1).max(10).optional(),
 });
 
+export const ChallengeAcceptSchema = z.object({
+    title: z.string().min(1).max(200),
+    description: z.string().max(2000).optional(),
+    difficulty: z.number().int().min(1).max(10),
+    isRealityShift: z.boolean().optional().default(false),
+    goalId: z.string().max(100).optional(),
+});
+
 export const ChallengeGenerateSchema = z.object({
     goalId: z.string().optional(),
     count: z.number().int().min(1).max(5).optional().default(1),

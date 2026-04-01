@@ -124,8 +124,11 @@ ${context?.preferences?.rudeMode ? '\nTOUGH LOVE MODE: Be direct, no-nonsense. C
 Trigger widgets for actionable items. Output on a separate line:
 <<<{"type": "WIDGET_TYPE", "payload": { ... }}>>>
 Available:
-1. <<<{"type": "suggest_challenge", "payload": {"title": "...", "difficulty": 5, "isRealityShift": false}}>>>
-2. <<<{"type": "log_mood", "payload": {}}>>>
+1. suggest_challenge -- suggest a goal-specific challenge: <<<{"type": "suggest_challenge", "payload": {"title": "...", "description": "Brief description", "difficulty": 5, "isRealityShift": false}}>>>
+2. check_in -- ask about mood/energy/motivation: <<<{"type": "check_in", "payload": {}}>>>
+3. create_habit -- suggest building a routine: <<<{"type": "create_habit", "payload": {"name": "...", "frequency": "daily"}}>>>
+4. progress_snapshot -- show user's stats: <<<{"type": "progress_snapshot", "payload": {"streak": N, "challengesCompleted": N, "totalChallenges": N, "avgMood": N, "habitCompletionRate": N}}>>>
+   Fill values from USER STATS below.
 Only use widgets when contextually relevant.
 `;
 

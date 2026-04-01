@@ -7,6 +7,8 @@ import { getIcon } from '@/lib/icons';
 import ChallengeProposal from './widgets/ChallengeProposal';
 import MoodLogWidget from './widgets/MoodLogWidget';
 import NewGoalWidget from './widgets/NewGoalWidget';
+import CreateHabitWidget from './widgets/CreateHabitWidget';
+import ProgressSnapshot from './widgets/ProgressSnapshot';
 import CreateCoachModal from './CreateCoachModal';
 
 /**
@@ -157,10 +159,13 @@ export default function ExpertChat() {
                                         title={data.payload.title}
                                         difficulty={data.payload.difficulty}
                                         isRealityShift={data.payload.isRealityShift}
+                                        description={data.payload.description}
+                                        goalId={data.payload.goalId || (selectedCoach.type === 'goal' ? selectedCoach.id : undefined)}
                                         onAccept={() => scrollToBottom()}
                                     />
                                 </div>
                             );
+                        case 'check_in':
                         case 'log_mood':
                             return (
                                 <div key={index} className="my-3">
@@ -173,6 +178,29 @@ export default function ExpertChat() {
                                     <NewGoalWidget
                                         title={data.payload.title}
                                         domainId={data.payload.domainId}
+                                    />
+                                </div>
+                            );
+                        case 'create_habit':
+                            return (
+                                <div key={index} className="my-3">
+                                    <CreateHabitWidget
+                                        name={data.payload.name}
+                                        frequency={data.payload.frequency}
+                                        description={data.payload.description}
+                                        goalId={data.payload.goalId || (selectedCoach.type === 'goal' ? selectedCoach.id : undefined)}
+                                    />
+                                </div>
+                            );
+                        case 'progress_snapshot':
+                            return (
+                                <div key={index} className="my-3">
+                                    <ProgressSnapshot
+                                        streak={data.payload.streak}
+                                        challengesCompleted={data.payload.challengesCompleted}
+                                        totalChallenges={data.payload.totalChallenges}
+                                        avgMood={data.payload.avgMood}
+                                        habitCompletionRate={data.payload.habitCompletionRate}
                                     />
                                 </div>
                             );

@@ -14,7 +14,7 @@ export default function NewGoalWidget({ title, domainId }: Props) {
                 <h4 className="font-bold">{title}</h4>
             </div>
             <Link
-                href={`/goals/new?title=${encodeURIComponent(title)}&domain=${domainId}`}
+                href={`/goals/new?title=${encodeURIComponent(title)}&domain=${domainId}&from=expert`}
                 className="btn btn-primary whitespace-nowrap"
             >
                 Start Journey →
