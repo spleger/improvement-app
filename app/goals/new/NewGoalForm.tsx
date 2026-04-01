@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 interface Domain {
@@ -30,24 +30,36 @@ const domainIcons: Record<string, string> = {
 export default function NewGoalForm({ domains }: Props) {
     const router = useRouter();
     const searchParams = useSearchParams();
-
-    const initialTitle = searchParams.get('title') || '';
-    const initialDomainId = searchParams.get('domain') ? parseInt(searchParams.get('domain')!) : null;
     const fromExpert = searchParams.get('from') === 'expert';
 
-    const [step, setStep] = useState<'domain' | 'details' | 'preferences'>(
-        initialDomainId ? 'details' : 'domain'
-    );
+    const [step, setStep] = useState<'domain' | 'details' | 'preferences'>('domain');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
-        domainId: initialDomainId,
-        title: initialTitle,
+        domainId: null as number | null,
+        title: '',
         description: '',
         currentState: '',
         desiredState: '',
         difficultyLevel: 5,
         realityShiftEnabled: false
     });
+
+    // Pre-fill from URL params (e.g. when coming from expert chat widget)
+    useEffect(() => {
+        const paramTitle = searchParams.get('title');
+        const paramDomain = searchParams.get('domain');
+        if (paramTitle || paramDomain) {
+            const domainId = paramDomain ? parseInt(paramDomain) : null;
+            setFormData(prev => ({
+                ...prev,
+                title: paramTitle || prev.title,
+                domainId: domainId ?? prev.domainId,
+            }));
+            if (domainId) {
+                setStep('details');
+            }
+        }
+    }, [searchParams]);
 
     const selectedDomain = domains.find(d => d.id === formData.domainId);
 
