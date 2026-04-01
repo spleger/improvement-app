@@ -253,10 +253,6 @@ export default function ExpertChat() {
         fetchHistory();
     }, [selectedCoach]);
 
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
-
     const sendMessage = async (content: string) => {
         if (!content.trim()) return;
 
@@ -269,6 +265,8 @@ export default function ExpertChat() {
 
         setMessages(prev => [...prev, userMessage]);
         setInput('');
+        // Scroll to show the user's own message, not the AI reply
+        setTimeout(() => scrollToBottom(), 50);
         if (inputRef.current) inputRef.current.style.height = 'auto';
         setIsLoading(true);
 
