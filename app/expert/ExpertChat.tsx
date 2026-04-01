@@ -749,6 +749,11 @@ export default function ExpertChat() {
                     grid-template-columns: repeat(3, 1fr);
                     gap: 12px;
                     margin-bottom: 16px;
+                    overflow: hidden;
+                }
+
+                .dropdown-grid > * {
+                    min-width: 0;
                 }
 
                 .chat-messages {
@@ -1113,7 +1118,7 @@ export default function ExpertChat() {
                 }
 
                 @media (max-width: 640px) {
-                    .coach-dropdown {
+                    .dropdown-grid {
                         grid-template-columns: repeat(2, 1fr);
                     }
 
@@ -1176,8 +1181,10 @@ const CoachOption = ({ coach, isActive, onClick }: { coach: Coach, isActive: boo
             color: 'var(--color-text)',
             width: '100%',
             overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            lineHeight: 1.3
         }}>
             {coach.name}
         </span>
