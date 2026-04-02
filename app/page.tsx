@@ -99,13 +99,14 @@ export default async function DashboardPage() {
     ]);
     const { todayChallenges, activeGoals, allGoals, habitStats, recentMilestones, partnersWithStats, stats } = dashboardData;
     const challengesPerDay = preferences?.challengesPerDay || 1;
+    const generalChallengesPerDay = preferences?.generalChallengesPerDay || 0;
     const greeting = getGreeting();
 
     const pendingChallenges = todayChallenges.filter(c => c.status === 'pending');
     const generalChallenges = todayChallenges.filter(c => !c.goalId);
 
-    // Show general section if we have general challenges OR if user has no goals (and needs something to do)
-    const showGeneralSection = generalChallenges.length > 0 || activeGoals.length === 0;
+    // Show general section if we have general challenges, user wants them, or user has no goals
+    const showGeneralSection = generalChallenges.length > 0 || generalChallengesPerDay > 0 || activeGoals.length === 0;
 
     return (
         <div className="page animate-fade-in">
@@ -194,6 +195,7 @@ export default async function DashboardPage() {
                 showGeneralSection={showGeneralSection}
                 generalChallenges={generalChallenges}
                 challengesPerDay={challengesPerDay}
+                generalChallengesPerDay={generalChallengesPerDay}
             />
 
             {/* Weekly Insights */}

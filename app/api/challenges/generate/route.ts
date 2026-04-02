@@ -56,14 +56,14 @@ async function getFullUserContext(userId: string, goalId?: string) {
         if (goalId) {
             goal = await db.getGoalById(goalId);
         } else {
+            // If no goalId provided, try to find an active goal
+            // If none exists, we'll generate general (non-goal) challenges
             goal = await db.getActiveGoalByUserId(userId);
         }
 
-        if (!goal) return null;
-
-        // Get all challenges for this goal
+        // Get all challenges for this goal (or general challenges if no goal)
         const allChallengesData = await prisma.challenge.findMany({
-            where: { goalId: goal.id },
+            where: goal ? { goalId: goal.id } : { userId, goalId: null },
             include: { logs: true },
             orderBy: { scheduledDate: 'desc' },
         });
@@ -83,9 +83,9 @@ async function getFullUserContext(userId: string, goalId?: string) {
         const skippedChallenges = allChallenges.filter(c => c.status === 'skipped');
 
         // Calculate day in journey
-        const dayInJourney = Math.ceil(
-            (Date.now() - new Date(goal.startedAt).getTime()) / (1000 * 60 * 60 * 24)
-        );
+        const dayInJourney = goal
+            ? Math.ceil((Date.now() - new Date(goal.startedAt).getTime()) / (1000 * 60 * 60 * 24))
+            : 1;
 
         // Get recent surveys for mood/energy patterns
         const surveys = await db.getSurveysByUserId(userId, 7);
@@ -148,9 +148,9 @@ async function getFullUserContext(userId: string, goalId?: string) {
         const recentDiary = diaryEntries.filter(d => new Date(d.createdAt) >= sevenDaysAgo);
 
         return {
-            goal,
+            goal: goal || null,
             dayInJourney,
-            totalDays: 30,
+            totalDays: goal ? 30 : 0,
             completedCount: completedChallenges.length,
             skippedCount: skippedChallenges.length,
             streak,
@@ -250,21 +250,36 @@ function buildUserContextMessage(context: any, preferences?: { count?: number; f
         ).join('\n')}\n`
         : '';
 
-    return `
-=== USER'S GOAL ===
+    // Goal section: either specific goal or general daily growth
+    const goalSection = context.goal
+        ? `=== USER'S GOAL ===
 Title: "${context.goal.title}"
 Domain: ${context.goal.domain?.name || 'General'}
 Current State: "${context.goal.currentState || 'Not specified'}"
 Desired State: "${context.goal.desiredState || 'Not specified'}"
 Goal Difficulty Setting: ${context.goal.difficultyLevel}/10
 User Default Difficulty: ${context.preferences?.preferredDifficulty || 5}/10
-${context.goal.difficultyLevel === 5 && context.preferences?.preferredDifficulty && context.preferences.preferredDifficulty !== 5 ? '(Goal uses default -- use user preference instead)\n' : ''}Reality Shift Mode: ${(context.goal.realityShiftEnabled || context.preferences?.realityShiftEnabled) ? 'ON (user wants extreme, life-changing challenges)' : 'OFF'}
+${context.goal.difficultyLevel === 5 && context.preferences?.preferredDifficulty && context.preferences.preferredDifficulty !== 5 ? '(Goal uses default -- use user preference instead)\n' : ''}Reality Shift Mode: ${(context.goal.realityShiftEnabled || context.preferences?.realityShiftEnabled) ? 'ON (user wants extreme, life-changing challenges)' : 'OFF'}`
+        : `=== GENERAL DAILY GROWTH ===
+This is a general growth challenge NOT tied to a specific goal.
+Generate a well-rounded personal development challenge.
+Difficulty: ${context.preferences?.preferredDifficulty || 5}/10
+Reality Shift Mode: ${context.preferences?.realityShiftEnabled ? 'ON (user wants extreme, life-changing challenges)' : 'OFF'}`;
+
+    const realityShift = context.goal
+        ? (context.goal.realityShiftEnabled || context.preferences?.realityShiftEnabled)
+        : context.preferences?.realityShiftEnabled;
+
+    return `
+${goalSection}
 ${onboardingSection}
-=== JOURNEY PROGRESS ===
+${context.goal ? `=== JOURNEY PROGRESS ===
 Day ${context.dayInJourney} of ${context.totalDays}
 Challenges completed: ${context.completedCount}
 Challenges skipped: ${context.skippedCount}
-Current streak: ${context.streak} days
+Current streak: ${context.streak} days` : `=== PROGRESS ===
+General challenges completed: ${context.completedCount}
+Current streak: ${context.streak} days`}
 
 === ADAPTATION DATA ===
 Average difficulty felt by user: ${context.avgDifficultyFelt}/10
@@ -297,9 +312,9 @@ ${context.preferences?.preferredChallengeTime && context.preferences.preferredCh
 User prefers ${context.preferences.preferredChallengeTime} challenges. Design challenges suitable for ${context.preferences.preferredChallengeTime} time (${context.preferences.preferredChallengeTime === 'morning' ? 'energizing, can be done before work' : context.preferences.preferredChallengeTime === 'afternoon' ? 'can be done during breaks or midday' : 'reflective, wind-down friendly'}).
 ` : ''}
 === REQUEST ===
-Generate ${count} unique, personalized challenge${count > 1 ? 's' : ''} for today (Day ${context.dayInJourney}).
+Generate ${count} unique, personalized challenge${count > 1 ? 's' : ''} for today${context.goal ? ` (Day ${context.dayInJourney})` : ''}.
 ${preferences?.focusArea ? `User specifically wants to focus on: ${preferences.focusArea}` : ''}
-${(context.goal.realityShiftEnabled || context.preferences?.realityShiftEnabled) ? 'INCLUDE AT LEAST ONE "REALITY SHIFT" CHALLENGE (Something scary/uncomfortable that drives massive growth).' : ''}
+${realityShift ? 'INCLUDE AT LEAST ONE "REALITY SHIFT" CHALLENGE (Something scary/uncomfortable that drives massive growth).' : ''}
 `;
 }
 
@@ -323,7 +338,7 @@ export async function POST(request: NextRequest) {
 
         if (!context) {
             return NextResponse.json(
-                { success: false, error: 'No active goal found. Please create a goal first.' },
+                { success: false, error: 'Failed to build challenge context.' },
                 { status: 400 }
             );
         }
@@ -389,7 +404,7 @@ export async function POST(request: NextRequest) {
             for (const challenge of challenges) {
                 const saved = await db.createChallenge({
                     userId: user.userId,
-                    goalId: context.goal.id,
+                    goalId: context.goal?.id,
                     title: challenge.title,
                     description: challenge.description,
                     difficulty: challenge.difficulty,
@@ -409,7 +424,8 @@ export async function POST(request: NextRequest) {
                     challenges: savedChallenges,
                     context: {
                         day: context.dayInJourney,
-                        adaptedDifficulty: context.avgDifficultyFelt
+                        adaptedDifficulty: context.avgDifficultyFelt,
+                        isGeneral: !context.goal,
                     }
                 }
             });
@@ -423,9 +439,11 @@ export async function POST(request: NextRequest) {
 
             const fallbackChallenge = await db.createChallenge({
                 userId: user.userId,
-                goalId: context.goal.id,
-                title: `Day ${context.dayInJourney} Focus`,
-                description: `Spend 15-20 minutes working toward your goal: ${context.goal.title}. Reflect on what progress you can make today.`,
+                goalId: context.goal?.id,
+                title: context.goal ? `Day ${context.dayInJourney} Focus` : 'Daily Growth Focus',
+                description: context.goal
+                    ? `Spend 15-20 minutes working toward your goal: ${context.goal.title}. Reflect on what progress you can make today.`
+                    : 'Spend 15-20 minutes on personal growth. Try something new or reflect on an area you want to improve.',
                 difficulty: 3,
                 isRealityShift: false,
                 scheduledDate: new Date(),

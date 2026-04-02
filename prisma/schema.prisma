@@ -259,6 +259,7 @@ model UserPreferences {
   displayName               String?
   preferredDifficulty       Int?
   challengesPerDay          Int?
+  generalChallengesPerDay   Int?     // Extra challenges not tied to any goal (Daily Growth section)
   realityShiftEnabled       Boolean?
   preferredChallengeTime    String?
   focusAreas                String?  // JSON string

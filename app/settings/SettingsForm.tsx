@@ -6,6 +6,7 @@ interface Preferences {
     displayName?: string;
     preferredDifficulty?: number;
     challengesPerDay?: number;
+    generalChallengesPerDay?: number;
     realityShiftEnabled?: boolean;
     preferredChallengeTime?: string;
     focusAreas?: string[];
@@ -36,6 +37,7 @@ const DEFAULT_PREFS: Preferences = {
     displayName: '',
     preferredDifficulty: 5,
     challengesPerDay: 1,
+    generalChallengesPerDay: 0,
     realityShiftEnabled: false,
     preferredChallengeTime: 'morning',
     focusAreas: [],
@@ -211,21 +213,69 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                     </p>
                 </div>
 
-                {/* Challenges Per Day */}
+                {/* Challenges Per Day (per goal) */}
                 <div className="form-group">
-                    <label className="form-label">Challenge{(prefs.challengesPerDay || 1) !== 1 ? 's' : ''} Per Day</label>
-                    <div className="flex gap-sm">
-                        {[1, 2, 3, 5].map(n => (
-                            <button
-                                key={n}
-                                onClick={() => updatePref('challengesPerDay', n)}
-                                className={`btn ${(prefs.challengesPerDay || 1) === n ? 'btn-primary' : 'btn-secondary'}`}
-                                style={{ flex: 1 }}
-                            >
-                                {n}
-                            </button>
-                        ))}
+                    <label className="form-label">Challenge{(prefs.challengesPerDay || 1) !== 1 ? 's' : ''} Per Day (per goal)</label>
+                    <div className="flex items-center gap-md">
+                        <input
+                            type="number"
+                            min={1}
+                            max={10}
+                            value={prefs.challengesPerDay || 1}
+                            onChange={e => {
+                                const val = parseInt(e.target.value, 10);
+                                if (!isNaN(val) && val >= 1 && val <= 10) {
+                                    updatePref('challengesPerDay', val);
+                                }
+                            }}
+                            className="form-input"
+                            style={{
+                                width: '80px',
+                                textAlign: 'center',
+                                fontSize: '1.1rem',
+                                fontWeight: 600,
+                                background: 'var(--color-surface-2)',
+                                border: '2px solid var(--color-border)',
+                            }}
+                        />
+                        <span className="text-small text-muted">
+                            challenge{(prefs.challengesPerDay || 1) !== 1 ? 's' : ''} generated per goal each day
+                        </span>
                     </div>
+                </div>
+
+                {/* General Challenges Per Day (Daily Growth) */}
+                <div className="form-group">
+                    <label className="form-label">Daily Growth Challenge{(prefs.generalChallengesPerDay || 0) !== 1 ? 's' : ''}</label>
+                    <div className="flex items-center gap-md">
+                        <input
+                            type="number"
+                            min={0}
+                            max={10}
+                            value={prefs.generalChallengesPerDay || 0}
+                            onChange={e => {
+                                const val = parseInt(e.target.value, 10);
+                                if (!isNaN(val) && val >= 0 && val <= 10) {
+                                    updatePref('generalChallengesPerDay', val);
+                                }
+                            }}
+                            className="form-input"
+                            style={{
+                                width: '80px',
+                                textAlign: 'center',
+                                fontSize: '1.1rem',
+                                fontWeight: 600,
+                                background: 'var(--color-surface-2)',
+                                border: '2px solid var(--color-border)',
+                            }}
+                        />
+                        <span className="text-small text-muted">
+                            extra challenge{(prefs.generalChallengesPerDay || 0) !== 1 ? 's' : ''} not tied to any goal
+                        </span>
+                    </div>
+                    <p className="text-tiny text-muted" style={{ marginTop: 'var(--spacing-xs)' }}>
+                        Random growth challenges shown in the Daily Growth section on your dashboard
+                    </p>
                 </div>
 
                 {/* Challenge Length */}

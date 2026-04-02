@@ -37,6 +37,7 @@ export async function saveUserPreferences(userId: string, prefs: {
     displayName?: string | null;
     preferredDifficulty?: number | null;
     challengesPerDay?: number | null;
+    generalChallengesPerDay?: number | null;
     realityShiftEnabled?: boolean | null;
     preferredChallengeTime?: string | null;
     focusAreas?: string[] | null;

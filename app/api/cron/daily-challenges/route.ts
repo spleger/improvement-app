@@ -105,6 +105,7 @@ async function generateDailyChallenges() {
         // Get user preferences for challengesPerDay
         const preferences = await db.getUserPreferences(user.id);
         const challengesPerDay = preferences?.challengesPerDay || 1;
+        const generalChallengesPerDay = preferences?.generalChallengesPerDay || 0;
 
         // Generate challenges for each active goal
         let totalGenerated = 0;
@@ -122,8 +123,23 @@ async function generateDailyChallenges() {
             }
         }
 
+        // Generate general (non-goal) Daily Growth challenges
+        if (generalChallengesPerDay > 0) {
+            try {
+                const generated = await callChallengeGeneration(
+                    user.id,
+                    null,
+                    generalChallengesPerDay
+                );
+                totalGenerated += generated;
+            } catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                errors.push(`${user.email}/Daily Growth: ${msg}`);
+            }
+        }
+
         processed.push(
-            `${user.email}: generated ${totalGenerated} challenges for ${user.goals.length} goal(s), cleaned ${cleanedUp.count} old pending`
+            `${user.email}: generated ${totalGenerated} challenges for ${user.goals.length} goal(s)${generalChallengesPerDay > 0 ? ` + ${generalChallengesPerDay} general` : ''}, cleaned ${cleanedUp.count} old pending`
         );
     }
 
@@ -193,7 +209,7 @@ function getTodayInTimezone(timezone: string): Date {
  */
 async function callChallengeGeneration(
     userId: string,
-    goalId: string,
+    goalId: string | null,
     count: number
 ): Promise<number> {
     // Import and call the generation logic directly to avoid HTTP overhead
@@ -212,7 +228,7 @@ async function callChallengeGeneration(
             'Content-Type': 'application/json',
             Cookie: `auth_token=${token}`,
         },
-        body: JSON.stringify({ goalId, count }),
+        body: JSON.stringify({ ...(goalId ? { goalId } : {}), count }),
     });
 
     if (!response.ok) {

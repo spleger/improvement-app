@@ -79,7 +79,7 @@ export default async function ProfilePage() {
                     margin: '0 auto 1rem',
                     fontSize: '2.5rem'
                 }}>
-                    👤
+                    🐿️
                 </div>
                 <h1 className="heading-2">My Profile</h1>
                 <p className="text-secondary">

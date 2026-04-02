@@ -8,6 +8,7 @@ interface DashboardGoalSectionProps {
     showGeneralSection: boolean;
     generalChallenges: any[];
     challengesPerDay?: number;
+    generalChallengesPerDay?: number;
 }
 
 export default function DashboardGoalSection({
@@ -16,6 +17,7 @@ export default function DashboardGoalSection({
     showGeneralSection,
     generalChallenges,
     challengesPerDay = 1,
+    generalChallengesPerDay = 0,
 }: DashboardGoalSectionProps) {
     return (
         <>
@@ -26,15 +28,15 @@ export default function DashboardGoalSection({
                         <h2 className="heading-4">🌱 Daily Growth</h2>
                     </div>
 
-                    {generalChallenges.length === 0 ? (
-                        <DailyChallengeLoader goalId={null} goalTitle="Daily Growth" challengesPerDay={challengesPerDay} />
-                    ) : (
+                    {generalChallenges.length === 0 && generalChallengesPerDay > 0 ? (
+                        <DailyChallengeLoader goalId={null} goalTitle="Daily Growth" challengesPerDay={generalChallengesPerDay} />
+                    ) : generalChallenges.length > 0 ? (
                         <div className="flex flex-col gap-md">
                             {generalChallenges.map(challenge => (
                                 <ChallengeCard key={challenge.id} challenge={challenge} />
                             ))}
                         </div>
-                    )}
+                    ) : null}
                 </section>
             )}
 

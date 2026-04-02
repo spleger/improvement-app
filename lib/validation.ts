@@ -49,6 +49,7 @@ export const SettingsSchema = z.object({
     displayName: z.string().max(100).optional().nullable(),
     preferredDifficulty: z.number().int().min(1).max(10).optional().nullable(),
     challengesPerDay: z.number().int().min(1).max(10).optional().nullable(),
+    generalChallengesPerDay: z.number().int().min(0).max(10).optional().nullable(),
     realityShiftEnabled: z.boolean().optional().nullable(),
     preferredChallengeTime: z.string().max(50).optional().nullable(),
     focusAreas: z.array(z.string().max(50)).optional().nullable(),
