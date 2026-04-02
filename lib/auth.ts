@@ -35,6 +35,14 @@ export function verifyToken(token: string): any {
     }
 }
 
+/**
+ * Sign a short-lived internal token for server-to-server calls (e.g., cron jobs).
+ * Expires in 60 seconds -- only for immediate use.
+ */
+export function signInternalToken(userId: string): string {
+    return jwt.sign({ userId, internal: true }, getJwtSecret(), { expiresIn: '60s' });
+}
+
 // Session Management (Server Components)
 export async function getSession() {
     const cookieStore = cookies();
