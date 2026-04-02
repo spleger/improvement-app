@@ -227,6 +227,45 @@ export async function upsertCoachMemory(userId: string, coachId: string, memorie
     });
 }
 
+/**
+ * Get the user's recent messages from each expert chat conversation.
+ * Returns only role=user messages to reveal what the user is discussing.
+ */
+export async function getRecentChatMessagesByUser(
+    userId: string,
+    maxMessagesPerCoach: number = 3
+): Promise<{ coachId: string; coachName: string; messages: string[] }[]> {
+    const convs = await prisma.conversation.findMany({
+        where: {
+            userId,
+            conversationType: 'expert_chat',
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: 20,
+    });
+
+    const results: { coachId: string; coachName: string; messages: string[] }[] = [];
+
+    for (const c of convs) {
+        const ctx = c.context ? JSON.parse(c.context) : {};
+        const coachId = ctx.coachId || 'general';
+        const coachName = ctx.coachName || 'General Coach';
+
+        const messages = c.messages ? JSON.parse(c.messages) : [];
+        const userMessages = messages
+            .filter((m: any) => m.role === 'user')
+            .slice(-maxMessagesPerCoach)
+            .map((m: any) => (typeof m.content === 'string' ? m.content.substring(0, 200) : ''))
+            .filter((s: string) => s.length > 0);
+
+        if (userMessages.length === 0) continue;
+
+        results.push({ coachId, coachName, messages: userMessages });
+    }
+
+    return results.slice(0, 10);
+}
+
 export async function clearConversationMessages(conversationId: string) {
     return await prisma.conversation.update({
         where: { id: conversationId },

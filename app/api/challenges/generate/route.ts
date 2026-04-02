@@ -25,7 +25,8 @@ Each challenge object in the array must have:
   "isRealityShift": boolean,
   "successCriteria": "Clear, measurable success criteria",
   "scientificBasis": "Brief explanation of why this works (1 sentence)",
-  "estimatedMinutes": number
+  "estimatedMinutes": number,
+  "tips": ["3 personalized tips that reference the user's specific history, patterns, or recent activity. Do NOT give generic advice like 'stay hydrated' or 'be consistent'. Instead reference what you know: their diary entries, past challenge feedback, habit patterns, or coach conversations."]
 }
 
 ### DESIGN PRINCIPLES
@@ -39,6 +40,13 @@ Each challenge object in the array must have:
    - Days 6-15: Growth (Pushing boundaries)
    - Days 16-25: Acceleration (High intensity)
    - Days 26+: Mastery (Peak performance)
+5. **Personalized Tips**: Each tip must reference something specific from the user's data:
+   - What they said in diary entries or to their coach
+   - Patterns in their challenge feedback (what they find hard/easy/satisfying)
+   - Their habit completion patterns and streaks
+   - Their recent mood/energy/stress trends
+   - Their stated motivation and biggest challenges from onboarding
+   Never generate tips that could apply to any user. Every tip should feel like it was written for THIS person.
 `;
 
 async function getFullUserContext(userId: string, goalId?: string) {
@@ -110,8 +118,34 @@ async function getFullUserContext(userId: string, goalId?: string) {
             ? Math.round(surveys.reduce((sum, s) => sum + s.energyLevel, 0) / surveys.length * 10) / 10
             : null;
 
-        // Get user preferences for personalization
-        const preferences = await db.getUserPreferences(userId);
+        // Fetch enrichment data in parallel
+        const [
+            preferences,
+            diaryEntries,
+            habitStats,
+            recentChatMessages,
+            userData,
+        ] = await Promise.all([
+            db.getUserPreferences(userId),
+            db.getDiaryEntriesByUserId(userId, 10),
+            db.getHabitStats(userId, 7),
+            db.getRecentChatMessagesByUser(userId, 3),
+            prisma.user.findUnique({ where: { id: userId }, select: { onboardingData: true } }),
+        ]);
+
+        // Parse onboarding answers
+        let onboardingAnswers: Record<string, string> | null = null;
+        if (userData?.onboardingData) {
+            try {
+                const parsed = JSON.parse(userData.onboardingData);
+                onboardingAnswers = parsed?.answers || null;
+            } catch { /* ignore malformed JSON */ }
+        }
+
+        // Filter diary entries to last 7 days
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const recentDiary = diaryEntries.filter(d => new Date(d.createdAt) >= sevenDaysAgo);
 
         return {
             goal,
@@ -125,11 +159,17 @@ async function getFullUserContext(userId: string, goalId?: string) {
             avgMood,
             avgEnergy,
             recentChallenges: allChallenges.slice(0, 5),
+            allChallenges,
             completionNotes: completedChallenges
                 .filter(c => c.completionNotes)
                 .slice(0, 3)
                 .map(c => c.completionNotes),
             preferences,
+            surveys,
+            recentDiary,
+            habitStats,
+            recentChatMessages,
+            onboardingAnswers,
         };
     } catch (error) {
         console.error('Error getting user context:', error);
@@ -140,6 +180,76 @@ async function getFullUserContext(userId: string, goalId?: string) {
 function buildUserContextMessage(context: any, preferences?: { count?: number; focusArea?: string }) {
     const count = preferences?.count || 1;
 
+    // Build onboarding section
+    let onboardingSection = '';
+    if (context.onboardingAnswers) {
+        const a = context.onboardingAnswers;
+        const lines: string[] = [];
+        if (a.motivation) lines.push(`Motivation: "${a.motivation}"`);
+        if (a.currentSituation || a.startingPoint) lines.push(`Starting point: "${a.currentSituation || a.startingPoint}"`);
+        if (a.biggestChallenge) lines.push(`Biggest challenge: "${a.biggestChallenge}"`);
+        if (a.priorExperience) lines.push(`Prior experience: "${a.priorExperience}"`);
+        if (lines.length > 0) {
+            onboardingSection = `\n=== USER BACKGROUND (from onboarding) ===\n${lines.join('\n')}\n`;
+        }
+    }
+
+    // Build all-time challenge history
+    const allChallengesSection = context.allChallenges?.length > 0
+        ? `\n=== ALL PAST CHALLENGES (complete history) ===\n${context.allChallenges.map((c: any) => {
+            const parts = [`"${c.title}"`, c.status];
+            if (c.difficulty) parts.push(`assigned:${c.difficulty}`);
+            if (c.difficultyFelt != null) parts.push(`felt:${c.difficultyFelt}`);
+            if (c.satisfaction != null) parts.push(`satisfaction:${c.satisfaction}`);
+            if (c.completionNotes) parts.push(`notes: "${c.completionNotes}"`);
+            if (c.status === 'skipped' && c.skippedReason) parts.push(`reason: "${c.skippedReason}"`);
+            return `- ${parts.join(' | ')}`;
+        }).join('\n')}\n`
+        : '';
+
+    // Build recent surveys section (full detail)
+    const surveysSection = context.surveys?.length > 0
+        ? `\n=== RECENT CHECK-INS (last 7 days) ===\n${context.surveys.map((s: any) => {
+            const date = new Date(s.surveyDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const parts = [`Mood:${s.overallMood}`, `Energy:${s.energyLevel}`];
+            if (s.stressLevel != null) parts.push(`Stress:${s.stressLevel}`);
+            if (s.sleepQuality != null) parts.push(`Sleep:${s.sleepQuality}`);
+            let line = `- [${date}] ${parts.join(' ')}`;
+            if (s.biggestWin) line += ` | Win: "${s.biggestWin}"`;
+            if (s.biggestBlocker) line += ` | Blocker: "${s.biggestBlocker}"`;
+            return line;
+        }).join('\n')}\n`
+        : '';
+
+    // Build diary section (AI summaries only)
+    const diarySection = context.recentDiary?.length > 0
+        ? `\n=== RECENT DIARY (last 7 days, AI summaries) ===\n${context.recentDiary
+            .filter((d: any) => d.aiSummary)
+            .map((d: any) => {
+                const date = new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                return `- [${date}] "${d.aiSummary}"`;
+            }).join('\n')}\n`
+        : '';
+
+    // Build habit patterns section
+    let habitSection = '';
+    if (context.habitStats?.habits?.length > 0) {
+        const hs = context.habitStats;
+        const habitLines = hs.habits.map((h: any) => {
+            const completedDays = hs.habits.length > 0 ? Math.round((hs.weeklyCompletionRate / 100) * 7) : 0;
+            const streakStr = h.streak > 0 ? `${h.streak}-day streak` : 'no streak';
+            return `- "${h.name}" [${streakStr}]`;
+        }).join('\n');
+        habitSection = `\n=== HABIT PATTERNS (last 7 days) ===\nCompletion rate: ${hs.weeklyCompletionRate}%\n${habitLines}\n`;
+    }
+
+    // Build coach conversations section
+    const chatSection = context.recentChatMessages?.length > 0
+        ? `\n=== WHAT USER IS DISCUSSING WITH COACHES ===\n${context.recentChatMessages.map((c: any) =>
+            `- ${c.coachName}: ${c.messages.map((m: string) => `"${m}"`).join(', ')}`
+        ).join('\n')}\n`
+        : '';
+
     return `
 === USER'S GOAL ===
 Title: "${context.goal.title}"
@@ -148,7 +258,7 @@ Current State: "${context.goal.currentState || 'Not specified'}"
 Desired State: "${context.goal.desiredState || 'Not specified'}"
 Preferred Difficulty: ${context.goal.difficultyLevel}/10
 Reality Shift Mode: ${context.goal.realityShiftEnabled ? 'ON (user wants extreme, life-changing challenges)' : 'OFF'}
-
+${onboardingSection}
 === JOURNEY PROGRESS ===
 Day ${context.dayInJourney} of ${context.totalDays}
 Challenges completed: ${context.completedCount}
@@ -160,17 +270,7 @@ Average difficulty felt by user: ${context.avgDifficultyFelt}/10
 Average satisfaction after challenges: ${context.avgSatisfaction}/10
 ${context.avgMood ? `Average mood: ${context.avgMood}/10` : ''}
 ${context.avgEnergy ? `Average energy: ${context.avgEnergy}/10` : ''}
-
-=== RECENT CHALLENGES (Do NOT repeat these) ===
-${context.recentChallenges.slice(0, 5).map((c: any) =>
-        `- "${c.title}" (${c.status}, difficulty ${c.difficulty}/10)`
-    ).join('\n') || 'No recent challenges'}
-
-${context.completionNotes.length > 0 ? `
-=== USER NOTES (What they liked/struggled with) ===
-${context.completionNotes.map((n: string) => `- "${n}"`).join('\n')}
-` : ''}
-
+${allChallengesSection}${surveysSection}${diarySection}${habitSection}${chatSection}
 ${context.preferences?.focusAreas && context.preferences.focusAreas.length > 0 ? `
 === USER FOCUS AREAS ===
 The user wants challenges that focus on: ${context.preferences.focusAreas.join(', ')}. Prioritize these topics.
@@ -233,7 +333,7 @@ export async function POST(request: NextRequest) {
                 },
                 body: JSON.stringify({
                     model: ANTHROPIC_MODEL,
-                    max_tokens: 1000,
+                    max_tokens: 1500,
                     system: SYSTEM_PROMPT,
                     messages: [{ role: 'user', content: userMessage }]
                 })
@@ -286,7 +386,10 @@ export async function POST(request: NextRequest) {
                     difficulty: challenge.difficulty,
                     isRealityShift: challenge.isRealityShift || false,
                     scheduledDate: today,
-                    personalizationNotes: `${challenge.instructions}\n\n📚 Why this works: ${challenge.scientificBasis}\n\n✓ Success: ${challenge.successCriteria}`
+                    tips: Array.isArray(challenge.tips) ? challenge.tips : [],
+                    instructions: challenge.instructions,
+                    successCriteria: challenge.successCriteria,
+                    personalizationNotes: `${challenge.instructions}\n\nWhy this works: ${challenge.scientificBasis}\n\nSuccess: ${challenge.successCriteria}`
                 });
                 savedChallenges.push(saved);
             }
