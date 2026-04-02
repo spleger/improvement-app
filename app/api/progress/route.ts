@@ -32,10 +32,9 @@ export async function GET() {
             }
         });
     } catch (error) {
-        // Log error for debugging
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error('Progress error:', error);
         return NextResponse.json(
-            { success: false, error: `Internal server error: ${errorMessage}` },
+            { success: false, error: 'Internal server error' },
             { status: 500 }
         );
     }

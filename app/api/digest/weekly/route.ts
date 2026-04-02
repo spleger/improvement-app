@@ -95,10 +95,9 @@ export async function GET(request: NextRequest) {
             },
         });
     } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error('Weekly digest error:', errorMessage);
+        console.error('Weekly digest error:', error);
         return NextResponse.json(
-            { success: false, error: `Internal server error: ${errorMessage}` },
+            { success: false, error: 'Internal server error' },
             { status: 500 },
         );
     }
