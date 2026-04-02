@@ -92,7 +92,7 @@ export default function AvatarUpload({ initialUrl, displayName }: AvatarUploadPr
                 {avatarUrl ? (
                     <img src={avatarUrl} alt="Profile" className="avatar-image" />
                 ) : (
-                    <div className="avatar-placeholder">{initials}</div>
+                    <div className="avatar-placeholder">🐿️</div>
                 )}
                 <div className="avatar-overlay">
                     {saving ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
