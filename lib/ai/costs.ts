@@ -5,9 +5,7 @@
  * Costs are calculated based on current pricing and stored in cents.
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 // Pricing per million tokens (in cents)
 const PRICING: Record<string, { input: number; output: number }> = {

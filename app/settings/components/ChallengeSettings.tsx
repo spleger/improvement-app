@@ -170,6 +170,7 @@ export default function ChallengeSettings({ prefs, updatePref, focusInput, setFo
                             placeholder="e.g., speaking, morning routines, facing fears"
                             className="form-input"
                             style={{ flex: 1 }}
+                            autoComplete="off"
                         />
                         <button onClick={addFocusArea} className="btn btn-secondary">Add</button>
                     </div>

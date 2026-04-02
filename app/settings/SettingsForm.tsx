@@ -143,6 +143,7 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                         onChange={e => updatePref('displayName', e.target.value)}
                         placeholder="Your name"
                         className="form-input"
+                        autoComplete="name"
                     />
                 </div>
             </section>
@@ -274,6 +275,7 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                             placeholder="e.g., speaking, morning routines, facing fears"
                             className="form-input"
                             style={{ flex: 1 }}
+                            autoComplete="off"
                         />
                         <button onClick={addFocusArea} className="btn btn-secondary">Add</button>
                     </div>

@@ -30,6 +30,7 @@ export default function ProfileSettings({ prefs, updatePref, accentColors }: Pro
                     onChange={e => updatePref('displayName', e.target.value)}
                     placeholder="Your name"
                     className="form-input"
+                    autoComplete="name"
                 />
             </div>
 

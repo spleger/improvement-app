@@ -185,6 +185,7 @@ export default function CreateCoachModal({ onClose, onCreated }: CreateCoachModa
                             onChange={(e) => setName(e.target.value)}
                             placeholder="Drill Sergeant"
                             maxLength={20}
+                            autoComplete="off"
                             style={{
                                 width: '100%',
                                 padding: '10px 12px',

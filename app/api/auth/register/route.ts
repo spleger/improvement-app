@@ -3,6 +3,8 @@ import * as db from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
 const registerSchema = z.object({
     email: z.string().email(),
     password: z.string().min(6, 'Password must be at least 6 characters'),

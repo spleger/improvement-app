@@ -159,6 +159,7 @@ export default function NewGoalForm({ domains }: Props) {
                             onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
                             placeholder={selectedDomain?.examples[0] || "e.g., Learn conversational German"}
                             className="form-input"
+                            autoComplete="off"
                         />
                         {selectedDomain && selectedDomain.examples.length > 0 && (
                             <div className="text-small text-muted mt-sm">

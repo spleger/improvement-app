@@ -5,6 +5,8 @@ import { sendPushNotification } from '@/lib/push';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation';
 
+export const dynamic = 'force-dynamic';
+
 const PushSendSchema = z.object({
     userId: z.string().min(1).max(200),
     title: z.string().min(1).max(200),

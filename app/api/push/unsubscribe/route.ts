@@ -4,6 +4,8 @@ import { removePushSubscription } from '@/lib/db';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation';
 
+export const dynamic = 'force-dynamic';
+
 const PushUnsubscribeSchema = z.object({
     endpoint: z.string().url().max(2000),
 });

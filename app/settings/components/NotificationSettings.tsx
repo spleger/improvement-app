@@ -59,6 +59,7 @@ export default function NotificationSettings({ prefs, updatePref, pushSupported,
                         onChange={e => updatePref('dailyReminderTime', e.target.value)}
                         className="form-input"
                         style={{ maxWidth: '150px' }}
+                        autoComplete="off"
                     />
                 </div>
             )}

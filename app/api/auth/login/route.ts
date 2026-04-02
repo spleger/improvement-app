@@ -4,6 +4,8 @@ import { comparePassword, signToken } from '@/lib/auth';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 
+export const dynamic = 'force-dynamic';
+
 const loginSchema = z.object({
     email: z.string().email(),
     password: z.string(),

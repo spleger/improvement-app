@@ -3,6 +3,8 @@ import * as db from '@/lib/db';
 import { signToken, hashPassword } from '@/lib/auth';
 import { cookies } from 'next/headers';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
     try {
         const demoEmail = 'demo@example.com';
