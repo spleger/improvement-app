@@ -202,8 +202,10 @@ export default function CreateHabitModal({ onClose, onCreated }: CreateHabitModa
                         max-width: 440px;
                         max-height: 90vh;
                         overflow-y: auto;
+                        overflow-x: hidden;
                         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
                         animation: modalIn 0.25s ease-out;
+                        box-sizing: border-box;
                     }
 
                     @keyframes modalIn {
@@ -266,6 +268,7 @@ export default function CreateHabitModal({ onClose, onCreated }: CreateHabitModa
                         color: var(--color-text);
                         font-size: 1rem;
                         transition: border-color 0.2s;
+                        box-sizing: border-box;
                     }
 
                     .form-input:focus, .form-select:focus {
@@ -276,7 +279,7 @@ export default function CreateHabitModal({ onClose, onCreated }: CreateHabitModa
                     .emoji-grid {
                         display: grid;
                         grid-template-columns: repeat(8, 1fr);
-                        gap: 8px;
+                        gap: 6px;
                     }
 
                     .emoji-btn {
@@ -354,7 +357,7 @@ export default function CreateHabitModal({ onClose, onCreated }: CreateHabitModa
                         cursor: pointer;
                         transition: all 0.2s;
                         white-space: nowrap;
-                        min-width: 140px;
+                        min-width: 0;
                     }
 
                     .btn-secondary {
