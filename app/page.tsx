@@ -93,7 +93,12 @@ export default async function DashboardPage() {
         redirect('/login');
     }
 
-    const { todayChallenges, activeGoals, allGoals, habitStats, recentMilestones, partnersWithStats, stats } = await getDashboardData(user.userId);
+    const [dashboardData, preferences] = await Promise.all([
+        getDashboardData(user.userId),
+        safeFetch(() => db.getUserPreferences(user.userId), null, 'getUserPreferences'),
+    ]);
+    const { todayChallenges, activeGoals, allGoals, habitStats, recentMilestones, partnersWithStats, stats } = dashboardData;
+    const challengesPerDay = preferences?.challengesPerDay || 1;
     const greeting = getGreeting();
 
     const pendingChallenges = todayChallenges.filter(c => c.status === 'pending');
@@ -188,6 +193,7 @@ export default async function DashboardPage() {
                 todayChallenges={todayChallenges}
                 showGeneralSection={showGeneralSection}
                 generalChallenges={generalChallenges}
+                challengesPerDay={challengesPerDay}
             />
 
             {/* Weekly Insights */}
@@ -248,15 +254,10 @@ export default async function DashboardPage() {
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    color: 'white',
-                                    fontWeight: 'bold',
-                                    fontSize: '1rem',
+                                    fontSize: '1.4rem',
                                     flexShrink: 0,
                                 }}>
-                                    {milestone.type.startsWith('streak_') ? '*'
-                                        : milestone.type.startsWith('challenges_') ? '#'
-                                        : milestone.type.startsWith('day_') ? '+'
-                                        : '>'}
+                                    🐿️
                                 </div>
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                     <div style={{
@@ -266,6 +267,11 @@ export default async function DashboardPage() {
                                     }}>
                                         {milestone.title}
                                     </div>
+                                    {milestone.description && (
+                                        <div className="text-small text-muted" style={{ marginTop: '2px' }}>
+                                            {milestone.description}
+                                        </div>
+                                    )}
                                     <div className="text-small text-muted">
                                         {new Date(milestone.achievedAt).toLocaleDateString()}
                                     </div>

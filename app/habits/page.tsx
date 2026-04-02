@@ -245,6 +245,11 @@ export default function HabitsPage() {
 
                             {expandedHabitId === habit.id && (
                                 <div className="habit-details">
+                                    {habit.description && (
+                                        <div className="text-small text-muted" style={{ marginBottom: 'var(--spacing-sm)' }}>
+                                            {habit.description}
+                                        </div>
+                                    )}
                                     <div className="note-input-wrapper">
                                         <input
                                             type="text"
@@ -627,10 +632,10 @@ export default function HabitsPage() {
                     align-items: center;
                     gap: 6px;
                     padding: 8px 12px;
-                    background: var(--color-surface-2);
+                    background: rgba(239, 68, 68, 0.15);
                     border: none;
                     border-radius: 8px;
-                    color: var(--color-text-muted);
+                    color: var(--color-error);
                     font-size: 0.85rem;
                     cursor: pointer;
                     transition: all 0.2s;
