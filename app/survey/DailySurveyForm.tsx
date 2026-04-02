@@ -17,6 +17,8 @@ function SliderQuestion({
     rightEmoji: string;
 }) {
     const fillPercent = ((value - 1) / 9) * 100;
+    // Thumb center = 12px at min, (100% - 12px) at max (thumb is 24px wide)
+    const thumbPosition = `calc(${fillPercent}% + ${12 - (fillPercent * 24) / 100}px)`;
     return (
         <div className="form-group">
             <label className="form-label">{label}</label>
@@ -34,7 +36,12 @@ function SliderQuestion({
                     <span>{leftEmoji}</span>
                     <span>{rightEmoji}</span>
                 </div>
-                <div className="slider-value">{Math.round(value)}</div>
+                <div className="slider-value" style={{
+                    position: 'relative',
+                    left: thumbPosition,
+                    transform: 'translateX(-50%)',
+                    width: 'fit-content'
+                }}>{Math.round(value)}</div>
             </div>
         </div>
     );

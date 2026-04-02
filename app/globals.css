@@ -623,7 +623,6 @@ button {
 }
 
 .slider-value {
-  text-align: center;
   font-size: 2rem;
   font-weight: 700;
   margin-top: var(--spacing-sm);
