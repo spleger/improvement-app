@@ -3,6 +3,8 @@ import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { SettingsSchema, validateBody } from '@/lib/validation';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
     try {
         const user = await getCurrentUser();

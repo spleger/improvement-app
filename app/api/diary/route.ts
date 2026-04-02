@@ -5,6 +5,8 @@ import { DiaryCreateSchema, validateBody } from '@/lib/validation';
 import { ANTHROPIC_MODEL } from '@/lib/anthropic';
 import { logApiUsage } from '@/lib/ai/costs';
 
+export const dynamic = 'force-dynamic';
+
 // POST /api/diary - Create diary entry
 export async function POST(request: NextRequest) {
     try {

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 const MAX_AVATAR_SIZE = 512 * 1024; // 512KB max for base64 data URL
 
 export async function POST(request: NextRequest) {

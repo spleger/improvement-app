@@ -3,6 +3,8 @@ import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { SurveySchema, validateBody } from '@/lib/validation';
 
+export const dynamic = 'force-dynamic';
+
 // POST /api/surveys - Create a new survey entry
 export async function POST(request: NextRequest) {
     try {

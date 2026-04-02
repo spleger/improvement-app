@@ -3,6 +3,8 @@ import { getCurrentUser } from '@/lib/auth';
 import { ANTHROPIC_MODEL } from '@/lib/anthropic';
 import { logApiUsage } from '@/lib/ai/costs';
 
+export const dynamic = 'force-dynamic';
+
 const ANTHROPIC_API_KEY_RAW = process.env.ANTHROPIC_API_KEY;
 const ANTHROPIC_API_KEY = ANTHROPIC_API_KEY_RAW?.replace(/^["']|["']$/g, '').trim();
 

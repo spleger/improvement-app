@@ -3,6 +3,8 @@ import { getCurrentUser } from '@/lib/auth';
 import { validateBody, ChallengeAcceptSchema } from '@/lib/validation';
 import * as db from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
     try {
         const user = await getCurrentUser();

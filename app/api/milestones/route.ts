@@ -5,6 +5,8 @@ import { checkAndCreateMilestones } from '@/lib/milestones';
 import { z } from 'zod';
 import { validateBody } from '@/lib/validation';
 
+export const dynamic = 'force-dynamic';
+
 const CelebrateSchema = z.object({
     milestoneId: z.string().min(1),
 });

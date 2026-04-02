@@ -4,6 +4,8 @@ import { getCurrentUser } from '@/lib/auth';
 import * as db from '@/lib/db';
 import { logTTSUsage } from '@/lib/ai/costs';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
     try {
         const user = await getCurrentUser();

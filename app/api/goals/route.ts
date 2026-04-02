@@ -3,6 +3,8 @@ import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { GoalCreateSchema, validateBody } from '@/lib/validation';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/goals - Get all goals for user
 export async function GET(request: NextRequest) {
     try {
