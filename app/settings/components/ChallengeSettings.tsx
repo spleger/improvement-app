@@ -10,12 +10,17 @@ interface ChallengeSettingsProps {
         preferredChallengeTime?: string;
         realityShiftEnabled?: boolean;
         focusAreas?: string[];
+        avoidAreas?: string[];
     };
     updatePref: (key: string, value: any) => void;
     focusInput: string;
     setFocusInput: (value: string) => void;
     addFocusArea: () => void;
     removeFocusArea: (area: string) => void;
+    avoidInput: string;
+    setAvoidInput: (value: string) => void;
+    addAvoidArea: () => void;
+    removeAvoidArea: (area: string) => void;
 }
 
 const CHALLENGE_LENGTHS = [
@@ -31,7 +36,7 @@ const CHALLENGE_TIMES = [
     { value: 'anytime', label: 'Anytime', emoji: '\u{1F504}' }
 ];
 
-export default function ChallengeSettings({ prefs, updatePref, focusInput, setFocusInput, addFocusArea, removeFocusArea }: ChallengeSettingsProps) {
+export default function ChallengeSettings({ prefs, updatePref, focusInput, setFocusInput, addFocusArea, removeFocusArea, avoidInput, setAvoidInput, addAvoidArea, removeAvoidArea }: ChallengeSettingsProps) {
     return (
         <>
             <section className="card mb-lg">
@@ -188,6 +193,45 @@ export default function ChallengeSettings({ prefs, updatePref, focusInput, setFo
                                     {area}
                                     <button
                                         onClick={() => removeFocusArea(area)}
+                                        style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: 0.5 }}
+                                    >
+                                        {'\u2715'}
+                                    </button>
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <div className="form-group" style={{ marginTop: 'var(--spacing-lg)' }}>
+                    <label className="form-label">I want to avoid challenges about:</label>
+                    <div className="flex gap-sm mb-sm">
+                        <input
+                            type="text"
+                            value={avoidInput}
+                            onChange={e => setAvoidInput(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && addAvoidArea()}
+                            placeholder="e.g., public speaking, cold water, heights"
+                            className="form-input"
+                            style={{ flex: 1 }}
+                            autoComplete="off"
+                        />
+                        <button onClick={addAvoidArea} className="btn btn-secondary">Add</button>
+                    </div>
+                    {prefs.avoidAreas && prefs.avoidAreas.length > 0 && (
+                        <div className="flex gap-sm flex-wrap">
+                            {prefs.avoidAreas.map(area => (
+                                <span key={area} className="tag" style={{
+                                    background: 'rgba(239, 68, 68, 0.15)',
+                                    padding: '0.25rem 0.75rem',
+                                    borderRadius: '20px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem'
+                                }}>
+                                    {area}
+                                    <button
+                                        onClick={() => removeAvoidArea(area)}
                                         style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: 0.5 }}
                                     >
                                         {'\u2715'}

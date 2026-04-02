@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 
 interface Preferences {
     displayName?: string;
@@ -54,6 +54,7 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [focusInput, setFocusInput] = useState('');
+    const [avoidInput, setAvoidInput] = useState('');
     const [playingVoice, setPlayingVoice] = useState<string | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -110,24 +111,57 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
         updatePref('focusAreas', (prefs.focusAreas || []).filter(a => a !== area));
     };
 
-    const saveSettings = async () => {
-        setSaving(true);
-        try {
-            const response = await fetch('/api/settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(prefs)
-            });
-            if (response.ok) {
-                setSaved(true);
-                setTimeout(() => setSaved(false), 3000);
-            }
-        } catch (error) {
-            console.error('Error saving settings:', error);
-        } finally {
-            setSaving(false);
+    const addAvoidArea = () => {
+        if (avoidInput.trim() && !prefs.avoidAreas?.includes(avoidInput.trim())) {
+            updatePref('avoidAreas', [...(prefs.avoidAreas || []), avoidInput.trim()]);
+            setAvoidInput('');
         }
     };
+
+    const removeAvoidArea = (area: string) => {
+        updatePref('avoidAreas', (prefs.avoidAreas || []).filter(a => a !== area));
+    };
+
+    // Auto-save with debounce
+    const isInitialMount = useRef(true);
+    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    useEffect(() => {
+        // Skip the initial render (don't save on mount)
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
+        }
+
+        if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+        }
+
+        setSaving(true);
+        saveTimeoutRef.current = setTimeout(async () => {
+            try {
+                const response = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(prefs)
+                });
+                if (response.ok) {
+                    setSaved(true);
+                    setTimeout(() => setSaved(false), 2000);
+                }
+            } catch (error) {
+                console.error('Error saving settings:', error);
+            } finally {
+                setSaving(false);
+            }
+        }, 800);
+
+        return () => {
+            if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+            }
+        };
+    }, [prefs]);
 
     return (
         <div className="settings-form">
@@ -179,13 +213,13 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
 
                 {/* Challenges Per Day */}
                 <div className="form-group">
-                    <label className="form-label">Challenges Per Day</label>
+                    <label className="form-label">Challenge{(prefs.challengesPerDay || 1) !== 1 ? 's' : ''} Per Day</label>
                     <div className="flex gap-sm">
                         {[1, 2, 3, 5].map(n => (
                             <button
                                 key={n}
                                 onClick={() => updatePref('challengesPerDay', n)}
-                                className={`btn ${prefs.challengesPerDay === n ? 'btn-primary' : 'btn-secondary'}`}
+                                className={`btn ${(prefs.challengesPerDay || 1) === n ? 'btn-primary' : 'btn-secondary'}`}
                                 style={{ flex: 1 }}
                             >
                                 {n}
@@ -240,62 +274,155 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
 
                 {/* Reality Shift Mode */}
                 <div className="form-group">
-                    <label className="flex items-center gap-md" style={{ cursor: 'pointer' }}>
-                        <input
-                            type="checkbox"
-                            checked={prefs.realityShiftEnabled}
-                            onChange={e => updatePref('realityShiftEnabled', e.target.checked)}
-                            style={{ width: '20px', height: '20px' }}
-                        />
-                        <div>
-                            <div className="heading-5">⚡ Reality Shift Mode</div>
+                    <div
+                        onClick={() => updatePref('realityShiftEnabled', !prefs.realityShiftEnabled)}
+                        style={{
+                            cursor: 'pointer',
+                            padding: '1rem',
+                            borderRadius: '12px',
+                            background: prefs.realityShiftEnabled
+                                ? 'linear-gradient(135deg, rgba(241, 39, 17, 0.15), rgba(245, 175, 25, 0.15))'
+                                : 'var(--color-surface-2)',
+                            border: prefs.realityShiftEnabled
+                                ? '2px solid rgba(245, 175, 25, 0.5)'
+                                : '2px solid var(--color-border)',
+                            transition: 'all 0.3s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 'var(--spacing-md)',
+                        }}
+                    >
+                        <div style={{
+                            width: '44px',
+                            height: '44px',
+                            borderRadius: '10px',
+                            background: prefs.realityShiftEnabled
+                                ? 'linear-gradient(135deg, #f12711, #f5af19)'
+                                : 'var(--color-surface)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '1.5rem',
+                            flexShrink: 0,
+                            transition: 'all 0.3s ease',
+                            boxShadow: prefs.realityShiftEnabled ? '0 2px 8px rgba(241, 39, 17, 0.3)' : 'none',
+                        }}>
+                            {prefs.realityShiftEnabled ? '\u26A1' : '\u26A1'}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <div className="heading-5" style={{
+                                color: prefs.realityShiftEnabled ? '#f5af19' : 'var(--color-text-primary)',
+                            }}>
+                                Reality Shift Mode {prefs.realityShiftEnabled ? 'ON' : 'OFF'}
+                            </div>
                             <div className="text-small text-muted">
-                                Enable extreme, life-changing challenges that push you far outside your comfort zone
+                                Extreme, life-changing challenges that push you far outside your comfort zone
                             </div>
                         </div>
-                    </label>
+                    </div>
                 </div>
             </section>
 
             {/* Focus Areas Section */}
             <section className="card mb-lg">
-                <h2 className="heading-4 mb-md">🎪 Focus Areas</h2>
-                <p className="text-small text-muted mb-md">
-                    Tell the AI what you want to focus on or avoid
-                </p>
+                <h2 className="heading-4 mb-md">I want challenges that focus on:</h2>
 
                 <div className="form-group">
-                    <label className="form-label">I want challenges that focus on:</label>
-                    <div className="flex gap-sm mb-sm">
-                        <input
-                            type="text"
-                            value={focusInput}
-                            onChange={e => setFocusInput(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && addFocusArea()}
-                            placeholder="e.g., speaking, morning routines, facing fears"
-                            className="form-input"
-                            style={{ flex: 1 }}
-                            autoComplete="off"
-                        />
-                        <button onClick={addFocusArea} className="btn btn-secondary">Add</button>
-                    </div>
+                    <textarea
+                        value={focusInput}
+                        onChange={e => setFocusInput(e.target.value)}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                addFocusArea();
+                            }
+                        }}
+                        placeholder="e.g., speaking practice, morning routines, facing fears, mindfulness..."
+                        className="form-input"
+                        rows={3}
+                        style={{ width: '100%', resize: 'vertical', minHeight: '80px' }}
+                        autoComplete="off"
+                    />
+                    <button
+                        onClick={addFocusArea}
+                        className="btn btn-secondary"
+                        style={{ marginTop: 'var(--spacing-sm)', width: '100%' }}
+                    >
+                        + Add Focus Area
+                    </button>
                     {prefs.focusAreas && prefs.focusAreas.length > 0 && (
-                        <div className="flex gap-sm flex-wrap">
+                        <div className="flex gap-sm flex-wrap" style={{ marginTop: 'var(--spacing-md)' }}>
                             {prefs.focusAreas.map(area => (
                                 <span key={area} className="tag" style={{
-                                    background: 'var(--color-surface)',
-                                    padding: '0.25rem 0.75rem',
+                                    background: 'rgba(139, 92, 246, 0.15)',
+                                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                                    padding: '0.4rem 0.85rem',
                                     borderRadius: '20px',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '0.5rem'
+                                    gap: '0.5rem',
+                                    fontSize: '0.9rem',
                                 }}>
                                     {area}
                                     <button
                                         onClick={() => removeFocusArea(area)}
-                                        style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: 0.5 }}
+                                        style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: 0.6, fontSize: '0.85rem' }}
                                     >
-                                        ✕
+                                        {'\u2715'}
+                                    </button>
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </section>
+
+            {/* Avoid Areas Section */}
+            <section className="card mb-lg">
+                <h2 className="heading-4 mb-md">I want to avoid challenges about:</h2>
+
+                <div className="form-group">
+                    <textarea
+                        value={avoidInput}
+                        onChange={e => setAvoidInput(e.target.value)}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                addAvoidArea();
+                            }
+                        }}
+                        placeholder="e.g., public speaking, cold water, heights, social situations..."
+                        className="form-input"
+                        rows={3}
+                        style={{ width: '100%', resize: 'vertical', minHeight: '80px' }}
+                        autoComplete="off"
+                    />
+                    <button
+                        onClick={addAvoidArea}
+                        className="btn btn-secondary"
+                        style={{ marginTop: 'var(--spacing-sm)', width: '100%' }}
+                    >
+                        + Add Area to Avoid
+                    </button>
+                    {prefs.avoidAreas && prefs.avoidAreas.length > 0 && (
+                        <div className="flex gap-sm flex-wrap" style={{ marginTop: 'var(--spacing-md)' }}>
+                            {prefs.avoidAreas.map(area => (
+                                <span key={area} className="tag" style={{
+                                    background: 'rgba(239, 68, 68, 0.15)',
+                                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                                    padding: '0.4rem 0.85rem',
+                                    borderRadius: '20px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    fontSize: '0.9rem',
+                                }}>
+                                    {area}
+                                    <button
+                                        onClick={() => removeAvoidArea(area)}
+                                        style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: 0.6, fontSize: '0.85rem' }}
+                                    >
+                                        {'\u2715'}
                                     </button>
                                 </span>
                             ))}
@@ -414,17 +541,20 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                 </div>
             </section>
 
-            {/* Save Button */}
-            <div className="mb-xl">
-                <button
-                    onClick={saveSettings}
-                    className="btn btn-success w-full"
-                    disabled={saving}
-                    style={{ padding: '1rem', fontSize: '1.125rem' }}
-                >
-                    {saving ? '⏳ Saving...' : saved ? '✅ Saved!' : '💾 Save Settings'}
-                </button>
-            </div>
+            {/* Auto-save indicator */}
+            {(saving || saved) && (
+                <div className="mb-xl" style={{
+                    textAlign: 'center',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    background: saved ? 'rgba(34, 197, 94, 0.1)' : 'rgba(139, 92, 246, 0.1)',
+                    color: saved ? '#22c55e' : 'var(--color-text-muted)',
+                    fontSize: '0.85rem',
+                    transition: 'all 0.3s ease',
+                }}>
+                    {saving ? 'Saving...' : 'Settings saved'}
+                </div>
+            )}
         </div>
     );
 }

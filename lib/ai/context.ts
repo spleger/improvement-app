@@ -325,6 +325,21 @@ Only use widgets when contextually relevant, not proactively.
         if (context.preferences?.preferredDifficulty) {
             prompt += `Preferred difficulty: ${context.preferences.preferredDifficulty}/10\n`;
         }
+        if (context.preferences?.focusAreas?.length > 0) {
+            prompt += `Focus areas: ${context.preferences.focusAreas.join(', ')}\n`;
+        }
+        if (context.preferences?.avoidAreas?.length > 0) {
+            prompt += `Topics to AVOID: ${context.preferences.avoidAreas.join(', ')}\n`;
+        }
+        if (context.preferences?.preferredChallengeTime && context.preferences.preferredChallengeTime !== 'anytime') {
+            prompt += `Preferred challenge time: ${context.preferences.preferredChallengeTime}\n`;
+        }
+        if (context.preferences?.realityShiftEnabled) {
+            prompt += `Reality Shift mode: ON (user welcomes extreme challenges)\n`;
+        }
+        if (context.preferences?.includeScientificBasis) {
+            prompt += `Prefers scientific explanations and evidence-based reasoning\n`;
+        }
 
         if (context.onboardingAnswers) {
             prompt += `\n== USER BACKGROUND ==\n`;

@@ -256,8 +256,9 @@ Title: "${context.goal.title}"
 Domain: ${context.goal.domain?.name || 'General'}
 Current State: "${context.goal.currentState || 'Not specified'}"
 Desired State: "${context.goal.desiredState || 'Not specified'}"
-Preferred Difficulty: ${context.goal.difficultyLevel}/10
-Reality Shift Mode: ${context.goal.realityShiftEnabled ? 'ON (user wants extreme, life-changing challenges)' : 'OFF'}
+Goal Difficulty Setting: ${context.goal.difficultyLevel}/10
+User Default Difficulty: ${context.preferences?.preferredDifficulty || 5}/10
+${context.goal.difficultyLevel === 5 && context.preferences?.preferredDifficulty && context.preferences.preferredDifficulty !== 5 ? '(Goal uses default -- use user preference instead)\n' : ''}Reality Shift Mode: ${(context.goal.realityShiftEnabled || context.preferences?.realityShiftEnabled) ? 'ON (user wants extreme, life-changing challenges)' : 'OFF'}
 ${onboardingSection}
 === JOURNEY PROGRESS ===
 Day ${context.dayInJourney} of ${context.totalDays}
@@ -275,6 +276,10 @@ ${context.preferences?.focusAreas && context.preferences.focusAreas.length > 0 ?
 === USER FOCUS AREAS ===
 The user wants challenges that focus on: ${context.preferences.focusAreas.join(', ')}. Prioritize these topics.
 ` : ''}
+${context.preferences?.avoidAreas && context.preferences.avoidAreas.length > 0 ? `
+=== AREAS TO AVOID ===
+Do NOT generate challenges involving: ${context.preferences.avoidAreas.join(', ')}. Never include these topics.
+` : ''}
 ${context.preferences?.aiPersonality ? `
 === COMMUNICATION STYLE ===
 Adapt challenge descriptions to a ${context.preferences.aiPersonality} tone.
@@ -287,10 +292,14 @@ ${context.preferences?.challengeLengthPreference ? `
 === CHALLENGE LENGTH ===
 User prefers ${context.preferences.challengeLengthPreference} challenges (${context.preferences.challengeLengthPreference === 'short' ? '5-15 min' : context.preferences.challengeLengthPreference === 'medium' ? '15-30 min' : '30+ min'}). Set estimatedMinutes accordingly.
 ` : ''}
+${context.preferences?.preferredChallengeTime && context.preferences.preferredChallengeTime !== 'anytime' ? `
+=== PREFERRED TIME ===
+User prefers ${context.preferences.preferredChallengeTime} challenges. Design challenges suitable for ${context.preferences.preferredChallengeTime} time (${context.preferences.preferredChallengeTime === 'morning' ? 'energizing, can be done before work' : context.preferences.preferredChallengeTime === 'afternoon' ? 'can be done during breaks or midday' : 'reflective, wind-down friendly'}).
+` : ''}
 === REQUEST ===
 Generate ${count} unique, personalized challenge${count > 1 ? 's' : ''} for today (Day ${context.dayInJourney}).
 ${preferences?.focusArea ? `User specifically wants to focus on: ${preferences.focusArea}` : ''}
-${context.goal.realityShiftEnabled ? 'INCLUDE AT LEAST ONE "REALITY SHIFT" CHALLENGE (Something scary/uncomfortable that drives massive growth).' : ''}
+${(context.goal.realityShiftEnabled || context.preferences?.realityShiftEnabled) ? 'INCLUDE AT LEAST ONE "REALITY SHIFT" CHALLENGE (Something scary/uncomfortable that drives massive growth).' : ''}
 `;
 }
 

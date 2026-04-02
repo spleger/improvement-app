@@ -97,8 +97,9 @@ Title: "${goal.title}"
 Domain: ${domainName}
 Where they started: "${goal.currentState || 'Not specified'}"
 Where they want to be: "${goal.desiredState || 'Not specified'}"
-Preferred difficulty: ${goal.difficultyLevel}/10
-Reality Shift mode: ${goal.realityShiftEnabled ? 'ON -- they want extreme, uncomfortable challenges that drive massive growth' : 'OFF'}
+Goal difficulty: ${goal.difficultyLevel}/10${context?.preferences?.preferredDifficulty && context.preferences.preferredDifficulty !== goal.difficultyLevel ? ` (user default: ${context.preferences.preferredDifficulty}/10)` : ''}
+Reality Shift mode: ${(goal.realityShiftEnabled || context?.preferences?.realityShiftEnabled) ? 'ON -- they want extreme, uncomfortable challenges that drive massive growth' : 'OFF'}
+${context?.preferences?.focusAreas?.length > 0 ? `Focus areas: ${context.preferences.focusAreas.join(', ')}\n` : ''}${context?.preferences?.avoidAreas?.length > 0 ? `Topics to AVOID: ${context.preferences.avoidAreas.join(', ')}\n` : ''}${context?.preferences?.preferredChallengeTime && context.preferences.preferredChallengeTime !== 'anytime' ? `Preferred challenge time: ${context.preferences.preferredChallengeTime}\n` : ''}${context?.preferences?.includeScientificBasis ? `User prefers scientific explanations\n` : ''}
 
 == JOURNEY STATUS ==
 Day ${dayInJourney} of 30 (${progress}% through)

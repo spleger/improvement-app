@@ -7,9 +7,10 @@ import { Loader2 } from 'lucide-react';
 interface DailyChallengeLoaderProps {
     goalId: string | null;
     goalTitle: string;
+    challengesPerDay?: number;
 }
 
-export default function DailyChallengeLoader({ goalId, goalTitle }: DailyChallengeLoaderProps) {
+export default function DailyChallengeLoader({ goalId, goalTitle, challengesPerDay = 1 }: DailyChallengeLoaderProps) {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -20,7 +21,7 @@ export default function DailyChallengeLoader({ goalId, goalTitle }: DailyChallen
                 const response = await fetch('/api/challenges/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ goalId, count: 1 })
+                    body: JSON.stringify({ goalId, count: challengesPerDay })
                 });
 
                 if (!response.ok) {
