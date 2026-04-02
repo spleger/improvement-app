@@ -3,6 +3,43 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+function SliderQuestion({
+    label,
+    value,
+    onChange,
+    leftEmoji,
+    rightEmoji
+}: {
+    label: string;
+    value: number;
+    onChange: (v: number) => void;
+    leftEmoji: string;
+    rightEmoji: string;
+}) {
+    const fillPercent = ((value - 1) / 9) * 100;
+    return (
+        <div className="form-group">
+            <label className="form-label">{label}</label>
+            <div className="slider-container">
+                <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={value}
+                    onChange={e => onChange(parseInt(e.target.value))}
+                    className="slider slider-filled"
+                    style={{ '--slider-fill': `${fillPercent}%` } as React.CSSProperties}
+                />
+                <div className="slider-labels">
+                    <span>{leftEmoji}</span>
+                    <span>{rightEmoji}</span>
+                </div>
+                <div className="slider-value">{Math.round(value)}</div>
+            </div>
+        </div>
+    );
+}
+
 export default function DailySurveyForm() {
     const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,43 +95,6 @@ export default function DailySurveyForm() {
         } finally {
             setIsSubmitting(false);
         }
-    };
-
-    const SliderQuestion = ({
-        label,
-        value,
-        onChange,
-        leftEmoji,
-        rightEmoji
-    }: {
-        label: string;
-        value: number;
-        onChange: (v: number) => void;
-        leftEmoji: string;
-        rightEmoji: string;
-    }) => {
-        const fillPercent = ((value - 1) / 9) * 100;
-        return (
-        <div className="form-group">
-            <label className="form-label">{label}</label>
-            <div className="slider-container">
-                <input
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={value}
-                    onChange={e => onChange(parseInt(e.target.value))}
-                    className="slider slider-filled"
-                    style={{ '--slider-fill': `${fillPercent}%` } as React.CSSProperties}
-                />
-                <div className="slider-labels">
-                    <span>{leftEmoji}</span>
-                    <span>{rightEmoji}</span>
-                </div>
-                <div className="slider-value">{Math.round(value)}</div>
-            </div>
-        </div>
-    );
     };
 
     return (

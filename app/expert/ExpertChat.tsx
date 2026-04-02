@@ -276,6 +276,10 @@ export default function ExpertChat() {
 
                     if (loadedMessages.length > 0) {
                         setMessages(loadedMessages);
+                        // Scroll to bottom so user sees where they left off
+                        setTimeout(() => {
+                            messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
+                        }, 100);
                     }
                 }
             } catch (e) {
