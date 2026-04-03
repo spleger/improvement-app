@@ -2,6 +2,7 @@ import Link from 'next/link';
 import * as db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
+import GoalActions from './GoalActions';
 
 function GoalCard({ goal }: { goal: { id: string; title: string; status: string; domain?: { name: string } | null; startedAt: Date } }) {
     return (
@@ -22,9 +23,7 @@ function GoalCard({ goal }: { goal: { id: string; title: string; status: string;
                         Started {new Date(goal.startedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </div>
                 </div>
-                <span className={`text-tiny ${goal.status === 'active' ? 'text-success' : 'text-muted'}`}>
-                    {goal.status}
-                </span>
+                <GoalActions goalId={goal.id} status={goal.status} />
             </div>
         </div>
     );
