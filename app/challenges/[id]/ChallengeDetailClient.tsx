@@ -99,17 +99,6 @@ export default function ChallengeDetailClient({ challengeId, isCompleted }: Prop
                 </button>
             </div>
 
-            {/* Tips Section */}
-            <div className="card card-surface">
-                <h3 className="heading-4 mb-md">💡 Tips for Success</h3>
-                <ul style={{ paddingLeft: '1.5rem' }}>
-                    <li className="text-secondary mb-sm">Find a quiet moment without distractions</li>
-                    <li className="text-secondary mb-sm">Set a timer if needed to stay focused</li>
-                    <li className="text-secondary mb-sm">Remember: progress over perfection</li>
-                    <li className="text-secondary">Record a voice diary after to capture your experience</li>
-                </ul>
-            </div>
-
             {/* Completion Modal - Fixed Layout */}
             {showCompletionModal && (
                 <div
