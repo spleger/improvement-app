@@ -6,9 +6,10 @@ import { useRouter } from 'next/navigation';
 interface Props {
     challengeId: string;
     isCompleted: boolean;
+    tips?: string[];
 }
 
-export default function ChallengeDetailClient({ challengeId, isCompleted }: Props) {
+export default function ChallengeDetailClient({ challengeId, isCompleted, tips }: Props) {
     const router = useRouter();
     const [showCompletionModal, setShowCompletionModal] = useState(false);
     const [showSkipConfirm, setShowSkipConfirm] = useState(false);
@@ -98,6 +99,20 @@ export default function ChallengeDetailClient({ challengeId, isCompleted }: Prop
                     Skip
                 </button>
             </div>
+
+            {/* Tips for You */}
+            {tips && tips.length > 0 && (
+                <div className="card card-surface">
+                    <h3 className="heading-4 mb-md">Tips for You</h3>
+                    <ul style={{ paddingLeft: '1.5rem' }}>
+                        {tips.map((tip, i) => (
+                            <li key={i} className="text-secondary mb-sm">
+                                {tip}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
 
             {/* Completion Modal - Fixed Layout */}
             {showCompletionModal && (

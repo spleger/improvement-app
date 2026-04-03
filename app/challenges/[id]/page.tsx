@@ -104,22 +104,6 @@ export default async function ChallengeDetailPage({ params }: PageProps) {
                 </section>
             )}
 
-            {/* Tips */}
-            {parsedTips.length > 0 && (
-                <section className="mb-lg">
-                    <h2 className="heading-4 mb-md">Tips for You</h2>
-                    <div className="card card-surface">
-                        <ul style={{ paddingLeft: '1.5rem' }}>
-                            {parsedTips.map((tip, i) => (
-                                <li key={i} className="text-secondary mb-sm">
-                                    {tip}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                </section>
-            )}
-
             {/* Success Criteria */}
             {challenge.successCriteria && (
                 <section className="mb-lg">
@@ -152,10 +136,11 @@ export default async function ChallengeDetailPage({ params }: PageProps) {
                 </div>
             </section>
 
-            {/* Actions */}
+            {/* Actions + Tips */}
             <ChallengeDetailClient
                 challengeId={challenge.id}
                 isCompleted={isCompleted}
+                tips={parsedTips}
             />
         </div>
     );
