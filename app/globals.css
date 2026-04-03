@@ -659,17 +659,30 @@ button {
   gap: var(--spacing-xs);
   padding: var(--spacing-sm);
   color: var(--color-text-muted);
-  transition: color var(--transition-fast);
+  transition: all var(--transition-fast);
+  text-decoration: none;
+  opacity: 0.5;
 }
 
-.nav-item:hover,
+.nav-item:hover {
+  opacity: 0.8;
+  color: var(--color-highlight);
+}
+
 .nav-item.active {
   color: var(--color-highlight);
+  opacity: 1;
 }
 
 .nav-item-icon {
   width: 24px;
   height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  line-height: 1;
+  text-align: center;
 }
 
 .nav-item-label {
