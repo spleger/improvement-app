@@ -68,11 +68,18 @@ export default function LiveVoiceChat() {
     const [selectedCoach, setSelectedCoach] = useState<Coach>(DEFAULT_COACHES[0]);
     const [showCoachSelector, setShowCoachSelector] = useState(false);
 
-    // Audio Playback
-    const audioRef = useRef<HTMLAudioElement | null>(null);
+    // Audio Playback (Web Audio API for gapless scheduling)
+    const audioCtxRef = useRef<AudioContext | null>(null);
+    const activeSourceRef = useRef<AudioBufferSourceNode | null>(null);
+    const nextStartTimeRef = useRef(0);
     const [isMuted, setIsMuted] = useState(false);
     const chatAbortControllerRef = useRef<AbortController | null>(null);
     const bargeInAbortRef = useRef(false);
+
+    // Natural inter-sentence gap (150ms -- research: 150-200ms is natural)
+    const SENTENCE_GAP = 0.15;
+    // Silence threshold for trimming TTS padding
+    const SILENCE_THRESHOLD = 0.01;
 
     // Helper to set error
     const setErrorWithType = useCallback((type: ErrorType, customMessage?: string) => {
@@ -127,19 +134,55 @@ export default function LiveVoiceChat() {
             if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
                 mediaRecorderRef.current.stop();
             }
-            if (audioRef.current) {
-                audioRef.current.pause();
-                if (audioRef.current.src) URL.revokeObjectURL(audioRef.current.src);
+            if (activeSourceRef.current) {
+                try { activeSourceRef.current.stop(); } catch { /* already stopped */ }
+            }
+            if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+                audioCtxRef.current.close();
             }
         };
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // TTS queue for chunked playback with prefetch
-    const ttsQueueRef = useRef<string[]>([]);
-    const ttsPlayingRef = useRef(false);
-    const prefetchedAudioRef = useRef<{ text: string; blob: Blob } | null>(null);
+    // Ensure AudioContext exists (lazy init, needed after user gesture)
+    const getAudioContext = useCallback(() => {
+        if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
+            audioCtxRef.current = new AudioContext();
+        }
+        if (audioCtxRef.current.state === 'suspended') {
+            audioCtxRef.current.resume();
+        }
+        return audioCtxRef.current;
+    }, []);
 
-    const fetchTTSAudio = useCallback(async (text: string): Promise<Blob | null> => {
+    // Trim leading/trailing silence from an AudioBuffer
+    const trimSilence = useCallback((buffer: AudioBuffer): AudioBuffer => {
+        const data = buffer.getChannelData(0);
+        let start = 0;
+        let end = data.length - 1;
+        while (start < end && Math.abs(data[start]) < SILENCE_THRESHOLD) start++;
+        while (end > start && Math.abs(data[end]) < SILENCE_THRESHOLD) end--;
+        // Add tiny fade margins (1ms) to avoid click artifacts
+        const fadeMargin = Math.min(Math.floor(buffer.sampleRate * 0.001), start);
+        start = Math.max(0, start - fadeMargin);
+        end = Math.min(data.length - 1, end + fadeMargin);
+
+        const length = end - start + 1;
+        if (length <= 0 || length === data.length) return buffer;
+
+        const ctx = getAudioContext();
+        const trimmed = ctx.createBuffer(buffer.numberOfChannels, length, buffer.sampleRate);
+        for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+            trimmed.copyToChannel(buffer.getChannelData(ch).slice(start, end + 1), ch);
+        }
+        return trimmed;
+    }, [getAudioContext]);
+
+    // TTS queue: fetch text -> decode -> schedule on AudioContext timeline
+    const ttsQueueRef = useRef<string[]>([]);
+    const ttsProcessingRef = useRef(false);
+    const prefetchedAudioRef = useRef<{ text: string; buffer: ArrayBuffer } | null>(null);
+
+    const fetchTTSRaw = useCallback(async (text: string): Promise<ArrayBuffer | null> => {
         const MAX_RETRIES = 2;
         const DELAYS = [500, 1500];
         for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -149,7 +192,7 @@ export default function LiveVoiceChat() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text })
                 });
-                if (response.ok) return await response.blob();
+                if (response.ok) return await response.arrayBuffer();
                 if (response.status >= 400 && response.status < 500) return null;
             } catch {
                 // Network error, will retry
@@ -161,112 +204,85 @@ export default function LiveVoiceChat() {
         return null;
     }, []);
 
+    // Prefetch the next chunk's raw audio while current is playing
     const prefetchNext = useCallback(() => {
         if (ttsQueueRef.current.length === 0) return;
         const nextText = ttsQueueRef.current[0];
         if (prefetchedAudioRef.current?.text === nextText) return;
-        fetchTTSAudio(nextText).then(blob => {
-            if (blob && ttsQueueRef.current[0] === nextText) {
-                prefetchedAudioRef.current = { text: nextText, blob };
+        fetchTTSRaw(nextText).then(buf => {
+            if (buf && ttsQueueRef.current[0] === nextText) {
+                prefetchedAudioRef.current = { text: nextText, buffer: buf };
             }
         });
-    }, [fetchTTSAudio]);
+    }, [fetchTTSRaw]);
 
-    const playNextTTSChunk = useCallback(async () => {
-        if (ttsPlayingRef.current || ttsQueueRef.current.length === 0) return;
-
-        const text = ttsQueueRef.current.shift();
-        if (!text || isMuted) {
-            if (ttsQueueRef.current.length === 0) setOrbState('idle');
-            return;
-        }
-
-        ttsPlayingRef.current = true;
+    // Process queue: fetch, decode, trim silence, schedule with 150ms gap
+    const processQueue = useCallback(async () => {
+        if (ttsProcessingRef.current || ttsQueueRef.current.length === 0) return;
+        ttsProcessingRef.current = true;
         setOrbState('speaking');
 
-        try {
-            let audioBlob: Blob | null = null;
+        const ctx = getAudioContext();
 
-            // Use prefetched audio if available for this chunk
-            if (prefetchedAudioRef.current?.text === text) {
-                audioBlob = prefetchedAudioRef.current.blob;
-                prefetchedAudioRef.current = null;
-            } else {
-                audioBlob = await fetchTTSAudio(text);
-            }
+        while (ttsQueueRef.current.length > 0) {
+            const text = ttsQueueRef.current.shift();
+            if (!text || isMuted) continue;
 
-            if (!audioBlob) {
-                ttsPlayingRef.current = false;
-                if (ttsQueueRef.current.length > 0) {
-                    playNextTTSChunk();
+            try {
+                let rawBuffer: ArrayBuffer | null = null;
+
+                if (prefetchedAudioRef.current?.text === text) {
+                    rawBuffer = prefetchedAudioRef.current.buffer;
+                    prefetchedAudioRef.current = null;
                 } else {
-                    setOrbState('idle');
+                    rawBuffer = await fetchTTSRaw(text);
                 }
-                return;
-            }
 
-            const audioUrl = URL.createObjectURL(audioBlob);
+                if (!rawBuffer) continue;
 
-            if (audioRef.current) {
-                audioRef.current.pause();
-                if (audioRef.current.src) URL.revokeObjectURL(audioRef.current.src);
-            }
+                // Start prefetching the next chunk while we decode this one
+                prefetchNext();
 
-            const audio = new Audio(audioUrl);
-            audioRef.current = audio;
+                const audioBuffer = await ctx.decodeAudioData(rawBuffer);
+                const trimmed = trimSilence(audioBuffer);
 
-            // Start prefetching the next chunk while this one plays
-            prefetchNext();
+                const source = ctx.createBufferSource();
+                source.buffer = trimmed;
+                source.connect(ctx.destination);
+                activeSourceRef.current = source;
 
-            audio.onended = () => {
-                URL.revokeObjectURL(audioUrl);
-                audioRef.current = null;
-                ttsPlayingRef.current = false;
-                if (ttsQueueRef.current.length > 0) {
-                    playNextTTSChunk();
-                } else {
-                    setOrbState('idle');
-                }
-            };
+                // Schedule: start at nextStartTime or now, whichever is later
+                const now = ctx.currentTime;
+                const startAt = Math.max(now, nextStartTimeRef.current);
+                source.start(startAt);
+                // Next chunk starts after this one + natural sentence gap
+                nextStartTimeRef.current = startAt + trimmed.duration + SENTENCE_GAP;
 
-            audio.onerror = () => {
-                URL.revokeObjectURL(audioUrl);
-                audioRef.current = null;
-                ttsPlayingRef.current = false;
-                if (ttsQueueRef.current.length > 0) {
-                    playNextTTSChunk();
-                } else {
-                    setOrbState('idle');
-                }
-            };
+                // Wait for this chunk to finish before processing next
+                await new Promise<void>(resolve => {
+                    source.onended = () => {
+                        activeSourceRef.current = null;
+                        resolve();
+                    };
+                    // Safety timeout in case onended doesn't fire
+                    setTimeout(resolve, (trimmed.duration + SENTENCE_GAP + 0.5) * 1000);
+                });
 
-            await audio.play().catch(() => {
-                URL.revokeObjectURL(audioUrl);
-                audioRef.current = null;
-                ttsPlayingRef.current = false;
-                if (ttsQueueRef.current.length > 0) {
-                    playNextTTSChunk();
-                } else {
-                    setOrbState('idle');
-                }
-            });
-
-        } catch {
-            ttsPlayingRef.current = false;
-            if (ttsQueueRef.current.length > 0) {
-                playNextTTSChunk();
-            } else {
-                setOrbState('idle');
+            } catch {
+                // Decode or playback error -- skip this chunk
             }
         }
-    }, [isMuted, fetchTTSAudio, prefetchNext]);
+
+        ttsProcessingRef.current = false;
+        setOrbState('idle');
+    }, [isMuted, getAudioContext, fetchTTSRaw, prefetchNext, trimSilence]);
 
     const enqueueTTSChunk = useCallback((text: string) => {
         const cleanText = text.replace(/<<<\{.*?\}>>>/g, '').trim();
         if (!cleanText || isMuted) return;
         ttsQueueRef.current.push(cleanText);
-        playNextTTSChunk();
-    }, [isMuted, playNextTTSChunk]);
+        processQueue();
+    }, [isMuted, processQueue]);
 
     // Play TTS (full text fallback)
     const playTTSAudio = useCallback(async (text: string) => {
@@ -279,12 +295,12 @@ export default function LiveVoiceChat() {
 
     const stopTTSPlayback = useCallback(() => {
         ttsQueueRef.current = [];
-        ttsPlayingRef.current = false;
+        ttsProcessingRef.current = false;
         prefetchedAudioRef.current = null;
-        if (audioRef.current) {
-            audioRef.current.pause();
-            if (audioRef.current.src) URL.revokeObjectURL(audioRef.current.src);
-            audioRef.current = null;
+        nextStartTimeRef.current = 0;
+        if (activeSourceRef.current) {
+            try { activeSourceRef.current.stop(); } catch { /* already stopped */ }
+            activeSourceRef.current = null;
         }
         setOrbState('idle');
     }, []);
