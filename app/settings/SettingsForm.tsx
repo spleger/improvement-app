@@ -239,7 +239,7 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                             }}
                         />
                         <span className="text-small text-muted">
-                            challenge{(prefs.challengesPerDay || 1) !== 1 ? 's' : ''} generated per goal each day
+                            Challenge{(prefs.challengesPerDay || 1) !== 1 ? 's' : ''} generated per goal each day. Tap the number to change.
                         </span>
                     </div>
                 </div>
@@ -270,12 +270,9 @@ export default function SettingsForm({ initialPreferences }: { initialPreference
                             }}
                         />
                         <span className="text-small text-muted">
-                            extra challenge{(prefs.generalChallengesPerDay || 0) !== 1 ? 's' : ''} not tied to any goal
+                            Extra challenge{(prefs.generalChallengesPerDay || 0) !== 1 ? 's' : ''} not tied to any goal. Tap the number to change.
                         </span>
                     </div>
-                    <p className="text-tiny text-muted" style={{ marginTop: 'var(--spacing-xs)' }}>
-                        Random growth challenges shown in the Daily Growth section on your dashboard
-                    </p>
                 </div>
 
                 {/* Challenge Length */}
