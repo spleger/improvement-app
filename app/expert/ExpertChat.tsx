@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Send, Sparkles, MessageCircle, Bot, ChevronDown, Plus, Trash2, MoreHorizontal, Mic, ArrowLeft, RotateCcw } from 'lucide-react';
+import { Send, Sparkles, MessageCircle, Bot, ChevronDown, Plus, Trash2, MoreHorizontal, Mic, ArrowLeft, RotateCcw, Loader2 } from 'lucide-react';
 import { getIcon } from '@/lib/icons';
 import ChallengeProposal from './widgets/ChallengeProposal';
 import MoodLogWidget from './widgets/MoodLogWidget';
@@ -66,7 +66,6 @@ export default function ExpertChat() {
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
-    const recognitionRef = useRef<any>(null);
 
     // Save selected coach to localStorage when it changes (skip initial render)
     const isInitialMount = useRef(true);
@@ -383,50 +382,63 @@ export default function ExpertChat() {
         sendMessage(input);
     };
 
-    const toggleVoiceRecording = useCallback(() => {
-        if (isRecording && recognitionRef.current) {
-            recognitionRef.current.stop();
+    const [isTranscribing, setIsTranscribing] = useState(false);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
+
+    const toggleVoiceRecording = useCallback(async () => {
+        if (isRecording) {
+            // Stop recording -- triggers onstop which transcribes
+            mediaRecorderRef.current?.stop();
             setIsRecording(false);
             return;
         }
 
-        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            alert('Speech recognition is not supported in this browser.');
-            return;
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+            mediaRecorderRef.current = mediaRecorder;
+            audioChunksRef.current = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunksRef.current.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = async () => {
+                stream.getTracks().forEach(track => track.stop());
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+
+                if (audioBlob.size < 1000) return;
+
+                setIsTranscribing(true);
+                try {
+                    const formData = new FormData();
+                    formData.append('file', audioBlob, 'recording.webm');
+
+                    const response = await fetch('/api/transcribe', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
+                    const text = data.text || data.data?.text || '';
+                    if (text) {
+                        setInput(prev => prev ? prev + ' ' + text : text);
+                    }
+                } catch (err) {
+                    console.error('Transcription failed:', err);
+                } finally {
+                    setIsTranscribing(false);
+                }
+            };
+
+            mediaRecorder.start();
+            setIsRecording(true);
+        } catch (err) {
+            console.error('Microphone access error:', err);
+            alert('Could not access microphone. Please check permissions.');
         }
-
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = 'en-US';
-
-        recognition.onresult = (event: any) => {
-            let transcript = '';
-            for (let i = 0; i < event.results.length; i++) {
-                transcript += event.results[i][0].transcript;
-            }
-            setInput(transcript);
-        };
-
-        recognition.onerror = (event: any) => {
-            setIsRecording(false);
-            if (event.error === 'not-allowed') {
-                alert('Microphone access was denied. Please allow microphone permissions in your browser settings.');
-            } else if (event.error === 'no-speech') {
-                // No speech detected -- silently stop, not an error
-            } else {
-                alert(`Voice recognition error: ${event.error}. Try again.`);
-            }
-        };
-
-        recognition.onend = () => {
-            setIsRecording(false);
-        };
-
-        recognitionRef.current = recognition;
-        recognition.start();
-        setIsRecording(true);
     }, [isRecording]);
 
     // Auto-resize textarea when input changes (e.g. from voice transcription)
@@ -594,12 +606,12 @@ export default function ExpertChat() {
             <form onSubmit={handleSubmit} className="chat-input-form">
                 <button
                     type="button"
-                    className={`voice-btn ${isRecording ? 'recording' : ''}`}
-                    title={isRecording ? 'Stop recording' : 'Voice input'}
+                    className={`voice-btn ${isRecording ? 'recording' : ''} ${isTranscribing ? 'transcribing' : ''}`}
+                    title={isRecording ? 'Stop recording' : isTranscribing ? 'Transcribing...' : 'Voice input'}
                     onClick={toggleVoiceRecording}
-                    disabled={isLoading}
+                    disabled={isLoading || isTranscribing}
                 >
-                    <Mic size={20} />
+                    {isTranscribing ? <Loader2 size={20} className="spin" /> : <Mic size={20} />}
                 </button>
                 <textarea
                     ref={inputRef}
@@ -1071,6 +1083,21 @@ export default function ExpertChat() {
                     border-color: var(--color-error, #ef4444);
                     color: white;
                     animation: pulse-recording 1.5s ease-in-out infinite;
+                }
+
+                .voice-btn.transcribing {
+                    background: var(--color-primary);
+                    border-color: var(--color-primary);
+                    color: white;
+                }
+
+                .spin {
+                    animation: spin 1s linear infinite;
+                }
+
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
                 }
 
                 @keyframes pulse-recording {

@@ -333,8 +333,8 @@ export default function LiveVoiceChat() {
             let accumulatedText = '';
             let sentenceBuffer = '';
             let buffer = '';
-            const sentenceEndRegex = /[.!?]\s/;
-            const clauseBreakRegex = /[,;:\u2014]\s/;
+            // Only split on sentence-ending punctuation followed by space or end of chunk
+            const sentenceEndRegex = /[.!?](?:\s|$)/;
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -360,40 +360,14 @@ export default function LiveVoiceChat() {
                                         : msg
                                 ));
 
-                                // Send complete sentences to TTS immediately
+                                // Send complete sentences to TTS -- only split on sentence boundaries
+                                // to avoid unnatural mid-sentence pauses
                                 let match;
                                 while ((match = sentenceEndRegex.exec(sentenceBuffer)) !== null) {
                                     const sentence = sentenceBuffer.slice(0, match.index + 1).trim();
                                     sentenceBuffer = sentenceBuffer.slice(match.index + match[0].length);
                                     if (sentence.length > 5) {
                                         enqueueTTSChunk(sentence);
-                                    }
-                                }
-
-                                // Also split on clause boundaries when buffer is long enough
-                                // This reduces time-to-first-audio for longer sentences
-                                if (sentenceBuffer.length > 25) {
-                                    let clauseMatch;
-                                    while ((clauseMatch = clauseBreakRegex.exec(sentenceBuffer)) !== null) {
-                                        const clause = sentenceBuffer.slice(0, clauseMatch.index + 1).trim();
-                                        sentenceBuffer = sentenceBuffer.slice(clauseMatch.index + clauseMatch[0].length);
-                                        if (clause.length > 12) {
-                                            enqueueTTSChunk(clause);
-                                        }
-                                    }
-                                }
-
-                                // Word-count fallback: flush buffer if 6+ words with no punctuation
-                                if (sentenceBuffer.length > 0) {
-                                    const wordCount = sentenceBuffer.trim().split(/\s+/).length;
-                                    if (wordCount >= 6) {
-                                        const words = sentenceBuffer.trim().split(/\s+/);
-                                        const flushText = words.slice(0, 6).join(' ');
-                                        const remaining = words.slice(6).join(' ');
-                                        if (flushText.length > 10) {
-                                            enqueueTTSChunk(flushText);
-                                            sentenceBuffer = remaining ? ' ' + remaining : '';
-                                        }
                                     }
                                 }
                             } else if (parsed.error) {
