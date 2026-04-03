@@ -42,8 +42,13 @@ export async function GET(request: NextRequest) {
         const { weekStart, weekEnd } = getWeekBoundaries(weekStartParam);
 
         // Check for cached digest
+        // For the current week, always regenerate since new data comes in daily
+        const now = new Date();
+        const isCurrentWeek = now >= weekStart && now < weekEnd;
+
         const existing = await db.getWeeklyDigest(user.userId, weekStart);
-        if (existing) {
+        if (existing && !isCurrentWeek) {
+            // Past weeks: return cached version
             return NextResponse.json({
                 success: true,
                 data: {
@@ -59,6 +64,11 @@ export async function GET(request: NextRequest) {
                     cached: true,
                 },
             });
+        }
+
+        // Current week with stale cache: delete old digest before regenerating
+        if (existing && isCurrentWeek) {
+            await db.deleteWeeklyDigest(existing.id);
         }
 
         // Aggregate weekly data

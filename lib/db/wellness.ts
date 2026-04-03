@@ -434,6 +434,10 @@ export async function getWeeklyDigest(userId: string, weekStartDate: Date) {
     });
 }
 
+export async function deleteWeeklyDigest(id: string) {
+    return await prisma.weeklyDigest.delete({ where: { id } });
+}
+
 export async function createWeeklyDigest(data: {
     userId: string;
     weekStartDate: Date;
