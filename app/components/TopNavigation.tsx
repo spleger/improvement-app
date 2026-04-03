@@ -2,75 +2,56 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, useEffect } from 'react';
-import { Settings } from 'lucide-react';
+import { useMemo } from 'react';
 
-interface OngoingChallenge {
-    title: string;
-    day: number;
-    totalDays: number;
-}
+// Short, punchy daily quotes -- one per day, cycles through
+const DAILY_QUOTES = [
+    'Small steps, big shifts.',
+    'You showed up. That counts.',
+    'Progress over perfection.',
+    'One rep closer.',
+    'Today is your edge.',
+    'Momentum is built, not found.',
+    'Discipline is freedom.',
+    'The streak starts now.',
+    'Do the hard thing first.',
+    'Yesterday you said tomorrow.',
+    'Less planning, more doing.',
+    'Stack wins, not worries.',
+    'Comfort zone? Not today.',
+    'Show up before you feel ready.',
+    'Tiny gains compound fast.',
+    'Your future self is watching.',
+    'Effort is never wasted.',
+    'Just begin. Then continue.',
+    'Consistency beats intensity.',
+    'Be the proof it works.',
+    'Trust the process.',
+    'Grind now, shine later.',
+    'You vs. yesterday.',
+    'No zero days.',
+    'Make it non-negotiable.',
+    'Earned, not given.',
+    'The work is the shortcut.',
+    'Action cures doubt.',
+    'Stay hungry, stay humble.',
+    'Level up or repeat.',
+    'Ship it, then improve.',
+];
 
 const HIDDEN_ROUTES = ['/login', '/register', '/onboarding', '/expert'];
 
 export default function TopNavigation() {
     const pathname = usePathname();
-    const [challenge, setChallenge] = useState<OngoingChallenge | null>(null);
-    const [showQuickActions, setShowQuickActions] = useState(false);
 
-    // Fetch ongoing challenge data
-    useEffect(() => {
-        if (HIDDEN_ROUTES.some(route => pathname?.startsWith(route))) return;
-        const fetchChallenge = async () => {
-            try {
-                const response = await fetch('/api/goals');
-                if (response.ok) {
-                    const goals = await response.json();
-                    // Find an active goal (in_progress)
-                    const activeGoal = goals.find((goal: { status: string; title: string; currentDay: number; totalDays: number }) => goal.status === 'in_progress');
-                    if (activeGoal) {
-                        setChallenge({
-                            title: activeGoal.title,
-                            day: activeGoal.currentDay || 1,
-                            totalDays: activeGoal.totalDays || 30
-                        });
-                    }
-                }
-            } catch {
-                // Silently fail - challenge badge just won't show
-            }
-        };
-        fetchChallenge();
-    }, [pathname]);
-
-    const quickActions = [
-        { id: 'habits', label: 'Daily Habits', href: '/habits' },
-        { id: 'diary', label: 'Voice diary', href: '/diary' },
-        { id: 'checkin', label: 'Check-in', href: '/survey' },
-    ];
-
-    // Close quick actions when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            const target = event.target as HTMLElement;
-            if (!target.closest('.quick-actions-container')) {
-                setShowQuickActions(false);
-            }
-        };
-
-        if (showQuickActions) {
-            document.addEventListener('click', handleClickOutside);
-        }
-
-        return () => {
-            document.removeEventListener('click', handleClickOutside);
-        };
-    }, [showQuickActions]);
-
-    // Close menu on route change
-    useEffect(() => {
-        setShowQuickActions(false);
-    }, [pathname]);
+    // Deterministic daily quote based on date
+    const dailyQuote = useMemo(() => {
+        const now = new Date();
+        const dayOfYear = Math.floor(
+            (now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400000
+        );
+        return DAILY_QUOTES[dayOfYear % DAILY_QUOTES.length];
+    }, []);
 
     if (HIDDEN_ROUTES.some(route => pathname?.startsWith(route))) {
         return null;
@@ -79,30 +60,14 @@ export default function TopNavigation() {
     return (
         <nav className="nav-top">
             <div className="nav-top-inner">
-                {/* Profile icon - left */}
-                <Link href="/profile" className="nav-top-profile" aria-label="Profile">
-                    <span className="nav-top-profile-icon">👤</span>
-                </Link>
-
-                {/* App title/home link - center */}
                 <Link href="/" className="nav-top-title">
                     <span className="nav-top-logo">🐿️</span>
-                    <span className="nav-top-quote">Grow Daily</span>
+                    <span className="nav-top-brand">Grow Daily</span>
                 </Link>
 
-                {/* Settings + Challenge badge - right */}
-                <div className="nav-top-right">
-                    <Link href="/settings" className="nav-top-settings" aria-label="Settings">
-                        <Settings size={22} />
-                    </Link>
+                <span className="nav-top-divider">|</span>
 
-                    {challenge && (
-                        <Link href="/progress" className="nav-top-challenge">
-                            <span className="challenge-day">Day {challenge.day}</span>
-                            <span className="challenge-progress">/{challenge.totalDays}</span>
-                        </Link>
-                    )}
-                </div>
+                <span className="nav-top-quote">{dailyQuote}</span>
             </div>
 
             <style jsx>{`
@@ -117,45 +82,24 @@ export default function TopNavigation() {
                     z-index: 100;
                     backdrop-filter: blur(12px);
                     -webkit-backdrop-filter: blur(12px);
-                    /* Safe area for top notch */
                     padding-top: calc(var(--spacing-sm) + env(safe-area-inset-top));
                 }
 
                 .nav-top-inner {
                     display: flex;
                     align-items: center;
-                    justify-content: space-between;
                     max-width: 600px;
                     margin: 0 auto;
                     min-height: 44px;
-                }
-
-                .nav-top-profile {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    width: 40px;
-                    height: 40px;
-                    border-radius: var(--radius-full);
-                    background: rgba(255, 255, 255, 0.08);
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                    transition: all var(--transition-fast);
-                }
-
-                .nav-top-profile:hover {
-                    background: var(--color-surface-hover);
-                    border-color: var(--color-accent);
-                }
-
-                .nav-top-profile-icon {
-                    font-size: 1.25rem;
+                    gap: 10px;
                 }
 
                 .nav-top-title {
                     display: flex;
                     align-items: center;
-                    gap: var(--spacing-sm);
+                    gap: 6px;
                     text-decoration: none;
+                    flex-shrink: 0;
                     transition: opacity var(--transition-fast);
                 }
 
@@ -167,134 +111,30 @@ export default function TopNavigation() {
                     font-size: 1.25rem;
                 }
 
-                .nav-top-quote {
-                    font-size: 1.125rem;
-                    font-weight: 600;
-                    color: var(--color-text-primary);
+                .nav-top-brand {
+                    font-size: 1rem;
+                    font-weight: 700;
                     background: var(--gradient-primary);
                     -webkit-background-clip: text;
                     -webkit-text-fill-color: transparent;
                     background-clip: text;
                     white-space: nowrap;
+                }
+
+                .nav-top-divider {
+                    color: rgba(255, 255, 255, 0.15);
+                    font-weight: 300;
+                    flex-shrink: 0;
+                }
+
+                .nav-top-quote {
+                    font-size: 0.8rem;
+                    color: var(--color-text-muted);
+                    white-space: nowrap;
                     overflow: hidden;
                     text-overflow: ellipsis;
-                    max-width: 150px;
-                }
-
-                .nav-top-right {
-                    display: flex;
-                    align-items: center;
-                    gap: var(--spacing-sm);
-                }
-
-                .quick-actions-container {
-                    position: relative;
-                }
-
-                .nav-top-settings {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    width: 38px;
-                    height: 38px;
-                    border-radius: var(--radius-full);
-                    color: var(--color-text-secondary);
-                    text-decoration: none;
-                    transition: all var(--transition-fast);
-                }
-
-                .nav-top-settings:hover {
-                    background: var(--color-surface-hover);
-                    color: var(--color-text);
-                }
-
-                .quick-actions-dropdown {
-                    position: absolute;
-                    top: 100%;
-                    right: 0;
-                    margin-top: var(--spacing-sm);
-                    background: var(--color-surface-solid);
-                    border: 1px solid var(--color-border);
-                    border-radius: 20px;
-                    padding: var(--spacing-sm);
-                    min-width: 160px;
-                    box-shadow: var(--shadow-lg);
-                    z-index: 110;
-                    animation: slideDown 0.15s ease-out;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    gap: 8px;
-                }
-
-                @keyframes slideDown {
-                    from {
-                        opacity: 0;
-                        transform: translateY(-8px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
-                }
-
-                .quick-action-item {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center; /* Center text */
-                    gap: var(--spacing-sm);
-                    padding: 12px 20px;
-                    border-radius: 9999px;
-                    text-decoration: none;
-                    color: var(--color-text-primary);
-                    background: var(--color-surface-2);
-                    border: 1px solid var(--color-border); /* Explicit border */
-                    transition: all var(--transition-fast);
-                    width: 100%;
-                    font-weight: 600;
-                }
-
-                .quick-action-item:hover {
-                    background: var(--color-surface-hover);
-                    border-color: var(--color-primary);
-                    transform: translateY(-2px);
-                    box-shadow: var(--shadow-sm);
-                }
-
-                .quick-action-icon {
-                    display: none;
-                }
-
-                .quick-action-label {
-                    font-size: 0.875rem;
-                    font-weight: 500;
-                }
-
-                .nav-top-challenge {
-                    display: flex;
-                    align-items: center;
-                    gap: 2px;
-                    padding: var(--spacing-xs) var(--spacing-sm);
-                    background: var(--gradient-primary);
-                    border-radius: var(--radius-full);
-                    text-decoration: none;
-                    transition: all var(--transition-fast);
-                }
-
-                .nav-top-challenge:hover {
-                    transform: scale(1.05);
-                    box-shadow: 0 0 12px rgba(13, 148, 136, 0.4);
-                }
-
-                .challenge-day {
-                    font-size: 0.75rem;
-                    font-weight: 600;
-                    color: white;
-                }
-
-                .challenge-progress {
-                    font-size: 0.625rem;
-                    color: rgba(255, 255, 255, 0.8);
+                    font-style: italic;
+                    letter-spacing: 0.01em;
                 }
 
                 @media (max-width: 640px) {
@@ -303,22 +143,12 @@ export default function TopNavigation() {
                         padding-top: calc(var(--spacing-xs) + env(safe-area-inset-top));
                     }
 
-                    .nav-top-quote {
+                    .nav-top-brand {
                         font-size: 0.9rem;
-                        max-width: 120px;
                     }
 
-                    .nav-top-profile {
-                        width: 36px;
-                        height: 36px;
-                    }
-
-                    .nav-top-profile-icon {
-                        font-size: 1rem;
-                    }
-
-                    .quick-actions-dropdown {
-                        right: -8px;
+                    .nav-top-quote {
+                        font-size: 0.75rem;
                     }
                 }
             `}</style>
