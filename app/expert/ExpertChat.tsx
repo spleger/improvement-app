@@ -413,8 +413,15 @@ export default function ExpertChat() {
             }
         };
 
-        recognition.onerror = () => {
+        recognition.onerror = (event: any) => {
             setIsRecording(false);
+            if (event.error === 'not-allowed') {
+                alert('Microphone access was denied. Please allow microphone permissions in your browser settings.');
+            } else if (event.error === 'no-speech') {
+                // No speech detected -- silently stop, not an error
+            } else {
+                alert(`Voice recognition error: ${event.error}. Try again.`);
+            }
         };
 
         recognition.onend = () => {
@@ -596,7 +603,7 @@ export default function ExpertChat() {
                         setInput(e.target.value);
                         const el = e.target;
                         el.style.height = 'auto';
-                        el.style.height = Math.min(el.scrollHeight, 72) + 'px';
+                        el.style.height = Math.min(el.scrollHeight, 180) + 'px';
                     }}
                     onKeyDown={e => {
                         if (e.key === 'Enter' && !e.shiftKey) {
