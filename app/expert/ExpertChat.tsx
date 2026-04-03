@@ -407,10 +407,6 @@ export default function ExpertChat() {
                 transcript += event.results[i][0].transcript;
             }
             setInput(transcript);
-            // Auto-scroll textarea to show latest transcribed text
-            if (inputRef.current) {
-                inputRef.current.scrollTop = inputRef.current.scrollHeight;
-            }
         };
 
         recognition.onerror = (event: any) => {
@@ -432,6 +428,15 @@ export default function ExpertChat() {
         recognition.start();
         setIsRecording(true);
     }, [isRecording]);
+
+    // Auto-resize textarea when input changes (e.g. from voice transcription)
+    useEffect(() => {
+        const el = inputRef.current;
+        if (!el) return;
+        el.style.height = 'auto';
+        el.style.height = Math.min(el.scrollHeight, 180) + 'px';
+        el.scrollTop = el.scrollHeight;
+    }, [input]);
 
     // Group coaches
     const defaultCoaches = useMemo(() => coaches.filter(c => c.type === 'default'), [coaches]);
@@ -675,20 +680,21 @@ export default function ExpertChat() {
                 .expert-chat {
                     display: flex;
                     flex-direction: column;
-                    height: 100dvh;
-                    min-height: 400px;
+                    position: fixed;
+                    inset: 0;
                     background: var(--color-background);
                     overflow: hidden;
-                    position: relative;
-                    width: 100%;
+                    z-index: 50;
                 }
 
                 .chat-header {
                     padding: 16px 20px;
+                    padding-top: calc(16px + env(safe-area-inset-top));
                     border-bottom: 1px solid var(--color-border);
                     background: rgba(var(--color-surface-rgb), 0.85);
                     backdrop-filter: blur(12px);
                     z-index: 20;
+                    flex-shrink: 0;
                 }
 
                 .coach-selector-btn {
@@ -939,6 +945,7 @@ export default function ExpertChat() {
                     align-items: flex-end;
                     gap: 8px;
                     padding: 12px 16px;
+                    padding-bottom: calc(12px + env(safe-area-inset-bottom));
                     border-top: 1px solid var(--color-border);
                     background: rgba(var(--color-surface-rgb), 0.85);
                     backdrop-filter: blur(12px);
@@ -1153,6 +1160,7 @@ export default function ExpertChat() {
 
                     .chat-input-form {
                         padding: 10px 12px;
+                        padding-bottom: calc(10px + env(safe-area-inset-bottom));
                         gap: 6px;
                     }
 
